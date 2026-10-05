@@ -18,6 +18,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
   const [baru, setBaru] = useState({ jenjang: 'SMA/MA', fase: 'F (Kelas 11-12)', kelas: '', semester: 'Ganjil', mapel: '', tahunAjaran: '' });
   const [stepKey, setStepKey] = useState(null);
   const [errBaru, setErrBaru] = useState('');
+  const [memuatAwal, setMemuatAwal] = useState(true); // loading daftar paket saat pertama dibuka
 
   async function refresh(id) {
     const list = await listPakets();
@@ -25,7 +26,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
     const pid = id || paketId;
     if (pid) setPaket(await getPaket(pid));
   }
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh().then(() => setMemuatAwal(false)); }, []);
   useEffect(() => {
     const p = getProfile();
     setBaru((b) => ({ ...b, tahunAjaran: b.tahunAjaran || p.tahunAjaran || '' }));
@@ -99,7 +100,12 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
           </div>
         )}
 
-        {pakets.length === 0 ? (
+        {memuatAwal ? (
+          <div className="loader-wrap">
+            <div className="spinner" role="status" aria-label="Memuat paket perencanaan" />
+            <p className="stage">Memuat paket perencanaan…</p>
+          </div>
+        ) : pakets.length === 0 ? (
           <div className="empty">
             <h3>Belum ada paket perencanaan</h3>
             <p>Buat satu paket per mata pelajaran + kelas + semester.</p>
@@ -110,7 +116,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
               const prog = paketProgress(p);
               return (
                 <div className="card modul-card" key={p.id}>
-                  <span className="chip red" style={{ alignSelf: 'flex-start' }}>{prog}/4 Langkah</span>
+                  <span className="chip red" style={{ alignSelf: 'flex-start' }}>{prog}/5 Langkah</span>
                   <h3>{p.mapel}</h3>
                   <div className="meta">
                     <span className="chip fill">{p.jenjang}</span>
@@ -118,7 +124,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
                     {p.kelas && <span className="chip">{p.kelas}</span>}
                     <span className="chip">Semester {p.semester}</span>
                   </div>
-                  <div className="progress"><div className="progress-fill" style={{ width: (prog / 4 * 100) + '%' }} /></div>
+                  <div className="progress"><div className="progress-fill" style={{ width: (prog / 5 * 100) + '%' }} /></div>
                   <div className="actions">
                     <button className="btn btn-sm btn-ink" onClick={() => bukaPaket(p.id)}>Buka</button>
                     <button className="btn btn-sm" onClick={() => hapusPaket(p.id)}>Hapus</button>
@@ -142,8 +148,8 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
       <p className="lead">{paket.jenjang} · {paket.fase} · {paket.kelas} · Semester {paket.semester} · {paket.tahunAjaran}</p>
 
       <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ flex: 1, minWidth: 220 }}><strong>Kemajuan{' '}{prog}/4.</strong> Selesaikan berurutan. Tiap dokumen menjadi acuan dokumen berikutnya.</span>
-        <div className="progress" style={{ flex: 1, minWidth: 140 }}><div className="progress-fill" style={{ width: (prog / 4 * 100) + '%' }} /></div>
+        <span style={{ flex: 1, minWidth: 220 }}><strong>Kemajuan{' '}{prog}/5.</strong> Selesaikan berurutan. Tiap dokumen menjadi acuan dokumen berikutnya.</span>
+        <div className="progress" style={{ flex: 1, minWidth: 140 }}><div className="progress-fill" style={{ width: (prog / 5 * 100) + '%' }} /></div>
       </div>
 
       {!stepKey && (

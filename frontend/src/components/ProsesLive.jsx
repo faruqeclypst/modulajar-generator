@@ -9,7 +9,7 @@ function fmtDetik(s) {
 
 // Stepper vertikal untuk progress generate yang REAL dari backend (via SSE).
 // tahap: [{key,label}] sesuai urutan kedatangan event; status: {key:'tunggu'|'jalan'|'ok'}.
-// tulisan: [{key,label,teks}] opsional — tulisan AI realtime per tahap (komponen TulisanAI).
+// tulisan: [{key,label,teks}] opsional, yaitu tulisan AI realtime per tahap (komponen TulisanAI).
 // Spinner hanya pada tahap yang sedang berjalan: penanda loading yang nyata,
 // bukan dekorasi (ada label teks "Menyusun" di sampingnya).
 export default function ProsesLive({ judul, tahap, status, tulisan = [] }) {
