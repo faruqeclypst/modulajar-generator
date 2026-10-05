@@ -213,6 +213,21 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
             </p>
           </div>
 
+          {mode !== 'pelaksanaan' ? (
+            <div className="alert alert-info" style={{ marginTop: 14 }}>
+              <b>Belum punya CP / ATP / Prota / Prosem? Tidak masalah.</b> Mode ini
+              justru menyusunnya dari nol secara berurutan — kamu cukup isi data dasar
+              di bawah. Teks CP resmi boleh ditempel bila ada; bila tidak, AI menyusun
+              drafnya dari info jenjang, fase, dan mapel.
+            </div>
+          ) : (
+            <div className="alert alert-info" style={{ marginTop: 14 }}>
+              <b>Mode ini butuh acuan.</b> Tempel ATP atau Prosem yang sudah ada pada
+              kolom Dokumen Acuan di bawah, agar Modul Ajar dan turunannya selaras
+              dengan perencanaanmu.
+            </div>
+          )}
+
           <h2 style={{ marginTop: 28 }}>Data pembelajaran</h2>
           <div className="grid2">
             <div className="field"><label>Nama Guru</label>
