@@ -10,7 +10,8 @@ const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 // - kepala dokumen + tabel Informasi Umum
 // - isi markdown (termasuk tabel dan gambar inline)
 // - galeri gambar referensi yang belum disisipkan di isi
-export default function DocPaper({ doc }) {
+// Prop `tema`: 'hangat' (bawaan) | 'resmi' | 'modern'. Mengatur class tema-*
+export default function DocPaper({ doc, tema = 'hangat' }) {
   const judul = doc.judul || extractTitle(doc.markdown || '');
   const { infoRows, rest } = splitInfoUmum(rapikanIdentitas(doc.markdown || ''));
   const sah = ekstrakPengesahan(rest);
@@ -32,7 +33,7 @@ export default function DocPaper({ doc }) {
   const gallery = images.filter((g) => !inlineUrls.has(g.thumbUrl));
 
   return (
-    <div className="paper">
+    <div className={'paper tema-' + tema}>
       <div className="paper-head">
         <div className="doclabel">{typeName} &middot; Kurikulum Merdeka</div>
         <h1>{judul}</h1>

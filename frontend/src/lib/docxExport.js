@@ -7,6 +7,30 @@ import { splitInfoUmum, buangJudulGanda, rapikanIdentitas } from './api';
 import { ekstrakPengesahan, buangPengesahan } from './pengesahan';
 import { DOC_TYPES } from './docs';
 
+// Tema dokumen untuk Word. Kunci: 'hangat' (bawaan) | 'resmi' | 'modern'.
+const TEMA_DOCX = {
+  resmi: {
+    font: 'Times New Roman', bodySize: 24, titleSize: 32,
+    titleAlign: AlignmentType.CENTER, bodyAlign: AlignmentType.JUSTIFIED,
+    margin: { top: 1701, left: 2268, bottom: 1701, right: 1701 }, // 3/4/3/3 cm resmi
+    h2Color: undefined, h2Size: 28,
+    headerFill: '1B1B1A', headerColor: 'FFFFFF',
+  },
+  modern: {
+    font: 'Calibri', bodySize: 22, titleSize: 34,
+    titleAlign: AlignmentType.LEFT, bodyAlign: AlignmentType.LEFT,
+    margin: { top: 1418, left: 1418, bottom: 1418, right: 1418 }, // 2,5 cm lega
+    h2Color: 'B5362A', h2Size: 28,
+    headerFill: 'F5F0E6', headerColor: '241F1B',
+  },
+  hangat: {
+    font: 'Georgia', bodySize: 24, titleSize: 32,
+    titleAlign: AlignmentType.CENTER, bodyAlign: AlignmentType.JUSTIFIED,
+    margin: { top: 1701, left: 1701, bottom: 1701, right: 1701 }, // 3 cm
+    h2Color: undefined, h2Size: 28,
+    headerFill: '1B1B1A', headerColor: 'FFFFFF',
+  },
+};
 const FONT = 'Times New Roman';
 
 // Margin halaman standar dokumen resmi Indonesia: atas 3cm, kiri 4cm, bawah 3cm, kanan 3cm
@@ -27,28 +51,36 @@ const TANPA_BORDER = {
 };
 const SEL_MARGIN = { top: 60, bottom: 60, left: 120, right: 120 };
 
-function inlineRuns(text, size = 24) {
+function inlineRuns(text, size, cfg) {
+  const font = (cfg || {}).font || FONT;
   const parts = String(text).split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
   return parts.map((p) => {
     const m = p.match(/^\*\*(.+)\*\*$/s);
-    return new TextRun({ text: (m ? m[1] : p).replace(/\*/g, ''), bold: !!m, font: FONT, size });
+    return new TextRun({ text: (m ? m[1] : p).replace(/\*/g, ''), bold: !!m, font, size });
   });
 }
 
-function heading(text, level, size, before = 360) {
+function heading(text, level, size, cfg, before = 360) {
+  const font = (cfg || {}).font || FONT;
   return new Paragraph({
     heading: level,
     keepNext: true, // heading tidak terpisah dari isi di bawahnya
     spacing: { before, after: 160 },
-    children: [new TextRun({ text: String(text).replace(/\*/g, ''), bold: true, font: FONT, size })],
+    children: [new TextRun({
+      text: String(text).replace(/\*/g, ''), bold: true, font, size,
+      ...(cfg && cfg.h2Color && level === HeadingLevel.HEADING_2 ? { color: cfg.h2Color } : {}),
+    })],
   });
 }
 
-function mdTable(lines) {
+function mdTable(lines, cfg) {
+  const font = (cfg || {}).font || FONT;
   // lines: array baris tabel markdown (sudah difilter dari separator)
   const rows = lines.map((l) => l.trim().slice(1, -1).split('|').map((c) => c.trim()));
   const cols = Math.max(...rows.map((r) => r.length));
   const norm = rows.map((r) => { const c = [...r]; while (c.length < cols) c.push(''); return c; });
+  const headerFill = (cfg || {}).headerFill || '1B1B1A';
+  const headerColor = (cfg || {}).headerColor || 'FFFFFF';
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: TABEL_BORDER,
@@ -58,13 +90,13 @@ function mdTable(lines) {
         children: r.map((c) =>
           new TableCell({
             margins: SEL_MARGIN,
-            shading: ri === 0 ? { type: ShadingType.CLEAR, fill: '1B1B1A' } : undefined,
+            shading: ri === 0 ? { type: ShadingType.CLEAR, fill: headerFill } : undefined,
             children: [
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: c.replace(/\*\*/g, ''), bold: ri === 0, font: FONT, size: 20,
-                    color: ri === 0 ? 'FFFFFF' : undefined,
+                    text: c.replace(/\*\*/g, ''), bold: ri === 0, font, size: 20,
+                    color: ri === 0 ? headerColor : undefined,
                   }),
                 ],
               }),
@@ -76,7 +108,9 @@ function mdTable(lines) {
   });
 }
 
-function mdToParagraphs(md, imgMap = {}) {
+function mdToParagraphs(md, imgMap = {}, cfg) {
+  const font = (cfg || {}).font || FONT;
+  const bodyAlign = (cfg || {}).bodyAlign || AlignmentType.JUSTIFIED;
   const out = [];
   const lines = md.split('\n');
   let i = 0;
@@ -103,8 +137,8 @@ function mdToParagraphs(md, imgMap = {}) {
           keepLines: true,
           spacing: { after: 240 },
           children: [
-            new TextRun({ text: img.caption || 'Gambar referensi', bold: true, font: FONT, size: 20 }),
-            new TextRun({ text: '\n' + img.credit, font: FONT, size: 18, color: '555555' }),
+            new TextRun({ text: img.caption || 'Gambar referensi', bold: true, font, size: 20 }),
+            new TextRun({ text: '\n' + img.credit, font, size: 18, color: '555555' }),
           ],
         }));
       }
@@ -122,36 +156,39 @@ function mdToParagraphs(md, imgMap = {}) {
       }
       if (tbl.length) {
         out.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: [] }));
-        out.push(mdTable(tbl));
+        out.push(mdTable(tbl, cfg));
         out.push(new Paragraph({ spacing: { after: 160 }, children: [] }));
       }
       continue;
     }
 
-    if ((m = t.match(/^####\s+(.*)/))) out.push(heading(m[1], HeadingLevel.HEADING_4, 24, 240));
-    else if ((m = t.match(/^###\s+(.*)/))) out.push(heading(m[1], HeadingLevel.HEADING_3, 26, 280));
-    else if ((m = t.match(/^##\s+(.*)/))) out.push(heading(m[1], HeadingLevel.HEADING_2, 28, 320));
+    if ((m = t.match(/^####\s+(.*)/))) out.push(heading(m[1], HeadingLevel.HEADING_4, 24, cfg, 240));
+    else if ((m = t.match(/^###\s+(.*)/))) out.push(heading(m[1], HeadingLevel.HEADING_3, 26, cfg, 280));
+    else if ((m = t.match(/^##\s+(.*)/))) out.push(heading(m[1], HeadingLevel.HEADING_2, cfg.h2Size || 28, cfg, 320));
     else if ((m = t.match(/^#\s+(.*)/))) { /* judul di halaman judul */ }
     else if ((m = t.match(/^(\s*)[-*]\s+(.*)/))) {
       const depth = Math.min(2, Math.floor(m[1].length / 2));
-      out.push(new Paragraph({ bullet: { level: depth }, spacing: { after: 80 }, children: inlineRuns(m[2]) }));
+      out.push(new Paragraph({ bullet: { level: depth }, spacing: { after: 80 }, children: inlineRuns(m[2], 24, cfg) }));
     }
     else if ((m = t.match(/^(\s*)\d+[.)]\s+(.*)/))) {
       const depth = Math.min(2, Math.floor(m[1].length / 2));
-      out.push(new Paragraph({ numbering: { reference: 'num-dec', level: depth }, spacing: { after: 80 }, children: inlineRuns(m[2]) }));
+      out.push(new Paragraph({ numbering: { reference: 'num-dec', level: depth }, spacing: { after: 80 }, children: inlineRuns(m[2], 24, cfg) }));
     }
     else if ((m = t.match(/^(\s*)[a-z][.)]\s+(.*)/))) {
       const depth = Math.min(2, Math.floor(m[1].length / 2));
-      out.push(new Paragraph({ numbering: { reference: 'num-alpha', level: depth }, spacing: { after: 80 }, children: inlineRuns(m[2]) }));
+      out.push(new Paragraph({ numbering: { reference: 'num-alpha', level: depth }, spacing: { after: 80 }, children: inlineRuns(m[2], 24, cfg) }));
     }
     else if (/^---+$/.test(t)) out.push(new Paragraph({ thematicBreak: true, spacing: { before: 200, after: 200 } }));
-    else out.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { after: 160 }, children: inlineRuns(t) }));
+    else out.push(new Paragraph({ alignment: bodyAlign, spacing: { after: 160 }, children: inlineRuns(t, cfg.bodySize || 24, cfg) }));
     i++;
   }
   return out;
 }
 
-function infoTable(rows) {
+function infoTable(rows, cfg) {
+  const font = (cfg || {}).font || FONT;
+  const headerFill = (cfg || {}).headerFill || '1B1B1A';
+  const headerColor = (cfg || {}).headerColor || 'FFFFFF';
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: TABEL_BORDER,
@@ -162,10 +199,10 @@ function infoTable(rows) {
           new TableCell({
             width: { size: 32, type: WidthType.PERCENTAGE },
             margins: SEL_MARGIN,
-            shading: { type: ShadingType.CLEAR, fill: '1B1B1A' },
-            children: [new Paragraph({ children: [new TextRun({ text: k, bold: true, font: FONT, size: 22, color: 'FFFFFF' })] })],
+            shading: { type: ShadingType.CLEAR, fill: headerFill },
+            children: [new Paragraph({ children: [new TextRun({ text: k, bold: true, font, size: 22, color: headerColor })] })],
           }),
-          new TableCell({ margins: SEL_MARGIN, children: [new Paragraph({ children: inlineRuns(v || '-', 22) })] }),
+          new TableCell({ margins: SEL_MARGIN, children: [new Paragraph({ children: inlineRuns(v || '-', 22, cfg) })] }),
         ],
       })
     ),
@@ -191,7 +228,8 @@ async function fetchImageBytes(thumbUrl) {
 
 // Blok "Lembar Pengesahan" resmi untuk Word: judul + pengantar + sekolah
 // + tabel 2 kolom tanpa garis (ruang tanda tangan di tengah).
-function blokPengesahan(sah) {
+function blokPengesahan(sah, cfg) {
+  const font = (cfg || {}).font || FONT;
   const out = [];
   const sel = (text, { bold = false, underline = false, keepNext = false } = {}) =>
     new TableCell({
@@ -202,7 +240,7 @@ function blokPengesahan(sah) {
           keepNext,
           children: [
             new TextRun({
-              text: text || '', bold, font: FONT, size: 24,
+              text: text || '', bold, font, size: 24,
               ...(underline ? { underline: {} } : {}),
             }),
           ],
@@ -212,20 +250,20 @@ function blokPengesahan(sah) {
   const baris = (a, b, opt) =>
     new TableRow({ cantSplit: true, children: [sel(a, opt), sel(b, opt)] });
 
-  out.push(heading('LEMBAR PENGESAHAN', HeadingLevel.HEADING_1, 28, 480));
+  out.push(heading('LEMBAR PENGESAHAN', HeadingLevel.HEADING_1, 28, cfg, 480));
   if (sah.intro) {
     out.push(new Paragraph({
-      alignment: AlignmentType.JUSTIFIED,
+      alignment: (cfg || {}).bodyAlign || AlignmentType.JUSTIFIED,
       spacing: { after: 160 },
-      children: inlineRuns(sah.intro),
+      children: inlineRuns(sah.intro, 24, cfg),
     }));
   }
   if (sah.sekolah) {
     out.push(new Paragraph({
       spacing: { after: 240 },
       children: [
-        new TextRun({ text: 'Sekolah: ', bold: true, font: FONT, size: 24 }),
-        new TextRun({ text: sah.sekolah, font: FONT, size: 24 }),
+        new TextRun({ text: 'Sekolah: ', bold: true, font, size: 24 }),
+        new TextRun({ text: sah.sekolah, font, size: 24 }),
       ],
     }));
   }
@@ -255,7 +293,10 @@ function blokPengesahan(sah) {
 }
 
 // Bangun objek Document (murni, tanpa DOM) agar bisa diuji lewat Node.
-export async function buildDocxDocument({ judul, docType = 'modul', markdown, images = [] }) {
+// Opsi `tema`: 'hangat' (bawaan) | 'resmi' | 'modern' — font, alignment, margin.
+export async function buildDocxDocument({ judul, docType = 'modul', markdown, images = [], tema = 'hangat' }) {
+  const cfg = TEMA_DOCX[tema] || TEMA_DOCX.hangat;
+  const font = cfg.font;
   const typeName = (DOC_TYPES[docType] || {}).nama || 'Dokumen Ajar';
   const { infoRows, rest } = splitInfoUmum(rapikanIdentitas(markdown || ''));
   const sah = ekstrakPengesahan(rest);
@@ -264,20 +305,20 @@ export async function buildDocxDocument({ judul, docType = 'modul', markdown, im
 
   children.push(
     new Paragraph({
-      alignment: AlignmentType.CENTER,
+      alignment: cfg.titleAlign,
       spacing: { after: 200 },
-      children: [new TextRun({ text: typeName.toUpperCase() + ' \u2022 KURIKULUM MERDEKA', font: FONT, size: 20, color: '555555' })],
+      children: [new TextRun({ text: typeName.toUpperCase() + ' \u2022 KURIKULUM MERDEKA', font, size: 20, color: '555555' })],
     }),
     new Paragraph({
-      alignment: AlignmentType.CENTER,
+      alignment: cfg.titleAlign,
       spacing: { after: 400 },
-      children: [new TextRun({ text: judul || typeName, bold: true, font: FONT, size: 32 })],
+      children: [new TextRun({ text: judul || typeName, bold: true, font, size: cfg.titleSize })],
     })
   );
 
   if (infoRows.length > 0) {
-    children.push(heading('Informasi Umum', HeadingLevel.HEADING_1, 28, 120));
-    children.push(infoTable(infoRows));
+    children.push(heading('Informasi Umum', HeadingLevel.HEADING_1, 28, cfg, 120));
+    children.push(infoTable(infoRows, cfg));
     children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
   }
 
@@ -302,11 +343,11 @@ export async function buildDocxDocument({ judul, docType = 'modul', markdown, im
     }
   }
 
-  children.push(...mdToParagraphs(body, imgMap));
+  children.push(...mdToParagraphs(body, imgMap, cfg));
 
   const gallery = (images || []).filter((g) => !inlineUrls.has(g.thumbUrl));
   if (gallery.length > 0) {
-    children.push(heading('Gambar Referensi', HeadingLevel.HEADING_1, 28, 320));
+    children.push(heading('Gambar Referensi', HeadingLevel.HEADING_1, 28, cfg, 320));
     let n = 0;
     for (const g of gallery) {
       n++;
@@ -324,23 +365,23 @@ export async function buildDocxDocument({ judul, docType = 'modul', markdown, im
         );
       }
       children.push(
-        new Paragraph({ alignment: AlignmentType.CENTER, keepLines: true, spacing: { after: 60 }, children: [new TextRun({ text: `Gambar ${n}. ${g.caption || g.title}`, italic: true, font: FONT, size: 20 })] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, keepLines: true, spacing: { after: 240 }, children: [new TextRun({ text: `Sumber: Wikimedia Commons${g.artist ? ', ' + g.artist : ''} (${g.license || 'CC'})`, font: FONT, size: 18, color: '666666' })] })
+        new Paragraph({ alignment: AlignmentType.CENTER, keepLines: true, spacing: { after: 60 }, children: [new TextRun({ text: `Gambar ${n}. ${g.caption || g.title}`, italic: true, font, size: 20 })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, keepLines: true, spacing: { after: 240 }, children: [new TextRun({ text: `Sumber: Wikimedia Commons${g.artist ? ', ' + g.artist : ''} (${g.license || 'CC'})`, font, size: 18, color: '666666' })] })
       );
     }
   }
 
   // Lembar pengesahan selalu terakhir, dirender resmi (bukan tabel mentah)
-  if (sah) children.push(...blokPengesahan(sah));
+  if (sah) children.push(...blokPengesahan(sah, cfg));
 
   const doc = new Document({
     styles: {
       default: {
-        document: { run: { font: FONT, size: 24 } },
-        heading1: { run: { font: FONT, size: 28, bold: true } },
-        heading2: { run: { font: FONT, size: 26, bold: true } },
-        heading3: { run: { font: FONT, size: 24, bold: true } },
-        heading4: { run: { font: FONT, size: 22, bold: true } },
+        document: { run: { font, size: 24 } },
+        heading1: { run: { font, size: 28, bold: true, ...(cfg.h2Color ? { color: cfg.h2Color } : {}) } },
+        heading2: { run: { font, size: 26, bold: true, ...(cfg.h2Color ? { color: cfg.h2Color } : {}) } },
+        heading3: { run: { font, size: 24, bold: true } },
+        heading4: { run: { font, size: 22, bold: true } },
       },
     },
     numbering: {
@@ -351,16 +392,16 @@ export async function buildDocxDocument({ judul, docType = 'modul', markdown, im
     },
     sections: [{
       properties: {
-        page: { size: { width: 11906, height: 16838 }, margin: MARGIN },
+        page: { size: { width: 11906, height: 16838 }, margin: cfg.margin },
       },
       headers: {
         default: new Header({
-          children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: typeName + ' \u2014 Kurikulum Merdeka', font: FONT, size: 18, color: '888888', italic: true })] })],
+          children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: typeName + ' \u2014 Kurikulum Merdeka', font, size: 18, color: '888888', italic: true })] })],
         }),
       },
       footers: {
         default: new Footer({
-          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Halaman ', font: FONT, size: 18, color: '666666' }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 18, color: '666666' })] })],
+          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Halaman ', font, size: 18, color: '666666' }), new TextRun({ children: [PageNumber.CURRENT], font, size: 18, color: '666666' })] })],
         }),
       },
       children,

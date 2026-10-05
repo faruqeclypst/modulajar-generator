@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { updateModul, deleteModul, listModuls } from '../lib/db';
 import { buangJudulGanda, rapikanIdentitas } from '../lib/api';
 import { exportDocx } from '../lib/docxExport';
+import { TEMA_DOKUMEN, bacaTemaDokumen, simpanTemaDokumen } from '../lib/tema';
 import { DOC_TYPES } from '../lib/docs';
 import DocPaper from './DocPaper';
 import DocEditor from './DocEditor';
@@ -11,6 +12,7 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
   const docType = doc.docType || 'modul'; // dokumen lama tanpa docType = modul
   const isModul = docType === 'modul';
   const [mode, setMode] = useState('view'); // view | edit | images
+  const [tema, setTema] = useState(() => bacaTemaDokumen()); // hangat | resmi | modern
   const [text, setText] = useState(doc.markdown);
   const [judul, setJudul] = useState(doc.judul);
   const [images, setImages] = useState(doc.images || []);
@@ -38,10 +40,15 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
   async function handleExport() {
     setExporting(true);
     try {
-      await exportDocx({ judul, docType: doc.docType, markdown: text, images });
+      await exportDocx({ judul, docType: doc.docType, markdown: text, images, tema });
     } finally {
       setExporting(false);
     }
+  }
+
+  function gantiTema(t) {
+    setTema(t);
+    simpanTemaDokumen(t);
   }
 
   async function handleDelete() {
@@ -71,6 +78,25 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
             <button className="btn btn-sm" onClick={() => window.print()}>Cetak / PDF</button>
             <button className="btn btn-sm" onClick={handleDelete}>Hapus</button>
           </>
+        )}
+        {mode === 'view' && (
+          <div className="tema-pilih no-print" role="radiogroup" aria-label="Tema tampilan dokumen">
+            <span className="tema-label" id="tema-dok-label">Tema dokumen:</span>
+            {TEMA_DOKUMEN.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="radio"
+                aria-checked={tema === t.key}
+                aria-describedby="tema-dok-label"
+                title={t.desc}
+                className={'btn btn-sm' + (tema === t.key ? ' btn-primary' : '')}
+                onClick={() => gantiTema(t.key)}
+              >
+                {t.nama}
+              </button>
+            ))}
+          </div>
         )}
         {mode === 'edit' && (
           <>
@@ -122,7 +148,7 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
           />
         </div>
       ) : (
-        <DocPaper doc={paperDoc} />
+        <DocPaper doc={paperDoc} tema={tema} />
       )}
 
       {mode === 'view' && isModul && (

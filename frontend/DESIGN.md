@@ -302,6 +302,19 @@ Aturan:
 7. **DocView / Editor**: kertas dokumen A4 dengan blok yang bisa diedit,
    toolbar aksi (regenerasi, gambar, ekspor).
 
+### Tema Dokumen
+
+Hasil dokumen punya 3 tema tampilan yang bisa dipilih guru di toolbar
+(segmented control, tersimpan di localStorage `ma-tema-dokumen`):
+1. **Kertas Hangat** (bawaan): identitas Warm Paper, untuk dibaca di aplikasi.
+2. **Resmi**: serif Times New Roman, judul rata tengah, teks justify, margin
+   resmi. Untuk dokumen yang diserahkan ke sekolah.
+3. **Modern**: sans bersih, heading rata kiri dengan aksen bata tipis sebagai
+   penanda hierarki. Untuk dibaca di layar.
+Tema berlaku konsisten di pratinjau (`DocPaper`), ekspor Word (`docxExport`),
+dan cetak/PDF (varian `@media print` per tema). Lembar Pengesahan mengikuti
+tema (serif penuh di tema Resmi).
+
 ## Bahasa & Copy
 
 - Bahasa Indonesia, kalimat pendek, nada membantu seperti rekan guru.
