@@ -4,6 +4,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomBytes } from 'node:crypto';
 if (!globalThis.WebSocket) globalThis.WebSocket = WebSocket;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -13,17 +15,28 @@ app.use(express.json({ limit: '2mb' }));
 const KENARI_URL = 'https://kenari.id/v1/chat/completions';
 const MODEL = 'agnes-3-0-flash:free';
 
-// ============ KUOTA HARIAN ============
-const KUOTA_HARIAN = parseInt(process.env.KUOTA_HARIAN || '10', 10);
+// ============ KUOTA HARIAN (disebut "Kredit" di UI) ============
+const KUOTA_HARIAN = parseInt(process.env.KUOTA_HARIAN || '20', 10);
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'faruq.blogger@gmail.com')
   .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
 function isAdmin(user) {
   return ADMIN_EMAILS.includes((user?.email || '').toLowerCase());
 }
-// Tanggal hari ini dalam WIB (format YYYY-MM-DD), untuk reset harian kuota
-function tanggalWIB() {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+// Periode kuota berjalan 15:00 WIB s.d. 15:00 WIB berikutnya.
+// Key = tanggal WIB saat periode dimulai (bila sekarang < 15:00 WIB, pakai tanggal kemarin).
+function periodeKuota() {
+  const wib = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  if (wib.getHours() < 15) wib.setDate(wib.getDate() - 1);
+  const y = wib.getFullYear();
+  const m = String(wib.getMonth() + 1).padStart(2, '0');
+  const d = String(wib.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+// Awal window bonus referral 3-hari (anchor tetap dari epoch): YYYY-MM-DD
+function windowStart() {
+  const epochDay = Math.floor(Date.now() / 86400000);
+  return new Date(Math.floor(epochDay / 3) * 3 * 86400000).toISOString().slice(0, 10);
 }
 // Peringatan kuota dibatasi agar log tidak kebanjiran saat tabel hilang
 let kuotaWarnAt = 0;
@@ -35,20 +48,27 @@ function warnKuota(e) {
     (e?.message || e) + '). Jalankan SQL section 4 di supabase-schema.sql. Generate tetap diizinkan.');
 }
 async function kuotaInfo(userId) {
-  const tanggal = tanggalWIB();
-  let dipakai = 0;
+  const periode = periodeKuota();
+  let dipakai = 0, bonus = 0;
   if (sb) {
     try {
       const { data, error } = await sb.from('kuota_harian')
-        .select('dipakai').eq('user_id', userId).eq('tanggal', tanggal).single();
-      // PGRST116 = baris belum ada (user belum memakai kuota hari ini): wajar, bukan error
+        .select('dipakai').eq('user_id', userId).eq('tanggal', periode).single();
+      // PGRST116 = baris belum ada (user belum memakai kuota periode ini): wajar, bukan error
       if (error && error.code !== 'PGRST116') throw error;
       dipakai = data?.dipakai || 0;
     } catch (e) {
       warnKuota(e); // tabel hilang: kuota dianggap penuh (fail-open), generate tidak digagalkan
     }
+    try {
+      const { data, error } = await sb.from('bonus_kuota')
+        .select('bonus').eq('user_id', userId).eq('window_start', windowStart()).single();
+      if (error && error.code !== 'PGRST116') throw error;
+      bonus = data?.bonus || 0;
+    } catch { /* tabel bonus belum ada: abaikan */ }
   }
-  return { batas: KUOTA_HARIAN, dipakai, sisa: Math.max(0, KUOTA_HARIAN - dipakai), tanggal };
+  const sisa = Math.max(0, KUOTA_HARIAN - dipakai + bonus);
+  return { batas: KUOTA_HARIAN, dipakai, bonus, sisa, resetInfo: '15:00 WIB', periode };
 }
 // Increment kuota diserialkan: langkah paralel (modul/LKPD, konkurensi 3)
 // tidak boleh baca-tulis bersamaan sampai ada increment yang hilang
@@ -60,7 +80,7 @@ function tambahKuota(userId, n = 1) {
 async function tambahKuotaInner(userId, n = 1) {
   if (!sb) return;
   try {
-    const tanggal = tanggalWIB();
+    const tanggal = periodeKuota();
     const { data, error } = await sb.from('kuota_harian')
       .select('dipakai').eq('user_id', userId).eq('tanggal', tanggal).single();
     if (error && error.code !== 'PGRST116') throw error;
@@ -88,12 +108,47 @@ async function cekKuota(userId, butuh = 1) {
   const info = await kuotaInfo(userId);
   return { ...info, cukup: info.sisa >= butuh };
 }
+// Bonus referral +n ke window 3-hari berjalan. Tidak pernah throw.
+async function tambahBonus(userId, n = 3) {
+  if (!sb) return;
+  try {
+    const ws = windowStart();
+    const { data } = await sb.from('bonus_kuota')
+      .select('bonus').eq('user_id', userId).eq('window_start', ws).single();
+    if (data) {
+      await sb.from('bonus_kuota').update({ bonus: data.bonus + n })
+        .eq('user_id', userId).eq('window_start', ws);
+    } else {
+      await sb.from('bonus_kuota').insert({ user_id: userId, window_start: ws, bonus: n });
+    }
+  } catch (e) { console.warn('[modulajar] tambahBonus gagal:', e.message); }
+}
 // Email user dari id (untuk penentuan admin di job yang berjalan di background)
 async function emailOf(userId) {
   try {
     const { data } = await sb.auth.admin.getUserById(userId);
     return data?.user?.email || '';
   } catch { return ''; }
+}
+
+// ============ BYOK (bawa kunci AI sendiri) ============
+// Konteks kunci AI aktif per alur async (request / job). AsyncLocalStorage
+// memastikan job paket yang berjalan paralel tidak saling tukar kunci.
+const aiKeyCtx = new AsyncLocalStorage(); // { baseUrl, apiKey, model } | null
+
+// Kunci AI milik user. null bila tidak ada / tabel belum ada. Tidak pernah throw.
+async function resolveKunciAI(userId) {
+  if (!sb || !userId) return null;
+  try {
+    const { data } = await sb.from('kunci_ai')
+      .select('base_url, api_key, model').eq('user_id', userId).single();
+    if (!data?.api_key || !data?.base_url) return null;
+    return { baseUrl: String(data.base_url).replace(/\/+$/, ''), apiKey: data.api_key, model: data.model || null };
+  } catch { return null; }
+}
+function maskKey(k) {
+  const s = String(k || '');
+  return s.length <= 4 ? '••••' : '••••' + s.slice(-4);
 }
 
 // ============ SUPABASE ============
@@ -128,11 +183,16 @@ function requireAuth(handler) {
 }
 
 async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = null) {
-  const body = { model: MODEL, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], temperature, max_tokens: maxTokens };
+  // BYOK: bila request/job ini membawa kunci AI milik user, pakai itu (tidak memotong kuota)
+  const kunci = aiKeyCtx.getStore() || null;
+  const url = kunci ? kunci.baseUrl + '/chat/completions' : KENARI_URL;
+  const model = kunci?.model || MODEL;
+  const apiKey = kunci?.apiKey || process.env.KENARI_API_KEY;
+  const body = { model, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], temperature, max_tokens: maxTokens };
   if (onDelta) body.stream = true; // streaming SSE ala OpenAI: delta.content per chunk
-  const r = await fetch(KENARI_URL, {
+  const r = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.KENARI_API_KEY },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(180000),
   });
@@ -1155,6 +1215,17 @@ const workerAktif = new Set();
 
 async function jalankanJob(jobId) {
   if (!sb || workerAktif.has(jobId)) return;
+  // BYOK: resolve kunci milik user sekali di awal; konteks AsyncLocalStorage
+  // membuat tiap job yang berjalan paralel memakai kuncinya sendiri.
+  let kunciJob = null;
+  try {
+    const j0 = await sbGetJob(jobId);
+    if (j0?.user_id) kunciJob = await resolveKunciAI(j0.user_id);
+  } catch { /* lanjut tanpa BYOK bila resolve gagal */ }
+  return aiKeyCtx.run(kunciJob, () => jalankanJobInti(jobId));
+}
+async function jalankanJobInti(jobId) {
+  if (!sb || workerAktif.has(jobId)) return;
   workerAktif.add(jobId);
   try {
     let job = await sbGetJob(jobId);
@@ -1162,6 +1233,8 @@ async function jalankanJob(jobId) {
     const userId = job.user_id;
     // Admin tidak dibatasi dan tidak dihitung kuotanya (ditentukan sekali di awal job)
     const adminJob = ADMIN_EMAILS.includes((await emailOf(userId) || '').toLowerCase());
+    // BYOK: pakai kunci sendiri berarti kuota tidak dipotong
+    const bebasKuota = adminJob || !!aiKeyCtx.getStore();
     const cfg = job.config || {};
     const info0 = cfg.info || {};
     const uploads = cfg.uploads || {};
@@ -1283,7 +1356,7 @@ async function jalankanJob(jobId) {
         const judul = extractTitle(markdown);
         const meta = { ...info0, topik: step.topik || topiks.join('; ') };
         const dokumenId = await simpanDokumen(userId, step.docType, judul, markdown, meta, images);
-        if (!adminJob) await tambahKuota(userId, 1); // 1 dokumen selesai = 1 kuota
+        if (!bebasKuota) await tambahKuota(userId, 1); // 1 dokumen selesai = 1 kuota
         md[keyOf(step)] = markdown;
         hasil.push({ key: keyOf(step), docType: step.docType, topik: step.topik || null, dokumenId, judul });
         step.status = 'ok';
@@ -1384,14 +1457,16 @@ app.post('/api/paket', requireAuth(async (req, res) => {
     const errMateri = validasiPanjang(materi, 20000, 'Materi');
     if (errMateri) return kirimGagal(res, 400, errMateri);
     const langkah = rencanaJob(mode, daftarTopik);
-    // Cek kuota SEBELUM job dibuat: estimasi = jumlah dokumen yang akan disusun
-    if (!isAdmin(req.user)) {
+    // Cek kuota SEBELUM job dibuat: estimasi = jumlah dokumen yang akan disusun.
+    // BYOK (kunci AI sendiri) = kuota tidak dipotong, cek dilewati.
+    const kunciUser = await resolveKunciAI(req.user.id);
+    if (!isAdmin(req.user) && !kunciUser) {
       const cek = await cekKuota(req.user.id, langkah.length);
       if (!cek.cukup) {
         return res.status(402).json({
           ok: false, code: 'kuota_habis',
-          error: 'Kuota harian tidak cukup untuk paket ini.',
-          butuh: langkah.length, sisa: cek.sisa, batas: cek.batas,
+          error: 'Kredit tidak cukup untuk paket ini. Kredit diperbarui setiap jam 15:00 WIB.',
+          butuh: langkah.length, sisa: cek.sisa, batas: cek.batas, bonus: cek.bonus,
         });
       }
     }
@@ -1538,19 +1613,24 @@ app.post('/api/generate-doc', requireAuth(async (req, res) => {
     const errValid = validasiGenerate({ docType, infoRaw, materi, sumber });
     if (errValid) return kirimGagal(res, 400, errValid);
     const info = objekAman(infoRaw);
-    if (sb && !isAdmin(req.user)) {
+    // BYOK: kunci sendiri = kuota tidak dipotong
+    const kunciUser = await resolveKunciAI(req.user.id);
+    const kunciSendiri = !!kunciUser;
+    if (sb && !isAdmin(req.user) && !kunciSendiri) {
+
       const cek = await cekKuota(req.user.id, 1);
       if (!cek.cukup) {
         return res.status(402).json({
           ok: false, code: 'kuota_habis',
-          error: 'Kuota harian habis. Kuota diperbarui besok.',
-          butuh: 1, sisa: cek.sisa, batas: cek.batas,
+          error: 'Kredit harian habis. Kredit diperbarui setiap jam 15:00 WIB.',
+          butuh: 1, sisa: cek.sisa, batas: cek.batas, bonus: cek.bonus,
         });
       }
     }
-    const markdown = await generateDocInternal(docType, info, materi, sumber, rekomendasi);
-    if (sb && !isAdmin(req.user)) await tambahKuota(req.user.id, 1);
-    res.json({ ok: true, markdown });
+    const markdown = await aiKeyCtx.run(kunciUser, () =>
+      generateDocInternal(docType, info, materi, sumber, rekomendasi));
+    if (sb && !isAdmin(req.user) && !kunciSendiri) await tambahKuota(req.user.id, 1);
+    res.json({ ok: true, markdown, kunciSendiri });
   } catch (e) {
     kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
   }
@@ -1589,13 +1669,15 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
     const errValid = validasiGenerate({ docType, infoRaw, materi, sumber });
     if (errValid) return kirimGagal(res, 400, errValid);
     const info = objekAman(infoRaw);
-    if (sb && !isAdmin(req.user)) {
+    const kunciUser = await resolveKunciAI(req.user.id);
+    const kunciSendiri = !!kunciUser;
+    if (sb && !isAdmin(req.user) && !kunciSendiri) {
       const cek = await cekKuota(req.user.id, 1);
       if (!cek.cukup) {
         return res.status(402).json({
           ok: false, code: 'kuota_habis',
-          error: 'Kuota harian habis. Kuota diperbarui besok.',
-          butuh: 1, sisa: cek.sisa, batas: cek.batas,
+          error: 'Kredit harian habis. Kredit diperbarui setiap jam 15:00 WIB.',
+          butuh: 1, sisa: cek.sisa, batas: cek.batas, bonus: cek.bonus,
         });
       }
     }
@@ -1617,7 +1699,8 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
       kirim({ tipe: 'teks', key, delta });
     };
     try {
-      let markdown = await generateDocInternal(docType, info, materi, sumber, rekomendasi, onTahap, onTeks);
+      let markdown = await aiKeyCtx.run(kunciUser, () =>
+        generateDocInternal(docType, info, materi, sumber, rekomendasi, onTahap, onTeks));
       // Gambar relevan langsung disisipkan (modul/LKPD), tanpa persetujuan
       let images = [];
       if (docType === 'modul' || docType === 'lkpd') {
@@ -1625,8 +1708,8 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
         markdown = r.markdown;
         images = r.images;
       }
-      if (sb && !isAdmin(req.user)) await tambahKuota(req.user.id, 1);
-      kirim({ tipe: 'selesai', markdown, images });
+      if (sb && !isAdmin(req.user) && !kunciSendiri) await tambahKuota(req.user.id, 1);
+      kirim({ tipe: 'selesai', markdown, images, kunciSendiri });
     } catch (e) {
       kirim({ tipe: 'gagal', error: e.message || String(e) });
     }
@@ -1648,24 +1731,180 @@ app.get('/api/kuota', requireAuth(async (req, res) => {
       ok: true, admin,
       batas: admin ? null : info.batas,
       dipakai: admin ? 0 : info.dipakai,
+      bonus: admin ? 0 : info.bonus,
       sisa: admin ? null : info.sisa,
-      tanggal: info.tanggal,
+      resetInfo: 'Kredit diperbarui setiap jam 15:00 WIB.',
+      periode: info.periode,
     });
   } catch (e) {
     kirimGagal(res, 500, e.message || String(e));
   }
 }));
 
+// ============ BYOK: kunci AI milik user ============
+// Base URL adalah root API gaya OpenAI (tanpa /chat/completions), mis. https://api.openai.com/v1
+app.get('/api/ai-config', requireAuth(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const k = await resolveKunciAI(req.user.id);
+    res.json({
+      ok: true, ada: !!k,
+      baseUrl: k?.baseUrl || '', model: k?.model || '',
+      keyMasked: k ? maskKey(k.apiKey) : '',
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+app.post('/api/ai-config', requireAuth(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const baseUrl = String(req.body?.baseUrl || '').trim().replace(/\/+$/, '');
+    const apiKey = String(req.body?.apiKey || '').trim();
+    const model = String(req.body?.model || '').trim();
+    let urlOk = false;
+    try {
+      const u = new URL(baseUrl);
+      urlOk = u.protocol === 'http:' || u.protocol === 'https:';
+    } catch { urlOk = false; }
+    if (!urlOk)
+      return res.status(400).json({ ok: false, error: 'Base URL tidak valid. Contoh: https://api.openai.com/v1' });
+    if (apiKey.length < 8)
+      return res.status(400).json({ ok: false, error: 'API key terlalu pendek (minimal 8 karakter).' });
+    const { error } = await sb.from('kunci_ai').upsert({
+      user_id: req.user.id, base_url: baseUrl, api_key: apiKey,
+      model: model || null, updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+    if (error) {
+      const tabelHilang = /kunci_ai/i.test(error.message || '');
+      return res.status(tabelHilang ? 503 : 500).json({
+        ok: false,
+        error: tabelHilang
+          ? 'Fitur kunci AI belum dikonfigurasi di database.'
+          : error.message,
+      });
+    }
+    res.json({ ok: true, keyMasked: maskKey(apiKey) });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+app.delete('/api/ai-config', requireAuth(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    await sb.from('kunci_ai').delete().eq('user_id', req.user.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+// ============ REFERRAL: +3 kredit per klaim ============
+// Kode 8 karakter (tanpa huruf/angka yang ambigu). Satu user punya satu kode selamanya.
+function kodeAcak() {
+  const abjad = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const b = randomBytes(8);
+  let s = '';
+  for (let i = 0; i < 8; i++) s += abjad[b[i] % abjad.length];
+  return s;
+}
+async function buatKodeReferal(userId) {
+  for (let i = 0; i < 5; i++) {
+    const kode = kodeAcak();
+    const { error } = await sb.from('referal').insert({ kode, pemilik_id: userId });
+    if (!error) return kode;
+    if (!/duplicate|unique/i.test(error.message || '')) throw error;
+  }
+  throw new Error('Gagal membuat kode referral.');
+}
+const MAKS_KLAIM_WINDOW = 5;
+
+app.get('/api/referal', requireAuth(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const uid = req.user.id;
+    let kode = null;
+    try {
+      const { data } = await sb.from('referal').select('kode').eq('pemilik_id', uid).limit(1);
+      kode = data?.[0]?.kode || null;
+      if (!kode) kode = await buatKodeReferal(uid);
+    } catch {
+      return res.status(503).json({ ok: false, error: 'Fitur referral belum dikonfigurasi di database.' });
+    }
+    const ws = windowStart();
+    let klaimPeriodeIni = 0, bonusPeriodeIni = 0;
+    try {
+      const { data: k } = await sb.from('referal')
+        .select('id').eq('pemilik_id', uid).gte('created_at', ws + 'T00:00:00+07:00');
+      klaimPeriodeIni = k?.length || 0;
+      const { data: b } = await sb.from('bonus_kuota')
+        .select('bonus').eq('user_id', uid).eq('window_start', ws).single();
+      bonusPeriodeIni = b?.bonus || 0;
+    } catch { /* abaikan */ }
+    res.json({
+      ok: true, kode,
+      link: 'https://modulajar.alfaruqasri.my.id/?ref=' + kode,
+      bonusPeriodeIni, klaimPeriodeIni, maksKlaim: MAKS_KLAIM_WINDOW,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+app.post('/api/referal/klaim', requireAuth(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const uid = req.user.id;
+    const kode = String(req.body?.kode || '').trim().toUpperCase();
+    if (!kode) return res.status(400).json({ ok: false, error: 'Kode referral wajib diisi.' });
+    let pernah, baris;
+    try {
+      const r1 = await sb.from('referal').select('id').eq('dipakai_oleh_id', uid).limit(1);
+      pernah = r1.data;
+      const r2 = await sb.from('referal').select('id, pemilik_id, dipakai_oleh_id').eq('kode', kode).single();
+      baris = r2.data;
+    } catch {
+      return res.status(503).json({ ok: false, error: 'Fitur referral belum dikonfigurasi di database.' });
+    }
+    if (pernah?.length)
+      return res.status(400).json({ ok: false, code: 'sudah_pernah', error: 'Kamu sudah pernah memakai kode referral.' });
+    if (!baris)
+      return res.status(404).json({ ok: false, code: 'kode_tidak_dikenal', error: 'Kode referral tidak dikenal.' });
+    if (baris.pemilik_id === uid)
+      return res.status(400).json({ ok: false, code: 'kode_sendiri', error: 'Tidak bisa memakai kode referral milik sendiri.' });
+    if (baris.dipakai_oleh_id)
+      return res.status(400).json({ ok: false, code: 'kode_terpakai', error: 'Kode ini sudah dipakai.' });
+    const ws = windowStart();
+    const { data: klaim } = await sb.from('referal')
+      .select('id').eq('pemilik_id', baris.pemilik_id).gte('created_at', ws + 'T00:00:00+07:00');
+    if ((klaim?.length || 0) >= MAKS_KLAIM_WINDOW)
+      return res.status(400).json({ ok: false, code: 'bonus_penuh', error: 'Bonus pemilik kode periode ini sudah penuh.' });
+    // Tandai dipakai (kondisional: hanya bila masih kosong) lalu verifikasi pemenangnya
+    await sb.from('referal').update({ dipakai_oleh_id: uid }).eq('id', baris.id).is('dipakai_oleh_id', null);
+    const { data: cek } = await sb.from('referal').select('dipakai_oleh_id').eq('id', baris.id).single();
+    if (cek?.dipakai_oleh_id !== uid)
+      return res.status(409).json({ ok: false, code: 'kode_terpakai', error: 'Kode ini sudah dipakai.' });
+    await tambahBonus(baris.pemilik_id, 3);
+    res.json({ ok: true, bonusDitambah: 3 });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
 // Regenerate satu blok ala Gutenberg
 app.post('/api/regen-block', requireAuth(async (req, res) => {
   try {
-    if (!process.env.KENARI_API_KEY) return kirimGagal(res, 500, 'Kunci AI belum dikonfigurasi di server.');
+    const kunciUser = await resolveKunciAI(req.user.id);
+    if (!process.env.KENARI_API_KEY && !kunciUser) return kirimGagal(res, 500, 'Kunci AI belum dikonfigurasi di server.');
     const { docType = 'modul', blockType = 'p', blockText = '', docTitle = '', topic = '' } = req.body || {};
     if (!String(blockText).trim()) return kirimGagal(res, 400, 'Blok kosong.');
     const errPanjang = validasiPanjang(blockText, 20000, 'Blok');
     if (errPanjang) return kirimGagal(res, 400, errPanjang);
     const system = `Kamu membantu guru menyunting ${docType} Kurikulum Merdeka. Tulis ulang BLOK berikut agar lebih baik: lebih jelas, lebih rinci, tetap sesuai Kurikulum Merdeka, dan tetap dalam Bahasa Indonesia formal. PERTAHANKAN format markdown blok ini (heading tetap heading, list tetap list, tabel tetap tabel). Jika blok berisi alokasi waktu per langkah (mis. "(2 menit)"), PERTAHANKAN alokasi tersebut dan pastikan totalnya tetap konsisten. Kembalikan HANYA isi blok yang sudah ditulis ulang, tanpa pembuka/penutup/pembahasan tambahan.`;
-    const text = await ai(system, `Konteks dokumen: "${docTitle}" — Topik: ${topic}\n\nBLOK (${blockType}):\n${blockText}`, 3000, 0.8);
+    const text = await aiKeyCtx.run(kunciUser, () =>
+      ai(system, `Konteks dokumen: "${docTitle}" - Topik: ${topic}\n\nBLOK (${blockType}):\n${blockText}`, 3000, 0.8));
     res.json({ ok: true, text: text.trim() });
   } catch (e) {
     kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
