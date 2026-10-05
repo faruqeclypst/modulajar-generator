@@ -1,86 +1,87 @@
 ---
-name: ModulAjar Warm Paper
-version: 2.0
-description: Sistem desain aplikasi ModulAjar. Kertas hangat, aksen bata, ramah guru senior.
-dial: ENERGY 2 / RHYTHM 2 / MOTION 2
+name: ModulAjar Modern Bersih
+version: 1.0
+description: Sistem desain aplikasi ModulAjar. Putih minimalis, aksen bata hemat, tipografi Inter.
+dial: ENERGY 2 / RHYTHM 2 / MOTION 1
 
 colors:
-  paper: "#FBF6EE"
-  paper-2: "#FFFDF8"
-  ink: "#241F1B"
-  slate: "#4A4239"
-  muted: "#6B5F4E"
-  wash: "#EFE7D8"
-  line: "#241F1B"
-  red: "#B5362A"
-  red-dark: "#8F2A20"
-  ok: "#2E7D32"
-  warn: "#8A5E10"
-  focus: "#B5362A"
+  paper: "#FFFFFF"
+  paper-2: "#FFFFFF"
+  soft: "#F7F8FA"
+  ink: "#1A1D21"
+  slate: "#3F4756"
+  muted: "#6E7683"
+  wash: "#F1F3F5"
+  line: "#E5E7EB"
+  red: "#C0392B"
+  red-dark: "#96281B"
+  ok: "#17803D"
+  warn: "#B45309"
+  focus: "#C0392B"
 
 typography:
-  family: '"Archivo", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif'
+  family: '"Inter", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif'
   base: 16px
   base-large: 18px
   scale:
-    display: { min: 38px, max: 56px, weight: 900, lineHeight: 1.02, letterSpacing: -1px }
-    h1: { min: 28px, max: 40px, weight: 900, lineHeight: 1.08, letterSpacing: -0.5px }
-    h2: { size: 24px, weight: 800, lineHeight: 1.2 }
-    h3: { size: 19px, weight: 800, lineHeight: 1.3 }
+    display: { min: 36px, max: 54px, weight: 800, lineHeight: 1.04, letterSpacing: -1.5px }
+    h1: { min: 26px, max: 34px, weight: 800, lineHeight: 1.15, letterSpacing: -0.8px }
+    h2: { size: 22px, weight: 700, lineHeight: 1.25, letterSpacing: -0.3px }
+    h3: { size: 18px, weight: 700, lineHeight: 1.3 }
     body: { size: 16px, weight: 400, lineHeight: 1.65 }
     small: { size: 13.5px, weight: 400, lineHeight: 1.55 }
-    kicker: { size: 12px, weight: 800, letterSpacing: 2.5px, uppercase: true }
+    kicker: { size: 12px, weight: 700, letterSpacing: 2px, uppercase: true, color: "{colors.red}" }
 
 spacing:
   base: 8px
   scale: [4, 8, 12, 16, 24, 32, 48, 72]
-  wrap: 1080px
+  wrap: 1120px
   narrow: 720px
-  section-gap: 56px
+  section-gap: 64px
 
 radius:
-  default: 0px
-  popover: 10px
+  default: 14px
+  control: 9px
+  popover: 14px
   avatar: 999px
   chip: 999px
 
 elevation:
-  card: "5px 5px 0 rgba(36,31,27,.14)"
-  button: "3px 3px 0 rgba(36,31,27,.9)"
-  button-sm: "2px 2px 0 rgba(36,31,27,.9)"
-  popover: "6px 6px 0 rgba(36,31,27,.16)"
+  card: "0 1px 2px rgba(16,24,40,.05)"
+  card-hover: "0 8px 24px rgba(16,24,40,.08)"
+  popover: "0 16px 40px rgba(16,24,40,.16)"
+  button: "none"
 
 components:
-  button-primary: { bg: "{colors.red}", text: "#FFFFFF", border: "2px solid {colors.ink}", padding: "14px 24px", fontWeight: 800, uppercase: true, letterSpacing: ".5px", shadow: "{elevation.button}" }
-  button-secondary: { bg: "{colors.paper-2}", text: "{colors.ink}", border: "2px solid {colors.ink}", padding: "14px 24px", fontWeight: 800, uppercase: true, shadow: "{elevation.button}" }
-  button-danger: { bg: "{colors.paper-2}", text: "{colors.red}", border: "2px solid {colors.red}", padding: "12px 20px", fontWeight: 800 }
-  input: { bg: "{colors.paper-2}", border: "2px solid {colors.ink}", padding: "13px 14px", fontSize: 16px, radius: "{radius.default}" }
-  focus-ring: "3px solid {colors.focus}"
+  button-primary: { bg: "{colors.red}", text: "#FFFFFF", border: "none", padding: "13px 22px", fontWeight: 700, radius: "{radius.control}" }
+  button-secondary: { bg: "#FFFFFF", text: "{colors.ink}", border: "1px solid {colors.line}", padding: "13px 22px", fontWeight: 700, radius: "{radius.control}" }
+  button-danger: { bg: "#FFFFFF", text: "{colors.red-dark}", border: "1px solid {colors.red}", padding: "12px 20px", fontWeight: 700, radius: "{radius.control}" }
+  input: { bg: "#FFFFFF", border: "1px solid {colors.line}", padding: "13px 14px", fontSize: 16px, radius: "{radius.control}" }
+  focus-ring: "0 0 0 3px rgba(192,57,43,.18)"
   tap-target-min: 44px
 ---
 
-# DESIGN.md — ModulAjar Warm Paper v2
+# DESIGN.md — ModulAjar Modern Bersih v1
 
 ## Overview
 
 ModulAjar adalah aplikasi web untuk guru Indonesia menyusun perangkat ajar
 (CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Bank Soal, KKTP) dengan bantuan AI.
 Audiens utama: guru, termasuk guru senior yang tidak terbiasa dengan aplikasi
-rumit. Desain harus terasa seperti **kertas kerja yang hangat dan bisa
-dipercaya**, bukan dashboard startup yang dingin.
+rumit. Desain harus terasa **bersih, ringan, dan bisa dipercaya**: putih
+dominan, satu aksen bata yang hemat, tipografi Inter yang jernih.
 
-Bahasa visual: kertas krem hangat, tinta pekat, satu aksen bata, bayangan
-kaku ala cetakan (hard offset shadow), tipografi Archivo yang tegas. Dokumen
-adalah warga kelas satu: setiap layar memperlakukan dokumen seperti lembaran
-kertas asli.
+Bahasa visual: kanvas putih, garis tipis abu-abu, sudut membulat lembut
+(14px kartu, 9px kontrol), bayangan halus hanya untuk popover dan hover.
+Tanpa tekstur kertas, tanpa bayangan kaku. Dokumen adalah warga kelas satu:
+setiap layar memperlakukan dokumen seperti lembaran bersih yang siap dibaca.
 
-**Dial: ENERGY 2 / RHYTHM 2 / MOTION 2.**
-Hangat dan berkarakter, tapi tenang. Komposisi boleh bervariasi antar layar.
-Gerak secukupnya dan selalu punya tujuan: transisi antar layar (orientasi),
-langkah generate yang muncul berurutan (keterbacaan alur), kursor ketik
-(penanda tulisan AI masih berjalan), shimmer hangat (sinyal menunggu event
-pertama server), tanpa scroll-reveal, tanpa loop tanpa henti. Semua nonaktif
-saat prefers-reduced-motion.
+**Dial: ENERGY 2 / RHYTHM 2 / MOTION 1.**
+Tenang dan rapi. Komposisi konsisten antar layar. Gerak secukupnya dan selalu
+punya tujuan: transisi antar layar (orientasi), langkah generate yang muncul
+berurutan (keterbacaan alur), kursor ketik (penanda tulisan AI masih berjalan),
+shimmer (sinyal menunggu event pertama server), tanpa scroll-reveal, tanpa
+loop tanpa henti. Semua nonaktif saat prefers-reduced-motion.
 
 ### Referensi yang dipakai
 
@@ -98,44 +99,46 @@ saat prefers-reduced-motion.
 
 | Token | Nilai | Pakai untuk |
 |---|---|---|
-| `--paper` | `#FBF6EE` | Latar halaman |
-| `--paper-2` | `#FFFDF8` | Kartu, input, permukaan |
-| `--ink` | `#241F1B` | Teks utama, topbar, border |
-| `--slate` | `#4A4239` | Teks sekunder |
-| `--muted` | `#6B5F4E` | Hint, metadata (min. 13.5px, harus lolos AA 4.5:1 di atas paper) |
-| `--wash` | `#EFE7D8` | Isian halus (langkah selesai, hover) |
-| `--red` | `#B5362A` | Satu-satunya aksen: CTA primer, fokus, momen penting |
-| `--red-dark` | `#8F2A20` | Hover CTA primer |
-| `--ok` | `#2E7D32` | Status berhasil (teks di atas paper, atau putih di atasnya) |
-| `--warn` | `#9A6B1A` | Status menunggu/perhatian |
+| `--paper` | `#FFFFFF` | Latar halaman |
+| `--paper-2` | `#FFFFFF` | Kartu, input, permukaan |
+| `--soft` | `#F7F8FA` | Latar seksi halus (alternatif putih) |
+| `--ink` | `#1A1D21` | Teks utama |
+| `--slate` | `#3F4756` | Teks sekunder |
+| `--muted` | `#6E7683` | Hint, metadata (min. 13.5px, harus lolos AA 4.5:1 di atas putih) |
+| `--wash` | `#F1F3F5` | Isian halus (langkah selesai, hover) |
+| `--line` | `#E5E7EB` | Garis border semua komponen |
+| `--red` | `#C0392B` | Satu-satunya aksen: CTA primer, fokus, momen penting |
+| `--red-dark` | `#96281B` | Hover CTA primer |
+| `--ok` | `#17803D` | Status berhasil |
+| `--warn` | `#B45309` | Status menunggu/perhatian |
 
 Aturan:
 
-- Palet aktif: netral hangat + **satu** aksen bata. Tidak ada biru, ungu,
+- Palet aktif: netral dingin + **satu** aksen bata. Tidak ada biru, ungu,
   gradien, atau warna neon di mana pun.
 - Aksen bata hanya di momen kunci: tombol aksi utama tiap layar, indikator
   fokus, penanda status penting. Bukan di setiap ikon dan garis.
 - Semua teks harus lolos WCAG AA (4.5:1 teks normal, 3:1 teks besar).
   Verifikasi dengan contrast checker sebelum mengganti nilai warna.
-- Border selalu 2px solid ink pada kartu, tombol, dan input. Ini identitas,
-  bukan dekorasi.
+- Border selalu 1px solid line pada kartu, tombol sekunder, dan input.
+  Garis tipis adalah identitas kebersihan tema ini.
 
 ## Typography
 
-- Keluarga: **Archivo** (fallback Segoe UI, system-ui, Arial). Alasan: grotesk
-  tegas berkarakter hangat, tidak terasa korporat, sangat terbaca oleh mata senior.
+- Keluarga: **Inter** (fallback Segoe UI, system-ui, Arial). Alasan: grotesk
+  netral yang jernih di layar, sangat terbaca oleh mata senior.
 - Basis 16px, line-height 1.65. Pengaturan "Teks besar" menaikkan basis ke 18px.
-- Judul memakai huruf kapital penuh (uppercase) dengan letter-spacing rapat,
-  gaya poster cetak. Isi paragraf tidak uppercase.
-- Kicker: label seksi kecil (12px, 800, tracking 2.5px, uppercase) di atas
-  blok tinta atau bata. Satu kicker per seksi, bukan per kartu.
+- Judul memakai huruf biasa (sentence case) dengan letter-spacing rapat
+  (-0.8px). Tidak ada uppercase berteriak kecuali kicker kecil.
+- Kicker: label seksi kecil (12px, 700, tracking 2px, uppercase) berwarna bata,
+  tanpa latar. Satu kicker per seksi, bukan per kartu.
 - Tidak ada teks di dalam gambar. Tidak ada font monospace sebagai estetika.
 
 ## Layout & Spacing
 
 - Skala spacing 8px: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 72. Jarak antar seksi
   56px di desktop, 40px di mobile.
-- Lebar konten 1080px (`.wrap`), 720px untuk layar baca dan pengaturan
+- Lebar konten 1120px (`.wrap`), 720px untuk layar baca dan pengaturan
   (`.wrap.narrow`). Tidak ada max-width ad-hoc lain untuk kontainer halaman;
   semua view memakai salah satu dari dua ini agar lebar terasa konsisten.
 - Mobile-first. Target sentuh minimal 44px. Tidak ada overflow horizontal
@@ -150,40 +153,38 @@ Aturan:
 - Ritme: layar kerja (daftar dokumen, job) memakai daftar/kartu yang mudah
   dipindai; layar baca memakai kolom sempit. Variasi mengikuti kebutuhan
   konten, bukan template.
-- Latar halaman boleh memakai tekstur titik halus (dot grid 26px,
-  `#E4DCCB`) karena ini motif identitas "kertas", bukan dekorasi generik.
-  Satu motif saja, tidak ditumpuk dengan pola lain.
+- Latar halaman polos putih. Tidak ada tekstur, pola, atau dot grid.
+  Kebersihan adalah identitasnya.
 
 ## Elevation & Shapes
 
-- Bayangan kaku offset (5px 5px 0) adalah **motif identitas**: mengingatkan
-  pada kertas yang dicetak dan disusun bertumpuk. Alasan tertulis: produk ini
-  menghasilkan dokumen cetak, jadi bahasanya bahasa cetak.
-- Bayangan hanya untuk permukaan interaktif/terangkat: kartu, tombol, popover,
-  modal. Teks dan garis tidak berbayang.
-- Radius: 0 untuk tombol, kartu, input (potongan kertas). 10px untuk popover
-  dan menu. Lingkaran penuh hanya untuk avatar pengguna.
+- Bayangan halus dan hemat: kartu memakai `0 1px 2px rgba(16,24,40,.05)`
+  sebagai definisi, bukan dekorasi. Hover kartu boleh naik ke bayangan lembut
+  yang sedikit lebih besar. Popover/modal memakai bayangan besar yang lembut.
+- Tombol tidak berbayang; hierarki dibangun dari warna dan border.
+- Radius: 14px kartu dan panel, 9px tombol dan input, 14px popover dan menu.
+  Lingkaran penuh untuk avatar pengguna dan chip status.
 
 ## Components
 
 ### Tombol
 
-- Primer: latar bata, teks putih, border 2px ink, uppercase, shadow kaku.
+- Primer: latar bata, teks putih, tanpa border, tanpa shadow, radius 9px.
   Satu tombol primer per kelompok aksi; sisanya sekunder.
-- Sekunder: latar paper-2, teks ink, border 2px ink.
-- Bahaya (Keluar, Batalkan job): teks/border bata di atas paper-2, bukan
+- Sekunder: latar putih, teks ink, border 1px line.
+- Bahaya (Keluar, Batalkan job): teks/border bata di atas putih, bukan
   latar merah penuh.
-- Hover: geser -1px dengan shadow membesar. Active: menekan masuk (2px, 2px).
-  Focus: outline 3px bata, selalu terlihat.
+- Hover: primer menggelap ke red-dark; sekunder border menggelap. Tanpa
+  efek geser/terangkat. Focus: ring lembut `0 0 0 3px rgba(192,57,43,.18)`.
 - Label aksi spesifik produk: "Buat Modul Ajar", "Buka Ruang Perencanaan",
   "Masuk dengan Google". Bukan "Mulai", "Kirim", "OK".
 
 ### Input & Form
 
-- Label di atas input: 13px, 800, uppercase, tracking 1px. Tanda wajib (*)
+- Label di atas input: 13px, 700, warna slate. Tanda wajib (*)
   berwarna bata.
-- Input: 2px border ink, padding 13-14px, font 16px (mencegah zoom otomatis
-  di iOS). Focus: outline 3px bata.
+- Input: 1px border line, radius 9px, padding 13-14px, font 16px (mencegah
+  zoom otomatis di iOS). Focus: border bata + ring lembut.
 - Hint di bawah input: 12.5px muted. Error: teks bata + border bata,
   dengan pesan yang menyebut cara memperbaiki.
 - `FormulirDasar` (`components/FormulirDasar.jsx`): satu komponen untuk field
@@ -196,18 +197,19 @@ Aturan:
 
 ### Kartu
 
-- Kartu dokumen: permukaan paper-2, border 2px ink, shadow kaku, padding
-  20-26px. Isi: chip tipe dokumen, judul (h3), meta (chip jenjang/mapel),
-  tanggal, satu aksi "Buka".
+- Kartu dokumen: permukaan putih, border 1px line, radius 14px, bayangan
+  halus, padding 20-26px. Hover: bayangan sedikit membesar. Isi: chip tipe
+  dokumen, judul (h3), meta (chip jenjang/mapel), tanggal, satu aksi "Buka".
 - Chip status hanya untuk status nyata (tipe dokumen, progres paket).
   Bukan label dekoratif.
 
 ### Topbar & Menu Pengguna
 
-- Topbar: latar ink, sticky, tanpa wrap. Tiga zona: **logo** (kiri), **navigasi**
-  (tengah), **area akun** (kanan, dipisah divider tipis di desktop).
-- Logo: kotak bata berisi "M", nama "ModulAjar" + sub "Perangkat Ajar AI";
-  di layar sangat kecil hanya kotak "M".
+- Topbar: latar putih, sticky dengan border-bottom 1px line, tanpa wrap.
+  Tiga zona: **logo** (kiri), **navigasi** (tengah), **area akun** (kanan,
+  dipisah divider tipis di desktop).
+- Logo: kotak bata berisi "M" (radius 9px), nama "ModulAjar" + sub
+  "Perangkat Ajar AI"; di layar sangat kecil hanya kotak "M".
 - Navigasi: Proyek Saya, Ruang Perencanaan, Generator Paket. Item yang aktif
   mengikuti konteks, bukan sekadar URL: view detail proyek ikut menyalakan
   "Proyek Saya". View non-navigasi (wizard, pengaturan, docs, admin) tidak
