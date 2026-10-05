@@ -28,7 +28,7 @@ function avatarUrl(user) {
   return meta.avatar_url || meta.picture || null;
 }
 
-export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onSignOut }) {
+export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpenDocs, isAdmin, onSignOut }) {
   const [open, setOpen] = useState(false); // menu pengguna
   const [mobileOpen, setMobileOpen] = useState(false); // panel navigasi mobile
   const triggerRef = useRef(null);
@@ -154,6 +154,16 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onSig
               <button type="button" {...menuItem(firstItemRef)} onClick={() => { setOpen(false); onOpenSettings(); }}>
                 Pengaturan
               </button>
+              {onOpenDocs && (
+                <button type="button" {...menuItem(null)} onClick={() => { setOpen(false); onOpenDocs(); }}>
+                  Panduan
+                </button>
+              )}
+              {isAdmin && (
+                <button type="button" {...menuItem(null)} onClick={() => { setOpen(false); onNav('admin'); }}>
+                  Dashboard Admin
+                </button>
+              )}
               <hr className="menu-sep" />
               <button type="button" {...menuItem(null)} className="menu-item danger" onClick={() => { setOpen(false); onSignOut(); }}>
                 Keluar
@@ -174,6 +184,16 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onSig
             <button type="button" className="nav-item" onClick={() => { setMobileOpen(false); onOpenSettings(); }}>
               Pengaturan
             </button>
+            {onOpenDocs && (
+              <button type="button" className="nav-item" onClick={() => { setMobileOpen(false); onOpenDocs(); }}>
+                Panduan
+              </button>
+            )}
+            {isAdmin && (
+              <button type="button" className="nav-item" onClick={() => { setMobileOpen(false); onNav('admin'); }}>
+                Dashboard Admin
+              </button>
+            )}
             <button type="button" className="nav-item" onClick={() => { setMobileOpen(false); onSignOut(); }}>
               Keluar
             </button>

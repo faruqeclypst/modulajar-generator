@@ -5,6 +5,9 @@ import DocView from './components/DocView';
 import RuangPerencanaan from './components/RuangPerencanaan';
 import GeneratorPaket from './components/GeneratorPaket';
 import Topbar from './components/Topbar';
+import Landing from './components/Landing';
+import DocsView from './components/DocsView';
+import AdminDashboard from './components/AdminDashboard';
 import Pengaturan from './components/Pengaturan';
 import { ProyekList, ProyekDetail } from './components/Proyek';
 import { DOC_TYPES } from './lib/docs';
@@ -14,75 +17,6 @@ import { klaimReferal } from './lib/api';
 import { fetchKuota } from './lib/kuota';
 
 const WA_LINK = 'https://wa.me/6285359907696?text=Halo%2C%20saya%20butuh%20bantuan%20ModulAjar';
-
-function Landing({ onStart }) {
-  // Tangkap kode referal dari URL (?ref=KODE) untuk diklaim setelah login
-  useEffect(() => {
-    try {
-      const kode = new URLSearchParams(window.location.search).get('ref');
-      if (kode && kode.trim()) localStorage.setItem('ma-ref', kode.trim().slice(0, 64));
-    } catch { /* abaikan */ }
-  }, []);
-  return (
-    <div className="wrap">
-      <section className="hero-land">
-        <span className="kicker">Untuk Guru Indonesia</span>
-        <h1>Perangkat Ajar<br />Lengkap dalam<br /><span className="accent">Hitungan Menit.</span></h1>
-        <p>
-          Modul Ajar, ATP, Prota, Prosem, LKPD, Bank Soal, KKTP, sampai CP.
-          Disusun mengikuti alur Kurikulum Merdeka yang benar
-          (CP, ATP, Prota, Prosem, baru Modul), bisa diedit per blok,
-          dilengkapi gambar berlisensi.
-        </p>
-        <div className="btn-row">
-          <button className="btn btn-primary" onClick={onStart}>Mulai Membuat</button>
-          <a className="btn" href="#fitur">Lihat Fitur</a>
-        </div>
-      </section>
-
-      <div className="marquee" aria-hidden="true">
-        <div className="marquee-track">
-          {Array(2).fill('MODUL AJAR · ATP · CP · PROTA · PROSEM · LKPD · BANK SOAL · KKTP · ').map((t, i) => <span key={i}>{t}</span>)}
-        </div>
-      </div>
-
-      <section id="fitur" style={{ marginTop: 40 }}>
-        <span className="kicker">Fitur</span>
-        <h2 className="sec-title">Satu aplikasi,<br />delapan perangkat.</h2>
-        <div className="doc-grid">
-          {Object.entries(DOC_TYPES).map(([key, d]) => (
-            <div className="card doc-card-land" key={key}>
-              <span className="chip red">{d.tag}</span>
-              <h3>{d.nama}</h3>
-              <p>{d.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section style={{ marginTop: 56 }}>
-        <span className="kicker">Cara Kerja</span>
-        <h2 className="sec-title">Dari ide ke dokumen<br />siap cetak.</h2>
-        <div className="steps-land">
-          {[
-            ['01', 'Susun perencanaan', 'CP, ATP, Prota, Prosem berurutan di Ruang Perencanaan. Tiap dokumen jadi acuan berikutnya.'],
-            ['02', 'Pilih dokumen', 'Modul, LKPD, Bank Soal, dengan acuan perencanaan yang sudah disusun.'],
-            ['03', 'Generate', 'AI menyusun dari acuanmu. TP dan materi merujuk dokumen perencanaan, bukan karangan.'],
-            ['04', 'Edit dan ekspor', 'Edit per blok, tulis ulang dengan AI, unduh sebagai Word.'],
-          ].map(([n, t, d]) => (
-            <div className="card step-land" key={n}><b>{n}</b><h3>{t}</h3><p>{d}</p></div>
-          ))}
-        </div>
-      </section>
-
-      <section className="cta-band">
-        <h2>Siap menyusun perangkat ajarmu?</h2>
-        <p>Masuk dengan Google, langsung jalan di browser. Tanpa instal apa pun.</p>
-        <button className="btn btn-primary" onClick={onStart}>Buat Dokumen Sekarang</button>
-      </section>
-    </div>
-  );
-}
 
 function GoogleG() {
   return (
@@ -152,7 +86,7 @@ function LayarTunggu({ pesan }) {
 // Posisi halaman tersimpan agar refresh tidak melempar ke halaman utama.
 // Format: {view, docId, projectId} (docId untuk view 'detail', projectId untuk 'proyek').
 const VIEW_KEY = 'ma-view';
-const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek'];
+const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek', 'docs', 'admin'];
 function bacaViewTersimpan() {
   try {
     const raw = localStorage.getItem(VIEW_KEY);
@@ -168,7 +102,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authErr, setAuthErr] = useState('');
   // Lazy dari localStorage agar tidak ada flash halaman utama saat refresh
-  const [view, setView] = useState(() => bacaViewTersimpan()?.view || 'landing'); // landing | app | wizard | detail | ruang | paket | pengaturan | proyek
+  const [view, setView] = useState(() => bacaViewTersimpan()?.view || 'landing'); // landing | app | wizard | detail | ruang | paket | pengaturan | proyek | docs | admin
   const [restoring, setRestoring] = useState(() => {
     const d = bacaViewTersimpan();
     return (d?.view === 'detail' && !!d.docId) || (d?.view === 'proyek' && !!d.projectId);
@@ -335,11 +269,17 @@ export default function App() {
         user={user}
         kuota={kuota}
         onOpenSettings={() => setView('pengaturan')}
+        onOpenDocs={() => setView('docs')}
+        isAdmin={!!kuota?.admin}
         onSignOut={signOut}
       />
 
       <div key={view} className="view-enter">
-      {view === 'landing' && <Landing onStart={goApp} />}
+      {view === 'landing' && <Landing onStart={goApp} onDocs={() => setView('docs')} waLink={WA_LINK} />}
+
+      {view === 'docs' && <DocsView onBack={goApp} />}
+
+      {view === 'admin' && kuota?.admin && <AdminDashboard onBack={goApp} />}
 
       {view === 'wizard' && (
         <Wizard
