@@ -3,6 +3,8 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
+import WebSocket from 'ws';
+if (!globalThis.WebSocket) globalThis.WebSocket = WebSocket;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
