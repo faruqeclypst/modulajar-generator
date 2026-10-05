@@ -1482,6 +1482,204 @@ app.get('/api/kuota', requireAuth(async (req, res) => {
   }
 }));
 
+// ============ MASUKAN (saran user login & pesan kontak pengunjung) ============
+// Rate-limit sederhana di memori: maks 5 kiriman per hari per user/IP
+const batasMasukan = new Map(); // kunci -> { hari, hitung }
+function bolehKirimMasukan(kunci) {
+  const hari = new Date().toISOString().slice(0, 10);
+  if (batasMasukan.size > 5000) {
+    for (const [k, v] of batasMasukan) if (v.hari !== hari) batasMasukan.delete(k);
+  }
+  const s = batasMasukan.get(kunci);
+  if (!s || s.hari !== hari) { batasMasukan.set(kunci, { hari, hitung: 1 }); return true; }
+  if (s.hitung >= 5) return false;
+  s.hitung += 1;
+  return true;
+}
+
+app.post('/api/masukan', async (req, res) => {
+  try {
+    const { jenis, nama = '', email = '', pesan = '' } = req.body || {};
+    if (!['saran', 'kontak'].includes(jenis)) {
+      return res.status(400).json({ ok: false, error: 'Jenis masukan tidak dikenal.' });
+    }
+    let userId = null;
+    let namaAkhir = String(nama).slice(0, 100).trim();
+    let emailAkhir = String(email).trim().slice(0, 120);
+    if (jenis === 'saran') {
+      const user = await authUser(req);
+      if (!user) return res.status(401).json({ ok: false, error: 'Perlu login untuk mengirim saran.' });
+      userId = user.id;
+      if (!namaAkhir) namaAkhir = String(user.user_metadata?.full_name || '').slice(0, 100);
+      if (!emailAkhir) emailAkhir = user.email || '';
+    }
+    const teks = String(pesan).trim();
+    if (teks.length < 10) return res.status(400).json({ ok: false, error: 'Pesan minimal 10 karakter.' });
+    if (teks.length > 2000) return res.status(400).json({ ok: false, error: 'Pesan maksimal 2000 karakter.' });
+    if (emailAkhir && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAkhir)) {
+      return res.status(400).json({ ok: false, error: 'Alamat email tidak valid.' });
+    }
+    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'anon';
+    const kunci = userId ? 'u:' + userId : 'ip:' + ip;
+    if (!bolehKirimMasukan(kunci)) {
+      return res.status(429).json({ ok: false, error: 'Terlalu sering mengirim. Coba lagi besok.', code: 'rate_limited' });
+    }
+    if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
+    const { error } = await sb.from('masukan').insert({
+      user_id: userId, jenis,
+      nama: namaAkhir || null, email: emailAkhir || null, pesan: teks,
+    });
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+});
+
+// ============ ADMIN ============
+function requireAdmin(handler) {
+  return requireAuth(async (req, res) => {
+    if (!isAdmin(req.user)) return res.status(403).json({ ok: false, error: 'Akses ditolak.' });
+    return handler(req, res);
+  });
+}
+
+// Kunci periode kuota WIB 15:00 (aturan reset yang sama; ditulis mandiri agar
+// endpoint admin tetap benar walau digabung dengan cabang yang punya periodeKuota())
+function kunciPeriodeAdmin() {
+  const t = Date.now() + (7 - 15) * 3600 * 1000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+app.get('/api/admin/ringkasan', requireAdmin(async (req, res) => {
+  try {
+    if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
+    const r = { totalUser: 0, dokumenTotal: 0, dokumenHariIni: 0, kreditTerpakaiHariIni: 0, jobAktif: 0, referralDiklaim: 0 };
+    try {
+      const { data } = await sb.auth.admin.listUsers({ perPage: 1 });
+      r.totalUser = data?.total || (data?.users ? data.users.length : 0);
+    } catch { /* abaikan */ }
+    try {
+      const { count } = await sb.from('dokumen').select('id', { count: 'exact', head: true });
+      r.dokumenTotal = count || 0;
+    } catch { /* abaikan */ }
+    try {
+      const wibTengahMalam = new Date(Date.now() + 7 * 3600 * 1000);
+      wibTengahMalam.setUTCHours(0, 0, 0, 0);
+      const awal = new Date(wibTengahMalam.getTime() - 7 * 3600 * 1000).toISOString();
+      const { count } = await sb.from('dokumen').select('id', { count: 'exact', head: true }).gte('created_at', awal);
+      r.dokumenHariIni = count || 0;
+    } catch { /* abaikan */ }
+    try {
+      const { data } = await sb.from('kuota_harian').select('dipakai').eq('tanggal', kunciPeriodeAdmin());
+      r.kreditTerpakaiHariIni = (data || []).reduce((a, b) => a + (b.dipakai || 0), 0);
+    } catch { /* abaikan */ }
+    try {
+      const { count } = await sb.from('jobs').select('id', { count: 'exact', head: true }).in('status', ['antri', 'berjalan']);
+      r.jobAktif = count || 0;
+    } catch { /* abaikan */ }
+    try {
+      const { count } = await sb.from('referal').select('id', { count: 'exact', head: true });
+      r.referralDiklaim = count || 0;
+    } catch { /* abaikan: tabel referral mungkin belum ada */ }
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+app.get('/api/admin/pengguna', requireAdmin(async (req, res) => {
+  try {
+    if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
+    const { data, error } = await sb.auth.admin.listUsers({ perPage: 100, page: 1 });
+    if (error) throw error;
+    const users = data?.users || [];
+    let byokSet = new Set();
+    try {
+      const k = await sb.from('kunci_ai').select('user_id');
+      byokSet = new Set((k.data || []).map((x) => x.user_id));
+    } catch { /* abaikan: tabel BYOK mungkin belum ada */ }
+    const daftar = [];
+    for (const u of users) {
+      let jmlDokumen = 0;
+      try {
+        const c = await sb.from('dokumen').select('id', { count: 'exact', head: true }).eq('user_id', u.id);
+        jmlDokumen = c.count || 0;
+      } catch { /* abaikan */ }
+      daftar.push({ id: u.id, email: u.email, dibuat: u.created_at, byok: byokSet.has(u.id), jmlDokumen });
+    }
+    res.json({ ok: true, daftar, total: data?.total ?? users.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+app.get('/api/admin/masukan', requireAdmin(async (req, res) => {
+  try {
+    if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
+    let daftar = [];
+    try {
+      const { data, error } = await sb.from('masukan')
+        .select('id, jenis, nama, email, pesan, dibaca, created_at')
+        .order('created_at', { ascending: false }).limit(100);
+      if (error) throw error;
+      daftar = (data || []).map((m) => ({
+        id: m.id, jenis: m.jenis, nama: m.nama, email: m.email,
+        pesan: m.pesan, dibaca: m.dibaca, dibuat: m.created_at,
+      }));
+    } catch { /* abaikan: tabel masukan mungkin belum ada */ }
+    res.json({ ok: true, daftar });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+app.post('/api/admin/masukan/:id/baca', requireAdmin(async (req, res) => {
+  try {
+    if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
+    const { error } = await sb.from('masukan').update({ dibaca: true }).eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+app.delete('/api/admin/masukan/:id', requireAdmin(async (req, res) => {
+  try {
+    if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
+    const { error } = await sb.from('masukan').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+app.get('/api/admin/jobs', requireAdmin(async (req, res) => {
+  try {
+    if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
+    const { data, error } = await sb.from('jobs')
+      .select('id, mode, status, user_id, created_at')
+      .order('created_at', { ascending: false }).limit(20);
+    if (error) throw error;
+    const emailMap = {};
+    try {
+      const { data: ud } = await sb.auth.admin.listUsers({ perPage: 100, page: 1 });
+      for (const u of (ud?.users || [])) emailMap[u.id] = u.email;
+    } catch { /* abaikan */ }
+    res.json({
+      ok: true,
+      daftar: (data || []).map((j) => ({
+        id: j.id, mode: j.mode, status: j.status,
+        dibuat: j.created_at, userEmail: emailMap[j.user_id] || null,
+      })),
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
 // Regenerate satu blok ala Gutenberg
 app.post('/api/regen-block', requireAuth(async (req, res) => {
   try {
