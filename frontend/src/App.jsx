@@ -3,6 +3,7 @@ import './styles.css';
 import Wizard, { getDraft } from './components/Wizard';
 import DocView from './components/DocView';
 import RuangPerencanaan from './components/RuangPerencanaan';
+import GeneratorPaket from './components/GeneratorPaket';
 import { DOC_TYPES } from './lib/docs';
 import { listModuls, getModul, listPakets, paketProgress } from './lib/db';
 
@@ -95,7 +96,7 @@ function Landing({ onStart }) {
 }
 
 export default function App() {
-  const [view, setView] = useState('landing'); // landing | app | wizard | detail | ruang
+  const [view, setView] = useState('landing'); // landing | app | wizard | detail | ruang | paket
   const [moduls, setModuls] = useState([]);
   const [pakets, setPakets] = useState([]);
   const [active, setActive] = useState(null);
@@ -138,6 +139,7 @@ export default function App() {
             <button className="btn btn-primary btn-sm" onClick={goApp}>Buka Aplikasi</button>
           ) : (
             <>
+              <button className="btn btn-sm" style={{ background: '#fff' }} onClick={() => setView('paket')}>Generator Paket</button>
               {view === 'app' && <button className="btn btn-primary btn-sm" onClick={() => startNew()}>+ Buat Baru</button>}
               {view !== 'app' && <button className="btn btn-sm" style={{ background: '#fff' }} onClick={goApp}>Dokumen Saya</button>}
             </>
@@ -161,6 +163,10 @@ export default function App() {
 
       {view === 'ruang' && (
         <RuangPerencanaan onBack={goApp} onOpenDoc={openDoc} onBuatModul={(pid) => startNew(pid)} />
+      )}
+
+      {view === 'paket' && (
+        <GeneratorPaket onBack={goApp} onOpenDoc={openDoc} onChanged={refresh} />
       )}
 
       {view === 'detail' && active && (

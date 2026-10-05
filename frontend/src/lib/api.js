@@ -1,8 +1,10 @@
-export async function generateDoc(docType, info, materi, sumber) {
+export async function generateDoc(docType, info, materi, sumber, rekomendasi) {
+  const body = { docType, info, materi, sumber };
+  if (rekomendasi) body.rekomendasi = rekomendasi;
   const r = await fetch('/api/generate-doc', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ docType, info, materi, sumber }),
+    body: JSON.stringify(body),
   });
   const d = await r.json().catch(() => ({}));
   if (!d.ok) throw new Error(d.error || 'Gagal menghubungi AI.');
