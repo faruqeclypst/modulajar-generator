@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { JENJANG, FASE, MAPEL, MODEL } from '../lib/referensi';
-import { DOC_TYPES, SEMESTER } from '../lib/docs';
+import { FASE, MODEL } from '../lib/referensi';
+import { DOC_TYPES } from '../lib/docs';
 import { getProfile, saveProfile } from '../lib/api';
 import { getToken } from '../lib/supabase';
+import { listProjects, saveProject } from '../lib/db';
+import FormulirDasar from './FormulirDasar';
 import UnggahDokumen from './UnggahDokumen';
 import Paywall from './Paywall';
 import TulisanAI from './TulisanAI';
@@ -29,7 +31,7 @@ const statusJob = (s) => STATUS_JOB[s] || String(s || '').replace('_', ' ');
 const STATUS_LANGKAH = { ok: 'Selesai', jalan: 'Menyusun', antri: 'Menunggu', gagal: 'Gagal' };
 
 const emptyForm = {
-  nama: '', sekolah: '', tahunAjaran: '',
+  nama: '', nip: '', sekolah: '', tahunAjaran: '',
   jenjang: 'SMP/MTs', fase: '', kelas: '', semester: 'Ganjil',
   mapel: '', topiks: '', alokasi: '', model: 'auto', jpPerMinggu: '',
   jmlPG: '10', jmlUraian: '3', materi: '', acuan: '', cpResmi: '', mingguEfektif: '',
@@ -65,11 +67,14 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   const [detik, setDetik] = useState(0);
   const [jobAktif, setJobAktif] = useState([]);
   const [paywall, setPaywall] = useState(null); // {mode, detail}
+  const [projects, setProjects] = useState([]);
+  const [projectId, setProjectId] = useState('');
+  const [proyekBaru, setProyekBaru] = useState('');
   const pollRef = useRef(null);
   const timerRef = useRef(null);
 
   const faseOpts = FASE[form.jenjang] || [];
-  const mapelOpts = MAPEL[form.jenjang] || [];
+  useEffect(() => { listProjects().then(setProjects).catch(() => {}); }, []);
   useEffect(() => {
     if (!faseOpts.includes(form.fase)) setForm((f) => ({ ...f, fase: faseOpts[0] || '' }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,14 +160,30 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
     setErrJalan('');
     setPaywall(null);
     try {
-      saveProfile({ nama: form.nama, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran, jenjang: form.jenjang });
+      saveProfile({ nama: form.nama, nip: form.nip, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran, jenjang: form.jenjang });
+      // Proyek: pilih yang ada atau buat baru. projectId ikut di info job
+      // sehingga setiap dokumen hasil job tersimpan dengan projectId tersebut.
+      let pid = (projectId && projectId !== '__baru') ? projectId : null;
+      if (projectId === '__baru') {
+        pid = await saveProject({
+          nama: proyekBaru.trim() || [form.mapel, form.kelas].filter(Boolean).join(' '),
+          mapel: form.mapel, jenjang: form.jenjang, fase: form.fase, kelas: form.kelas,
+          semester: form.semester, tahunAjaran: form.tahunAjaran,
+        });
+        setProjects(await listProjects());
+        setProjectId(pid);
+      }
+      const prof = getProfile();
       const d = await apiJob('/api/paket', 'POST', {
         mode,
         info: {
-          nama: form.nama, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran,
+          nama: form.nama, nip: form.nip || undefined, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran,
           jenjang: form.jenjang, fase: form.fase, kelas: form.kelas, semester: form.semester,
           mapel: form.mapel, alokasi: form.alokasi, model: form.model, jpPerMinggu: form.jpPerMinggu,
           jmlPG: form.jmlPG, jmlUraian: form.jmlUraian,
+          kepalaSekolah: prof.kepalaSekolah || undefined,
+          nipKepalaSekolah: prof.nipKepalaSekolah || undefined,
+          projectId: pid || undefined,
         },
         materi: form.materi,
         topiks: daftarTopik(),
@@ -261,32 +282,40 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
 
           <h2 style={{ marginTop: 28 }}>Data pembelajaran</h2>
           <div className="grid2">
-            <div className="field"><label>Nama Guru</label>
-              <input value={form.nama} onChange={(e) => set('nama', e.target.value)} placeholder="cth: Alfaruq Asri, S.Pd." />
-              {errForm.nama && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.nama}</p>}</div>
-            <div className="field"><label>Sekolah</label>
-              <input value={form.sekolah} onChange={(e) => set('sekolah', e.target.value)} placeholder="cth: SMAN Modal Bangsa" />
-              {errForm.sekolah && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.sekolah}</p>}</div>
-            <div className="field"><label>Tahun Ajaran</label>
-              <input value={form.tahunAjaran} onChange={(e) => set('tahunAjaran', e.target.value)} placeholder="cth: 2026/2027" /></div>
-            <div className="field"><label>Jenjang</label>
-              <select value={form.jenjang} onChange={(e) => set('jenjang', e.target.value)}>
-                {JENJANG.map((j) => <option key={j}>{j}</option>)}
-              </select></div>
-            <div className="field"><label>Fase</label>
-              <select value={form.fase} onChange={(e) => set('fase', e.target.value)}>
-                {faseOpts.map((f) => <option key={f}>{f}</option>)}
-              </select></div>
-            <div className="field"><label>Kelas</label>
-              <input value={form.kelas} onChange={(e) => set('kelas', e.target.value)} placeholder="cth: 8" /></div>
-            <div className="field"><label>Semester</label>
-              <select value={form.semester} onChange={(e) => set('semester', e.target.value)}>
-                {SEMESTER.map((s) => <option key={s}>{s}</option>)}
-              </select></div>
-            <div className="field"><label>Mata Pelajaran</label>
-              <input value={form.mapel} onChange={(e) => set('mapel', e.target.value)} placeholder="cth: IPA" list="mapelList" />
-              <datalist id="mapelList">{mapelOpts.map((m) => <option key={m} value={m} />)}</datalist>
-              {errForm.mapel && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.mapel}</p>}</div>
+            <FormulirDasar
+              nilai={form}
+              onUbah={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              wajib={['nama', 'sekolah', 'mapel']}
+              galat={errForm}
+              prefix="gp"
+            />
+          </div>
+
+          <h2 style={{ marginTop: 28 }}>Proyek</h2>
+          <div className="card" style={{ marginTop: 10 }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Simpan hasil ke proyek</label>
+              <select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                <option value="">Tanpa proyek</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {[p.mapel, p.kelas].filter(Boolean).join(' ') || p.nama}
+                  </option>
+                ))}
+                <option value="__baru">+ Buat proyek baru</option>
+              </select>
+              <p className="hint">Semua dokumen paket ini tersimpan di proyek yang dipilih.</p>
+            </div>
+            {projectId === '__baru' && (
+              <div className="field" style={{ margin: '12px 0 0' }}>
+                <label>Nama proyek baru</label>
+                <input
+                  value={proyekBaru}
+                  onChange={(e) => setProyekBaru(e.target.value)}
+                  placeholder={[form.mapel, form.kelas].filter(Boolean).join(' ') || 'cth: IPA 7'}
+                />
+              </div>
+            )}
           </div>
 
           {mode !== 'perencanaan' && (

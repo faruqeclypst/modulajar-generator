@@ -139,3 +139,96 @@ export function paketProgress(paket) {
   const docs = paket?.docs || {};
   return ['cp', 'atp', 'minggu_efektif', 'prota', 'prosem'].filter((k) => docs[k]).length;
 }
+
+// ---- Proyek: 1 proyek = 1 mapel (+ kelas/semester/tahun ajaran) ----
+// Disimpan di localStorage (tanpa tabel baru di Supabase) agar tidak butuh
+// migrasi SQL. Dokumen menunjuk proyek lewat `projectId` di meta (ikut
+// tersinkron antarperangkat); bila proyeknya tidak ada di perangkat ini,
+// dokumen tampil di "Tanpa proyek".
+const PROYEK_KEY = 'ma-projects';
+const MIGRASI_KEY = 'ma-migrasi-proyek-v1';
+
+function bacaProyek() {
+  try { return JSON.parse(localStorage.getItem(PROYEK_KEY)) || []; }
+  catch { return []; }
+}
+function tulisProyek(list) {
+  try { localStorage.setItem(PROYEK_KEY, JSON.stringify(list)); } catch { /* abaikan */ }
+}
+
+export async function listProjects() {
+  return bacaProyek().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+}
+
+export async function getProject(id) {
+  return bacaProyek().find((p) => String(p.id) === String(id)) || null;
+}
+
+export async function saveProject(data) {
+  const list = bacaProyek();
+  const p = {
+    id: 'p' + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36),
+    nama: '', mapel: '', jenjang: '', fase: '', kelas: '', semester: '', tahunAjaran: '',
+    paketId: null,
+    ...(data || {}),
+    createdAt: new Date().toISOString(),
+  };
+  if (!p.nama) p.nama = [p.mapel, p.kelas].filter(Boolean).join(' ') || 'Proyek tanpa nama';
+  list.push(p);
+  tulisProyek(list);
+  return p.id;
+}
+
+export async function updateProject(id, patch) {
+  const list = bacaProyek();
+  const ix = list.findIndex((p) => String(p.id) === String(id));
+  if (ix === -1) throw new Error('Proyek tidak ditemukan.');
+  list[ix] = { ...list[ix], ...(patch || {}) };
+  tulisProyek(list);
+}
+
+export async function deleteProject(id) {
+  // Dokumen TIDAK ikut terhapus: projectId-nya dikosongkan sehingga
+  // dokumen pindah ke "Tanpa proyek".
+  const docs = await listModuls().catch(() => []);
+  for (const d of docs) {
+    if (String(d.projectId || '') === String(id)) {
+      try { await updateModul(d.id, { projectId: null }); } catch { /* abaikan */ }
+    }
+  }
+  tulisProyek(bacaProyek().filter((p) => String(p.id) !== String(id)));
+}
+
+// Migrasi sekali jalan: tiap paket perencanaan lama menjadi satu proyek,
+// dokumen perencanaan paket + dokumen ber-paketId dipetakan ke proyeknya.
+// Baris paket lama TIDAK dihapus agar pemilih acuan lama tetap berfungsi.
+export async function migrasiPaketKeProyek() {
+  try { if (localStorage.getItem(MIGRASI_KEY) === '1') return { dibuat: 0 }; }
+  catch { return { dibuat: 0 }; }
+  let dibuat = 0;
+  try {
+    const pakets = await listPakets();
+    const docs = await listModuls().catch(() => []);
+    const peta = {};
+    for (const p of pakets) {
+      const id = await saveProject({
+        nama: [p.mapel, p.kelas].filter(Boolean).join(' ') || p.mapel || 'Proyek',
+        mapel: p.mapel || '', jenjang: p.jenjang || '', fase: p.fase || '',
+        kelas: p.kelas || '', semester: p.semester || '', tahunAjaran: p.tahunAjaran || '',
+        paketId: p.id,
+      });
+      peta[String(p.id)] = id;
+      dibuat++;
+      for (const docId of Object.values(p.docs || {})) {
+        try { await updateModul(docId, { projectId: id }); } catch { /* abaikan */ }
+      }
+    }
+    for (const d of docs) {
+      if (d.projectId) continue;
+      const baru = d.paketId ? peta[String(d.paketId)] : null;
+      if (baru) { try { await updateModul(d.id, { projectId: baru }); } catch { /* abaikan */ } }
+    }
+  } catch { /* abaikan: migrasi tidak boleh menggagalkan load */ }
+  try { localStorage.setItem(MIGRASI_KEY, '1'); } catch { /* abaikan */ }
+  return { dibuat };
+}

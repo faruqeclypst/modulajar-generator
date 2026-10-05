@@ -183,6 +183,13 @@ Aturan:
   di iOS). Focus: outline 3px bata.
 - Hint di bawah input: 12.5px muted. Error: teks bata + border bata,
   dengan pesan yang menyebut cara memperbaiki.
+- `FormulirDasar` (`components/FormulirDasar.jsx`): satu komponen untuk field
+  identitas pembelajaran (Nama Guru, NIP Guru opsional, Sekolah, Tahun Ajaran,
+  Jenjang, Fase, Kelas, Semester, Mata Pelajaran). Dipakai di Wizard, Generator
+  Paket, Ruang Perencanaan, dan form proyek: urutan, label, placeholder, dan
+  perilaku (ganti jenjang me-reset fase dan mapel) selalu sama di semua jalur.
+  Field khusus tiap jalur (daftar topik, materi) tetap di jalurnya
+  masing-masing, di bawahnya, dengan gaya yang sama.
 
 ### Kartu
 
@@ -228,7 +235,10 @@ Aturan:
   3. **Data**: info "Dokumen tersimpan di akunmu (Supabase)" + tombol
      "Muat ulang data".
   4. **Bantuan**: tombol "Chat WhatsApp" (link WA yang sudah ada).
-  5. **Keluar**: tombol bahaya "Keluar dari aplikasi" dengan konfirmasi.
+  5. **Data Kepegawaian**: NIP Guru, Nama Kepala Sekolah, NIP Kepala Sekolah
+     (semuanya opsional). Disimpan di profil perangkat, dipakai di Lembar
+     Pengesahan dokumen.
+  6. **Keluar**: tombol bahaya "Keluar dari aplikasi" dengan konfirmasi.
 - Tidak ada pengaturan palsu. Setiap kontrol harus benar-benar bekerja.
 
 ### Status: kosong, memuat, error
@@ -292,14 +302,33 @@ Aturan:
    (satu-satunya gerak ambient; lambat, bisa dijeda dengan
    prefers-reduced-motion), fitur sebagai daftar kartu per tipe dokumen,
    cara kerja mengikuti alur nyata 4 tahap, pita CTA, footer.
-3. **Beranda (Dokumen Saya)**: kartu hero "Ruang Perencanaan" (langkah 01)
-   + seksi "Dokumen Saya" (langkah 02) berisi grid kartu dokumen.
-4. **Ruang Perencanaan**: 5 langkah CP, ATP, Minggu Efektif, Prota, Prosem
-   sebagai langkah berurutan dengan status per langkah.
-5. **Generator Paket**: form paket + daftar topik + unggahan, lalu mode
-   pantau job (langkah vertikal + progres + jeda review).
-6. **Wizard**: form multi-langkah pembuatan dokumen tunggal.
-7. **DocView / Editor**: kertas dokumen A4 dengan blok yang bisa diedit,
+3. **Beranda (Proyek Saya)**: kartu hero "Ruang Perencanaan" (langkah 01)
+   + daftar proyek (langkah 02). Satu proyek = satu mata pelajaran (+ kelas,
+   semester, tahun ajaran); kartu proyek menampilkan jumlah dokumen dan aksi
+   Buka / Ubah / Hapus (hapus proyek tidak menghapus dokumennya: dokumen
+   pindah ke "Tanpa Proyek"). Di bawahnya seksi "Tanpa Proyek" untuk dokumen
+   yang belum dikelompokkan. Proyek disimpan di localStorage (`ma-projects`);
+   dokumen menunjuk proyek lewat `projectId` di meta. Migrasi sekali jalan
+   (`ma-migrasi-proyek-v1`): paket perencanaan lama menjadi proyek.
+4. **Ruang Perencanaan**: berbasis proyek. Pilih proyek di atas (atau buat
+   baru), lalu 5 langkah CP, ATP, Minggu Efektif, Prota, Prosem sebagai langkah
+   berurutan dengan status per langkah. Dokumen perencanaan tersimpan dengan
+   `projectId`; baris paket legacy tertaut tetap dipelihara agar pemilih
+   "Paket Perencanaan" di Wizard terus berfungsi.
+5. **Generator Paket**: form paket + pilih/buat proyek + daftar topik +
+   unggahan, lalu mode pantau job (langkah vertikal + progres + jeda review
+   opsional). `projectId` dikirim lewat info job sehingga semua dokumen hasil
+   tersimpan di proyek tersebut.
+6. **Wizard**: form multi-langkah pembuatan dokumen tunggal. Langkah Informasi
+   diawali pemilih Proyek: memilih proyek mengisi info otomatis dan mengatur
+   acuan dari dokumen perencanaan proyek itu; pemilih acuan manual (paket,
+   modul acuan, dokumen tersimpan) tetap berfungsi sebagai override.
+   Dokumen tersimpan dengan `projectId` bila proyek dipilih.
+7. **Detail Proyek**: judul + meta proyek, tombol "Buka Ruang Perencanaan" dan
+   "Buat Modul Ajar", seksi Perencanaan (5 langkah dengan status), lalu grup
+   Modul Ajar / LKPD / Penilaian. Posisi detail proyek bertahan saat refresh
+   (`ma-view` menyimpan `projectId`).
+8. **DocView / Editor**: kertas dokumen A4 dengan blok yang bisa diedit,
    toolbar aksi (regenerasi, gambar, ekspor).
 
 ## Bahasa & Copy

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { JENJANG, FASE, MAPEL, MODEL } from '../lib/referensi';
+import { FASE, MODEL } from '../lib/referensi';
 import { DOC_TYPES, FIELD_LABEL, SEMESTER } from '../lib/docs';
 import { generateDocStream, rekomendasiAI, extractTitle, buangJudulGanda, rapikanIdentitas, getProfile, saveProfile } from '../lib/api';
 import { parseProsemWeeks } from '../lib/prosem';
-import { saveDraft, getDraft, clearDraft, saveModul, listPakets, getPaket, getModul, listModuls } from '../lib/db';
+import { saveDraft, getDraft, clearDraft, saveModul, listPakets, getPaket, getModul, listModuls, listProjects, getProject } from '../lib/db';
+import FormulirDasar from './FormulirDasar';
 import DocEditor from './DocEditor';
 import ProsesLive from './ProsesLive';
 import Paywall from './Paywall';
@@ -17,15 +18,15 @@ const emptyForm = {
   docType: 'modul', jenjang: 'SMA/MA', fase: '', kelas: '', semester: 'Ganjil',
   mapel: '', topik: '', alokasi: '', model: MODEL[0], materi: '',
   jmlPG: '10', jmlUraian: '5',
-  nama: '', sekolah: '', tahunAjaran: '',
+  nama: '', nip: '', sekolah: '', tahunAjaran: '',
 };
 
 function formAwal(preselectDocType, initial) {
   return { ...emptyForm, docType: preselectDocType || 'modul', ...getProfile(), ...(initial?.form || {}) };
 }
 
-export default function Wizard({ onDone, onCancel, initial, preselectPaketId, preselectDocType, preselectModulId, waLink, kuota, onKuotaChanged }) {
-  const [step, setStep] = useState(preselectPaketId || preselectModulId ? 2 : 1);
+export default function Wizard({ onDone, onCancel, initial, preselectPaketId, preselectProjectId, preselectDocType, preselectModulId, waLink, kuota, onKuotaChanged }) {
+  const [step, setStep] = useState(preselectPaketId || preselectProjectId || preselectModulId ? 2 : 1);
   const [form, setForm] = useState(() => formAwal(preselectDocType, initial));
   const [loading, setLoading] = useState(false);
   const [tahapLive, setTahapLive] = useState([]);   // [{key,label}] tahapan asli dari server
@@ -48,6 +49,9 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
   const [modulLabel, setModulLabel] = useState('');
   const [modulList, setModulList] = useState([]);
   const [modulAcuanId, setModulAcuanId] = useState('');
+  const [projects, setProjects] = useState([]);
+  const [projectId, setProjectId] = useState(preselectProjectId || '');
+  const [project, setProject] = useState(null);
   const [semuaDocs, setSemuaDocs] = useState([]);
   const [dokAcuanIds, setDokAcuanIds] = useState([]);
 
@@ -90,6 +94,32 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       }
     })();
   }, [preselectPaketId]);
+
+  // Daftar proyek untuk pemilih di langkah Informasi
+  useEffect(() => {
+    listProjects().then(setProjects).catch(() => {});
+  }, []);
+
+  // Pilih proyek: prefill info + acuan otomatis dari perencanaan proyek itu.
+  // Pemilih acuan manual (paket/modul/dokumen) tetap bisa diubah setelahnya.
+  useEffect(() => {
+    if (!projectId) { setProject(null); return; }
+    (async () => {
+      const p = await getProject(projectId).catch(() => null);
+      if (!p) { setProject(null); return; }
+      setProject(p);
+      setForm((f) => ({
+        ...f,
+        jenjang: p.jenjang || f.jenjang,
+        fase: p.fase || f.fase,
+        kelas: p.kelas || f.kelas,
+        semester: p.semester || f.semester,
+        mapel: p.mapel || f.mapel,
+        tahunAjaran: p.tahunAjaran || f.tahunAjaran,
+      }));
+      if (p.paketId) setPaketId(String(p.paketId));
+    })();
+  }, [projectId]);
 
   // Prefill dari modul (tombol "Buat LKPD / Bank Soal / KKTP" di halaman modul)
   useEffect(() => {
@@ -179,8 +209,8 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
 
   // simpan profil otomatis
   useEffect(() => {
-    saveProfile({ nama: form.nama, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran });
-  }, [form.nama, form.sekolah, form.tahunAjaran]);
+    saveProfile({ nama: form.nama, nip: form.nip, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran });
+  }, [form.nama, form.nip, form.sekolah, form.tahunAjaran]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const has = (f) => dt.fields.includes(f);
@@ -271,7 +301,8 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     try {
       const sumber = butuhAcuan ? await buildSumber() : '';
       let md = '';
-      await generateDocStream(form.docType, form, form.materi, sumber, null, (ev) => {
+      // info: profil (nip, kepala sekolah, ...) sebagai dasar, form menimpa
+      await generateDocStream(form.docType, { ...getProfile(), ...form }, form.materi, sumber, null, (ev) => {
         if (ev.tipe === 'tahap') tandaiTahap(ev.key, ev.label);
         else if (ev.tipe === 'teks') tambahTulisan(ev.key, ev.delta || '');
         else if (ev.tipe === 'selesai') {
@@ -307,6 +338,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       mapel: form.mapel, topik: form.topik, alokasi: form.alokasi, model: form.model,
       nama: form.nama, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran,
       markdown: cleanMd, images: finalImgs,
+      projectId: projectId || undefined,
       paketId: paketId ? Number(paketId) : undefined,
       modulAcuanId: modulAcuanId ? Number(modulAcuanId) : undefined,
     });
@@ -350,18 +382,12 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           </div>
           <h3 style={{ marginTop: 24, fontSize: 15, textTransform: 'uppercase', letterSpacing: 1 }}>Identitas Guru</h3>
           <div className="grid2">
-            <div className="field">
-              <label>Nama Guru</label>
-              <input placeholder="cth: Alfaruq Asri, S.Pd." value={form.nama} onChange={(e) => set('nama', e.target.value)} />
-            </div>
-            <div className="field">
-              <label>Sekolah</label>
-              <input placeholder="cth: SMAN Modal Bangsa" value={form.sekolah} onChange={(e) => set('sekolah', e.target.value)} />
-            </div>
-          </div>
-          <div className="field" style={{ maxWidth: 280 }}>
-            <label>Tahun Ajaran</label>
-            <input placeholder="cth: 2025/2026" value={form.tahunAjaran} onChange={(e) => set('tahunAjaran', e.target.value)} />
+            <FormulirDasar
+              nilai={form}
+              onUbah={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              fields={['nama', 'nip', 'sekolah', 'tahunAjaran']}
+              prefix="w1"
+            />
           </div>
           <div className="btn-row">
             <button className="btn" onClick={onCancel}>Batal</button>
@@ -410,58 +436,44 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
             </div>
           )}
 
-          {(preselectPaketId || preselectModulId) && (
+          {(preselectPaketId || preselectProjectId || preselectModulId) && (
             <>
               <h3 style={{ marginTop: 20, fontSize: 15, textTransform: 'uppercase', letterSpacing: 1 }}>Identitas Guru</h3>
               <div className="grid2">
-                <div className="field">
-                  <label>Nama Guru</label>
-                  <input placeholder="cth: Alfaruq Asri, S.Pd." value={form.nama} onChange={(e) => set('nama', e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Sekolah</label>
-                  <input placeholder="cth: SMAN Modal Bangsa" value={form.sekolah} onChange={(e) => set('sekolah', e.target.value)} />
-                </div>
-              </div>
-              <div className="field" style={{ maxWidth: 280 }}>
-                <label>Tahun Ajaran</label>
-                <input placeholder="cth: 2025/2026" value={form.tahunAjaran} onChange={(e) => set('tahunAjaran', e.target.value)} />
+                <FormulirDasar
+                  nilai={form}
+                  onUbah={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                  fields={['nama', 'nip', 'sekolah', 'tahunAjaran']}
+                  prefix="w2a"
+                />
               </div>
             </>
           )}
+          <div className="field" style={{ maxWidth: 420 }}>
+            <label>Proyek</label>
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">Tanpa proyek</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {[p.mapel, p.kelas].filter(Boolean).join(' ') || p.nama}
+                </option>
+              ))}
+            </select>
+            {project?.paketId
+              ? <p className="hint">Info terisi otomatis. Acuan diambil dari perencanaan proyek ini.</p>
+              : <p className="hint">Pilih proyek agar info terisi otomatis dan dokumen tersimpan di sana.</p>}
+          </div>
           <div className="grid2">
-            {has('jenjang') && (
-              <div className="field"><label>Jenjang</label>
-                <select value={form.jenjang} onChange={(e) => set('jenjang', e.target.value)}>
-                  {JENJANG.map((j) => <option key={j}>{j}</option>)}
-                </select></div>
-            )}
-            {has('fase') && (
-              <div className="field"><label>Fase</label>
-                <select value={form.fase} onChange={(e) => set('fase', e.target.value)}>
-                  {FASE[form.jenjang].map((f) => <option key={f}>{f}</option>)}
-                </select></div>
-            )}
-            {has('kelas') && (
-              <div className="field"><label>Kelas</label>
-                <input placeholder="cth: XI-1" value={form.kelas} onChange={(e) => set('kelas', e.target.value)} /></div>
-            )}
-            {has('semester') && (
-              <div className="field"><label>Semester</label>
-                <select value={form.semester} onChange={(e) => set('semester', e.target.value)}>
-                  {SEMESTER.map((s) => <option key={s}>{s}</option>)}
-                </select></div>
-            )}
-            {has('mapel') && (
-              <div className="field"><label>Mata Pelajaran <span className="req">*</span></label>
-                <select value={form.mapel} onChange={(e) => set('mapel', e.target.value)}>
-                  <option value="">Pilih</option>
-                  {MAPEL[form.jenjang].map((m) => <option key={m}>{m}</option>)}
-                </select></div>
-            )}
+            <FormulirDasar
+              nilai={form}
+              onUbah={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              fields={['jenjang', 'fase', 'kelas', 'semester', 'mapel'].filter(has)}
+              wajib={['mapel']}
+              prefix="w2b"
+            />
             {has('alokasi') && (
-              <div className="field"><label>Alokasi Waktu</label>
-                <input placeholder="cth: 2 x 45 menit" value={form.alokasi} onChange={(e) => set('alokasi', e.target.value)} /></div>
+              <div className="field"><label htmlFor="w2b-alokasi">Alokasi Waktu</label>
+                <input id="w2b-alokasi" placeholder="cth: 2 x 45 menit" value={form.alokasi} onChange={(e) => set('alokasi', e.target.value)} /></div>
             )}
           </div>
           {butuhAcuan && prosemWeeks.length > 0 && (has('topik')) && (

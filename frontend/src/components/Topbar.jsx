@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 // dengan dropdown Pengaturan/Keluar. Keyboard: Enter/Space buka, Escape
 // tutup + fokus kembali ke pemicu, klik di luar menutup.
 const NAV = [
-  ['app', 'Dokumen Saya'],
+  ['app', 'Proyek Saya'],
   ['ruang', 'Ruang Perencanaan'],
   ['paket', 'Generator Paket'],
 ];
