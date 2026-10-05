@@ -13,7 +13,7 @@ const RANTAI_LABEL = {
   perencanaan: ['CP', 'ATP', 'Minggu Efektif', 'Prota', 'Prosem', 'KKTP'],
   pelaksanaan: ['Modul 1..N', 'LKPD 1..N', 'Paket Soal'],
 };
-const MODE_INFO = {  lengkap: { nama: 'Paket Lengkap', meta: 'Perencanaan + N modul + N LKPD + soal', desc: 'Dari CP sampai KKTP, lalu Modul dan LKPD per topik. Berhenti sejenak setelah perencanaan agar bisa ditinjau.' },
+const MODE_INFO = {  lengkap: { nama: 'Paket Lengkap', meta: 'Perencanaan + N modul + N LKPD + soal', desc: 'Dari CP sampai KKTP, lalu Modul dan LKPD per topik, terus sampai Paket Soal. Satu klik, tanpa jeda.' },
   perencanaan: { nama: 'Paket Perencanaan', meta: '6 dokumen', desc: 'CP, ATP, Minggu Efektif, Prota, Prosem, KKTP. Pas untuk awal semester.' },
   pelaksanaan: { nama: 'Paket Pelaksanaan', meta: 'N modul + N LKPD + soal', desc: 'Modul Ajar, LKPD, dan Paket Soal per topik, dengan ATP/Prosem yang ditempel sebagai acuan.' },
 };
@@ -54,6 +54,7 @@ async function apiJob(path, method, body) {
 
 export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, kuota, onKuotaChanged }) {
   const [mode, setMode] = useState('lengkap');
+  const [reviewJeda, setReviewJeda] = useState(false); // jeda review setelah perencanaan: default MATI (paket satu klik)
   const [form, setForm] = useState(() => ({ ...emptyForm, ...getProfile() }));
   const [tahap, setTahap] = useState('form'); // form | jalan | selesai
   const [job, setJob] = useState(null);
@@ -158,6 +159,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
       saveProfile({ nama: form.nama, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran, jenjang: form.jenjang });
       const d = await apiJob('/api/paket', 'POST', {
         mode,
+        reviewJeda: mode === 'lengkap' && reviewJeda,
         info: {
           nama: form.nama, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran,
           jenjang: form.jenjang, fase: form.fase, kelas: form.kelas, semester: form.semester,
@@ -244,6 +246,16 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
             <b style={{ fontSize: 13 }}>Alur acuan otomatis</b>
             <p className="hint" style={{ margin: '6px 0 0' }}>{RANTAI_LABEL[mode].join(' → ')}</p>
           </div>
+
+          {mode === 'lengkap' && (
+            <label className="check-row">
+              <input type="checkbox" checked={reviewJeda} onChange={(e) => setReviewJeda(e.target.checked)} />
+              <span>
+                <b>Jeda untuk review setelah perencanaan</b>
+                <span className="hint">Paket berhenti setelah CP sampai KKTP selesai, agar kamu bisa meninjau dulu sebelum modul dibuat. Tanpa centang, paket jalan terus sampai selesai dalam satu klik.</span>
+              </span>
+            </label>
+          )}
 
           {mode !== 'pelaksanaan' ? (
             <div className="alert alert-info" style={{ marginTop: 14 }}>

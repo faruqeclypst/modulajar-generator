@@ -541,3 +541,10 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .dok-acuan-ul li.aktif { background: var(--wash); }
 .dok-acuan-ul input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: var(--red); }
 .dok-acuan-ul label { font-size: 14.5px; line-height: 1.45; cursor: pointer; }
+
+/* Baris checkbox opsi paket (Generator Paket): label + penjelasan, target sentuh nyaman */
+.check-row { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding: 14px 16px;
+  border: var(--bd); background: var(--paper-2); box-shadow: var(--sh); cursor: pointer; }
+.check-row input[type="checkbox"] { width: 22px; height: 22px; flex: none; margin-top: 2px; accent-color: var(--red); cursor: pointer; }
+.check-row b { display: block; font-size: 15px; margin-bottom: 4px; }
+.check-row .hint { display: block; margin: 0; }
