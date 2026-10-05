@@ -222,13 +222,15 @@ export function splitInfoUmum(markdown) {
   return { infoRows: rows, rest: rest.trim() };
 }
 
-// Profil guru (localStorage)
+// Profil guru (localStorage). saveProfile MENGGABUNGKAN, bukan mengganti:
+// tiap pemanggil hanya menyimpan field yang ia kelola (nama, nip,
+// kepalaSekolah, ...), field lain tetap utuh.
 const PKEY = 'modulajar_profile';
 export function getProfile() {
   try { return JSON.parse(localStorage.getItem(PKEY)) || {}; } catch { return {}; }
 }
 export function saveProfile(p) {
-  localStorage.setItem(PKEY, JSON.stringify(p));
+  localStorage.setItem(PKEY, JSON.stringify({ ...getProfile(), ...(p || {}) }));
 }
 
 // ---- Kunci AI sendiri (BYOK) & referal ----

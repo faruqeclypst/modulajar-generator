@@ -1,30 +1,56 @@
 import { useEffect, useState } from 'react';
-import { JENJANG, FASE, MAPEL } from '../lib/referensi';
-import { DOC_TYPES, ALUR_PERENCANAAN, SEMESTER } from '../lib/docs';
+import { DOC_TYPES, ALUR_PERENCANAAN } from '../lib/docs';
 import { generateDocStream, extractTitle, getProfile } from '../lib/api';
-import { saveModul, updateModul, getModul, savePaket, updatePaket, deletePaket, listPakets, getPaket, paketProgress } from '../lib/db';
+import { saveModul, updateModul, getModul, savePaket, updatePaket, getPaket, paketProgress, listProjects, getProject, saveProject, updateProject } from '../lib/db';
 import DocEditor from './DocEditor';
+import FormulirDasar from './FormulirDasar';
 import ProsesLive from './ProsesLive';
 import Paywall from './Paywall';
 
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
 const BUTUH = { cp: null, atp: 'cp', minggu_efektif: 'atp', prota: 'minggu_efektif', prosem: 'prota' };
 
-export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLink, onKuotaChanged }) {
-  const [pakets, setPakets] = useState([]);
-  const [paketId, setPaketId] = useState(null);
-  const [paket, setPaket] = useState(null);
+export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, preselectProjectId, waLink, onKuotaChanged }) {
+  const [projects, setProjects] = useState([]);
+  const [projectId, setProjectId] = useState(preselectProjectId || null);
+  const [project, setProject] = useState(null);
+  const [paket, setPaket] = useState(null); // baris paket legacy tertaut: penyimpanan docs + pemilih acuan
   const [showBaru, setShowBaru] = useState(false);
   const [baru, setBaru] = useState({ jenjang: 'SMA/MA', fase: 'F (Kelas 11-12)', kelas: '', semester: 'Ganjil', mapel: '', tahunAjaran: '' });
   const [stepKey, setStepKey] = useState(null);
   const [errBaru, setErrBaru] = useState('');
-  const [memuatAwal, setMemuatAwal] = useState(true); // loading daftar paket saat pertama dibuka
+  const [memuatAwal, setMemuatAwal] = useState(true); // loading daftar proyek saat pertama dibuka
 
-  async function refresh(id) {
-    const list = await listPakets();
-    setPakets(list);
-    const pid = id || paketId;
-    if (pid) setPaket(await getPaket(pid));
+  // Pastikan setiap proyek punya baris paket tertaut (dipakai StepWorkspace
+  // dan pemilih "Paket Perencanaan" di Wizard; tidak terlihat di UI).
+  async function pastikanPaket(proj) {
+    if (proj.paketId) {
+      const p = await getPaket(proj.paketId).catch(() => null);
+      if (p) return p;
+    }
+    const pid = await savePaket({
+      mapel: proj.mapel, jenjang: proj.jenjang, fase: proj.fase, kelas: proj.kelas,
+      semester: proj.semester, tahunAjaran: proj.tahunAjaran, docs: {},
+    });
+    await updateProject(proj.id, { paketId: pid });
+    return getPaket(pid);
+  }
+
+  async function refresh(pid) {
+    const list = await listProjects();
+    setProjects(list);
+    const id = pid || projectId;
+    if (id) {
+      const proj = list.find((p) => String(p.id) === String(id)) || await getProject(id).catch(() => null);
+      if (proj) {
+        setProject(proj);
+        setProjectId(proj.id);
+        setPaket(await pastikanPaket(proj));
+        return;
+      }
+    }
+    setProject(null);
+    setPaket(null);
   }
   useEffect(() => { refresh().then(() => setMemuatAwal(false)); }, []);
   useEffect(() => {
@@ -32,106 +58,79 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
     setBaru((b) => ({ ...b, tahunAjaran: b.tahunAjaran || p.tahunAjaran || '' }));
   }, []);
 
-  async function buatPaket() {
+  async function buatProyek() {
     if (!baru.mapel) { setErrBaru('Pilih mata pelajaran dulu.'); return; }
     setErrBaru('');
-    const id = await savePaket({ ...baru, docs: {} });
+    const id = await saveProject({ ...baru });
     setShowBaru(false);
-    setPaketId(id);
-    setPaket(await getPaket(id));
+    setProjectId(id);
+    setStepKey(null);
     refresh(id);
   }
 
-  async function hapusPaket(id) {
-    if (!confirm('Hapus paket perencanaan ini? Dokumen yang sudah dibuat tidak ikut terhapus.')) return;
-    await deletePaket(id);
-    if (paketId === id) { setPaketId(null); setPaket(null); }
-    refresh();
-  }
+  function bukaProyek(id) { setProjectId(id); setStepKey(null); refresh(id); }
+  function tutupProyek() { setProjectId(null); setProject(null); setPaket(null); refresh(); }
 
-  function bukaPaket(id) { setPaketId(id); setStepKey(null); refresh(id); }
-
-  if (!paket) {
+  if (!project || !paket) {
     return (
       <div className="wrap narrow">
         <span className="kicker">Ruang Perencanaan</span>
         <h1 className="page">Alur Perangkat Ajar</h1>
         <p className="lead">
-          Susun perangkat <strong>berurutan</strong>: CP, ATP, Prota, Prosem, baru Modul Ajar.
+          Pilih <strong>proyek</strong> dulu, lalu susun perangkat <strong>berurutan</strong>: CP, ATP, Prota, Prosem, baru Modul Ajar.
           Tiap dokumen menjadi <strong>acuan resmi</strong> dokumen berikutnya, bukan karangan AI.
         </p>
         <div className="btn-row" style={{ marginBottom: 20 }}>
           <button className="btn" onClick={onBack}>Kembali</button>
-          <button className="btn btn-primary" onClick={() => setShowBaru(!showBaru)}>+ Paket Perencanaan Baru</button>
+          <button className="btn btn-primary" onClick={() => setShowBaru(!showBaru)}>+ Proyek Baru</button>
         </div>
 
         {showBaru && (
           <div className="card" style={{ marginBottom: 20 }}>
-            <h3 style={{ marginTop: 0 }}>Paket Baru</h3>
+            <h3 style={{ marginTop: 0 }}>Proyek Baru</h3>
             <div className="grid2">
-              <div className="field"><label>Jenjang</label>
-                <select value={baru.jenjang} onChange={(e) => setBaru({ ...baru, jenjang: e.target.value, fase: FASE[e.target.value][0], mapel: '' })}>
-                  {JENJANG.map((j) => <option key={j}>{j}</option>)}
-                </select></div>
-              <div className="field"><label>Fase</label>
-                <select value={baru.fase} onChange={(e) => setBaru({ ...baru, fase: e.target.value })}>
-                  {FASE[baru.jenjang].map((f) => <option key={f}>{f}</option>)}
-                </select></div>
-              <div className="field"><label>Kelas</label>
-                <input placeholder="cth: XI-1" value={baru.kelas} onChange={(e) => setBaru({ ...baru, kelas: e.target.value })} /></div>
-              <div className="field"><label>Semester</label>
-                <select value={baru.semester} onChange={(e) => setBaru({ ...baru, semester: e.target.value })}>
-                  {SEMESTER.map((s) => <option key={s}>{s}</option>)}
-                </select></div>
-              <div className="field"><label>Mata Pelajaran <span className="req">*</span></label>
-                <select value={baru.mapel} onChange={(e) => { setBaru({ ...baru, mapel: e.target.value }); setErrBaru(''); }}>
-                  <option value="">Pilih</option>
-                  {MAPEL[baru.jenjang].map((m) => <option key={m}>{m}</option>)}
-                </select>
-                {errBaru && <p className="err">{errBaru}</p>}
-              </div>
-              <div className="field"><label>Tahun Ajaran</label>
-                <input placeholder="cth: 2025/2026" value={baru.tahunAjaran} onChange={(e) => setBaru({ ...baru, tahunAjaran: e.target.value })} /></div>
+              <FormulirDasar
+                nilai={baru}
+                onUbah={(patch) => { setBaru((b) => ({ ...b, ...patch })); setErrBaru(''); }}
+                fields={['jenjang', 'fase', 'kelas', 'semester', 'mapel', 'tahunAjaran']}
+                wajib={['mapel']}
+                galat={errBaru ? { mapel: errBaru } : {}}
+                prefix="rp"
+              />
             </div>
             <div className="btn-row">
               <button className="btn" onClick={() => setShowBaru(false)}>Batal</button>
-              <button className="btn btn-primary" onClick={buatPaket}>Buat Paket</button>
+              <button className="btn btn-primary" onClick={buatProyek}>Buat Proyek</button>
             </div>
           </div>
         )}
 
         {memuatAwal ? (
           <div className="loader-wrap">
-            <div className="spinner" role="status" aria-label="Memuat paket perencanaan" />
-            <p className="stage">Memuat paket perencanaan…</p>
+            <div className="spinner" role="status" aria-label="Memuat proyek" />
+            <p className="stage">Memuat proyek…</p>
           </div>
-        ) : pakets.length === 0 ? (
+        ) : projects.length === 0 ? (
           <div className="empty">
-            <h3>Belum ada paket perencanaan</h3>
-            <p>Buat satu paket per mata pelajaran + kelas + semester.</p>
+            <h3>Belum ada proyek</h3>
+            <p>Buat satu proyek per mata pelajaran + kelas + semester.</p>
           </div>
         ) : (
           <div className="modul-grid">
-            {pakets.map((p) => {
-              const prog = paketProgress(p);
-              return (
-                <div className="card modul-card" key={p.id}>
-                  <span className="chip red" style={{ alignSelf: 'flex-start' }}>{prog}/5 Langkah</span>
-                  <h3>{p.mapel}</h3>
-                  <div className="meta">
-                    <span className="chip fill">{p.jenjang}</span>
-                    {p.fase && <span className="chip">{p.fase}</span>}
-                    {p.kelas && <span className="chip">{p.kelas}</span>}
-                    <span className="chip">Semester {p.semester}</span>
-                  </div>
-                  <div className="progress"><div className="progress-fill" style={{ width: (prog / 5 * 100) + '%' }} /></div>
-                  <div className="actions">
-                    <button className="btn btn-sm btn-ink" onClick={() => bukaPaket(p.id)}>Buka</button>
-                    <button className="btn btn-sm" onClick={() => hapusPaket(p.id)}>Hapus</button>
-                  </div>
+            {projects.map((p) => (
+              <div className="card modul-card" key={p.id}>
+                <h3>{[p.mapel, p.kelas].filter(Boolean).join(' ') || p.nama}</h3>
+                <div className="meta">
+                  <span className="chip fill">{p.jenjang}</span>
+                  {p.fase && <span className="chip">{p.fase}</span>}
+                  <span className="chip">Semester {p.semester}</span>
+                  {p.tahunAjaran && <span className="chip">{p.tahunAjaran}</span>}
                 </div>
-              );
-            })}
+                <div className="actions">
+                  <button className="btn btn-sm btn-ink" onClick={() => bukaProyek(p.id)}>Buka</button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -144,8 +143,8 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
   return (
     <div className="wrap narrow">
       <span className="kicker">Ruang Perencanaan</span>
-      <h1 className="page">{paket.mapel}</h1>
-      <p className="lead">{paket.jenjang} · {paket.fase} · {paket.kelas} · Semester {paket.semester} · {paket.tahunAjaran}</p>
+      <h1 className="page">{[project.mapel, project.kelas].filter(Boolean).join(' ') || project.nama}</h1>
+      <p className="lead">{project.jenjang} · {project.fase} · {project.kelas} · Semester {project.semester} · {project.tahunAjaran}</p>
 
       <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <span style={{ flex: 1, minWidth: 220 }}><strong>Kemajuan{' '}{prog}/5.</strong> Selesaikan berurutan. Tiap dokumen menjadi acuan dokumen berikutnya.</span>
@@ -180,16 +179,16 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
             );
           })}
           <div className="btn-row">
-            <button className="btn" onClick={() => { setPaketId(null); setPaket(null); refresh(); }}>Semua Paket</button>
+            <button className="btn" onClick={tutupProyek}>Semua Proyek</button>
             {docs.atp && (
-              <button className="btn btn-primary" onClick={() => onBuatModul && onBuatModul(paket.id)}>
-                Buat Modul Ajar dari Paket Ini
+              <button className="btn btn-primary" onClick={() => onBuatModul && onBuatModul(paket.id, project.id)}>
+                Buat Modul Ajar dari Proyek Ini
               </button>
             )}
           </div>
           {docs.atp && (
             <div className="hint" style={{ marginTop: 8 }}>
-              Modul Ajar akan disusun dengan merujuk CP, ATP, Prota, dan Prosem paket ini. TP dan materi mengikuti acuan, bukan karangan AI.
+              Modul Ajar akan disusun dengan merujuk CP, ATP, Prota, dan Prosem proyek ini. TP dan materi mengikuti acuan, bukan karangan AI.
             </div>
           )}
         </>
@@ -198,6 +197,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
       {stepKey && (
         <StepWorkspace
           paket={paket}
+          project={project}
           stepKey={stepKey}
           waLink={waLink}
           onKuotaChanged={onKuotaChanged}
@@ -209,7 +209,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLin
   );
 }
 
-function StepWorkspace({ paket, stepKey, waLink, onKuotaChanged, onClose, onOpenDoc }) {
+function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClose, onOpenDoc }) {
   const dt = DOC_TYPES[stepKey];
   const need = BUTUH[stepKey];
   const [teks, setTeks] = useState('');       // CP resmi (tempel) / materi tambahan
@@ -234,8 +234,9 @@ function StepWorkspace({ paket, stepKey, waLink, onKuotaChanged, onClose, onOpen
 
   const profile = getProfile();
   const info = {
-    nama: profile.nama, sekolah: profile.sekolah, tahunAjaran: paket.tahunAjaran || profile.tahunAjaran,
+    nama: profile.nama, nip: profile.nip, sekolah: profile.sekolah, tahunAjaran: paket.tahunAjaran || profile.tahunAjaran,
     jenjang: paket.jenjang, fase: paket.fase, kelas: paket.kelas, semester: paket.semester, mapel: paket.mapel,
+    kepalaSekolah: profile.kepalaSekolah, nipKepalaSekolah: profile.nipKepalaSekolah,
   };
 
   function tandaiTahap(key, label) {
@@ -282,6 +283,7 @@ function StepWorkspace({ paket, stepKey, waLink, onKuotaChanged, onClose, onOpen
       mapel: paket.mapel, topik: '', nama: profile.nama, sekolah: profile.sekolah,
       tahunAjaran: paket.tahunAjaran || profile.tahunAjaran,
       markdown: finalMd, images: [], paketId: paket.id,
+      projectId: project?.id || undefined,
     };
     let docId = paket.docs[stepKey];
     if (docId) { await updateModul(docId, payload); }
@@ -357,7 +359,7 @@ function StepWorkspace({ paket, stepKey, waLink, onKuotaChanged, onClose, onOpen
           {error && <div className="alert alert-error">{error}</div>}
           <div className="btn-row no-print">
             <button className="btn" onClick={() => { setMarkdown(''); setFinalMd(''); }}>Generate Ulang</button>
-            <button className="btn btn-primary" onClick={handleSave}>Simpan ke Paket</button>
+            <button className="btn btn-primary" onClick={handleSave}>Simpan ke Proyek</button>
           </div>
         </>
       )}

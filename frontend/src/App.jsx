@@ -6,17 +6,14 @@ import RuangPerencanaan from './components/RuangPerencanaan';
 import GeneratorPaket from './components/GeneratorPaket';
 import Topbar from './components/Topbar';
 import Pengaturan from './components/Pengaturan';
+import { ProyekList, ProyekDetail } from './components/Proyek';
 import { DOC_TYPES } from './lib/docs';
-import { listModuls, getModul, listPakets, paketProgress } from './lib/db';
+import { listModuls, getModul, listProjects, getProject, migrasiPaketKeProyek } from './lib/db';
 import { getSupabase, getSession } from './lib/supabase';
 import { klaimReferal } from './lib/api';
 import { fetchKuota } from './lib/kuota';
 
 const WA_LINK = 'https://wa.me/6285359907696?text=Halo%2C%20saya%20butuh%20bantuan%20ModulAjar';
-
-function fmtDate(ts) {
-  return new Date(ts).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 function Landing({ onStart }) {
   // Tangkap kode referal dari URL (?ref=KODE) untuk diklaim setelah login
@@ -153,9 +150,13 @@ function LayarTunggu({ pesan }) {
 }
 
 // Posisi halaman tersimpan agar refresh tidak melempar ke halaman utama.
+<<<<<<< HEAD
 // Format: {view, docId} (docId hanya untuk view 'detail').
+=======
+// Format: {view, docId, projectId} (docId untuk view 'detail', projectId untuk 'proyek').
+>>>>>>> origin/w1-proyek
 const VIEW_KEY = 'ma-view';
-const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan'];
+const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek'];
 function bacaViewTersimpan() {
   try {
     const raw = localStorage.getItem(VIEW_KEY);
@@ -171,17 +172,20 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authErr, setAuthErr] = useState('');
   // Lazy dari localStorage agar tidak ada flash halaman utama saat refresh
-  const [view, setView] = useState(() => bacaViewTersimpan()?.view || 'landing'); // landing | app | wizard | detail | ruang | paket | pengaturan
+  const [view, setView] = useState(() => bacaViewTersimpan()?.view || 'landing'); // landing | app | wizard | detail | ruang | paket | pengaturan | proyek
   const [restoring, setRestoring] = useState(() => {
     const d = bacaViewTersimpan();
-    return d?.view === 'detail' && !!d.docId;
+    return (d?.view === 'detail' && !!d.docId) || (d?.view === 'proyek' && !!d.projectId);
   });
   const [moduls, setModuls] = useState([]);
-  const [pakets, setPakets] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [projectAktif, setProjectAktif] = useState(null);
   const [active, setActive] = useState(null);
   const [draft, setDraft] = useState(null);
   const [wizardKey, setWizardKey] = useState(0);
   const [wizardPaket, setWizardPaket] = useState(null);
+  const [wizardProyek, setWizardProyek] = useState(null);
+  const [ruangProyek, setRuangProyek] = useState(null);
   const [wizardTurunan, setWizardTurunan] = useState(null); // { docType, modulId }
   const [kuota, setKuota] = useState(null); // { admin, batas, dipakai, sisa, tanggal } | null
 
@@ -200,7 +204,7 @@ export default function App() {
     const all = await listModuls();
     for (const m of all) if (!m.docType) m.docType = 'modul'; // normalisasi dokumen lama
     setModuls(all);
-    setPakets(await listPakets());
+    setProjects(await listProjects());
     setDraft(await getDraft());
     muatKuota();
   }
@@ -223,8 +227,16 @@ export default function App() {
     })();
     return () => { stop = true; if (stopSub) stopSub(); };
   }, []);
-  useEffect(() => { if (auth === 'app') refresh(); }, [auth]);
+  useEffect(() => {
+    if (auth === 'app') {
+      (async () => {
+        await migrasiPaketKeProyek(); // sekali jalan: paket lama menjadi proyek
+        await refresh();
+      })();
+    }
+  }, [auth]);
 
+<<<<<<< HEAD
   // Klaim referal sekali setelah login pertama (kode dari ?ref= di landing).
   // Gagal klaim ditangani diam-diam agar tidak mengganggu login.
   useEffect(() => {
@@ -239,10 +251,23 @@ export default function App() {
   }, [auth]);
 
   // Restore dokumen tersimpan setelah login (hanya setelah auth==='app')
+=======
+  // Restore posisi tersimpan setelah login (hanya setelah auth==='app')
+>>>>>>> origin/w1-proyek
   useEffect(() => {
     if (auth !== 'app') return;
     const d = bacaViewTersimpan();
     if (!d) { setRestoring(false); return; }
+    if (d.view === 'proyek' && d.projectId) {
+      let stop = false;
+      getProject(d.projectId).then((p) => {
+        if (stop) return;
+        if (p) { setProjectAktif(p); setView('proyek'); }
+        else setView('app');
+      }).catch(() => { if (!stop) setView('app'); })
+        .finally(() => { if (!stop) setRestoring(false); });
+      return () => { stop = true; };
+    }
     if (d.view === 'detail' && d.docId) {
       let stop = false;
       getModul(d.docId).then((m) => {
@@ -265,24 +290,37 @@ export default function App() {
   useEffect(() => {
     if (auth !== 'app' || restoring) return;
     if (view === 'detail' && !active?.id) return; // restore belum selesai, jangan timpa
+    if (view === 'proyek' && !projectAktif?.id) return;
     try {
       localStorage.setItem(VIEW_KEY, JSON.stringify({
         view,
         docId: view === 'detail' ? active?.id || null : null,
+        projectId: view === 'proyek' ? projectAktif?.id || null : null,
       }));
     } catch { /* abaikan */ }
-  }, [auth, view, active, restoring]);
+  }, [auth, view, active, projectAktif, restoring]);
   useEffect(() => { window.scrollTo(0, 0); }, [view]);
 
-  function startNew(paketId) { setWizardPaket(paketId || null); setWizardTurunan(null); setWizardKey((k) => k + 1); setView('wizard'); }
-  function startTurunan(docType, modulId) { setWizardTurunan({ docType, modulId }); setWizardPaket(null); setWizardKey((k) => k + 1); setView('wizard'); }
+  function startNew(paketId, projectId) {
+    setWizardPaket(paketId || null);
+    setWizardProyek(projectId || null);
+    setWizardTurunan(null);
+    setWizardKey((k) => k + 1);
+    setView('wizard');
+  }
+  function startTurunan(docType, modulId) { setWizardTurunan({ docType, modulId }); setWizardPaket(null); setWizardProyek(null); setWizardKey((k) => k + 1); setView('wizard'); }
   async function openDoc(id) {
     const d = await getModul(id);
     if (d && !d.docType) d.docType = 'modul';
     setActive(d); setView('detail');
   }
+  async function openProyek(id) {
+    const p = await getProject(id);
+    if (!p) return;
+    setProjectAktif(p); setView('proyek');
+  }
   const goApp = () => { setView('app'); refresh(); };
-  const goRuang = () => setView('ruang');
+  const goRuang = (projectId) => { setRuangProyek(projectId || null); setView('ruang'); };
 
   async function signOut() {
     const sb = await getSupabase();
@@ -316,6 +354,7 @@ export default function App() {
           key={wizardKey}
           initial={draft && !draft.markdown ? { form: draft.form } : undefined}
           preselectPaketId={wizardPaket}
+          preselectProjectId={wizardProyek}
           preselectDocType={wizardTurunan?.docType}
           preselectModulId={wizardTurunan?.modulId}
           waLink={WA_LINK}
@@ -327,7 +366,12 @@ export default function App() {
       )}
 
       {view === 'ruang' && (
-        <RuangPerencanaan onBack={goApp} onOpenDoc={openDoc} onBuatModul={(pid) => startNew(pid)} waLink={WA_LINK} onKuotaChanged={muatKuota} />
+        <RuangPerencanaan
+          onBack={goApp} onOpenDoc={openDoc}
+          onBuatModul={(pid, projId) => startNew(pid, projId)}
+          preselectProjectId={ruangProyek}
+          waLink={WA_LINK} onKuotaChanged={muatKuota}
+        />
       )}
 
       {view === 'paket' && (
@@ -348,34 +392,44 @@ export default function App() {
         <Pengaturan user={user} kuota={kuota} waLink={WA_LINK} onRefresh={refresh} onSignOut={signOut} />
       )}
 
+      {view === 'proyek' && projectAktif && (
+        <ProyekDetail
+          key={projectAktif.id}
+          project={projectAktif}
+          docs={moduls}
+          onBack={goApp}
+          onOpenDoc={openDoc}
+          onRuang={() => goRuang(projectAktif.id)}
+          onBuatModul={() => startNew(null, projectAktif.id)}
+          onChanged={refresh}
+        />
+      )}
+
       {view === 'app' && (
         <div className="wrap">
           <span className="kicker">Beranda</span>
-          <h1 className="page">Perangkat Ajarmu</h1>
-          <p className="lead">Satu alur runtut: Perencanaan, Modul Ajar, lalu LKPD dan Asesmen.</p>
+          <h1 className="page">Proyek Perangkat Ajar</h1>
+          <p className="lead">Satu proyek untuk satu mata pelajaran. Semua dokumennya terkumpul rapi di satu tempat.</p>
 
           <div className="card flow-hero">
             <div className="flow-num" aria-hidden="true">01</div>
             <div style={{ flex: 1, minWidth: 240 }}>
               <h3 style={{ margin: '0 0 4px' }}>Ruang Perencanaan</h3>
               <p style={{ margin: '0 0 12px', fontSize: 14 }}>
-                Susun CP, ATP, Prota, Prosem. Dari paket yang jadi, buat Modul Ajar,
-                lalu LKPD, Bank Soal, dan KKTP langsung dari modulnya. Semua saling merujuk.
+                Susun CP, ATP, Prota, Prosem di dalam proyek. Dari proyek yang jadi, buat Modul Ajar,
+                lalu LKPD, Bank Soal, dan KKTP. Semua saling merujuk.
               </p>
-              {pakets.length > 0 && (
+              {projects.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                  {pakets.slice(0, 4).map((p) => {
-                    const prog = paketProgress(p);
-                    return (
-                      <span key={p.id} className={'chip' + (prog === 5 ? ' fill' : '')}>
-                        {p.mapel} · {prog}/5
-                      </span>
-                    );
-                  })}
+                  {projects.slice(0, 4).map((p) => (
+                    <span key={p.id} className="chip">
+                      {[p.mapel, p.kelas].filter(Boolean).join(' ') || p.nama}
+                    </span>
+                  ))}
                 </div>
               )}
-              <button className="btn btn-primary" onClick={goRuang}>
-                {pakets.length === 0 ? 'Mulai Perencanaan' : 'Buka Ruang Perencanaan'}
+              <button className="btn btn-primary" onClick={() => goRuang()}>
+                {projects.length === 0 ? 'Mulai Perencanaan' : 'Buka Ruang Perencanaan'}
               </button>
             </div>
           </div>
@@ -387,47 +441,13 @@ export default function App() {
             </div>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '28px 0 4px' }}>
-            <div className="flow-num sm" aria-hidden="true">02</div>
-            <h2 className="sec" style={{ margin: 0 }}>Dokumen Saya</h2>
-          </div>
-          <p className="hint" style={{ marginTop: 0 }}>Tersimpan di akunmu, bisa dibuka dari perangkat mana pun.</p>
-
-          {moduls.length === 0 ? (
-            <div className="empty">
-              <h3>Belum ada dokumen</h3>
-              <p>Mulai dari Ruang Perencanaan agar alurnya runtut.</p>
-              <button className="btn btn-primary" onClick={goRuang}>Mulai Perencanaan</button>
-            </div>
-          ) : (
-            <div className="modul-grid">
-              {moduls.map((m) => {
-                const tn = (DOC_TYPES[m.docType] || {}).nama || 'Dokumen';
-                return (
-                  <div className="card modul-card" key={m.id}>
-                    <span className="chip red" style={{ alignSelf: 'flex-start' }}>{tn}</span>
-                    <h3>{m.judul}</h3>
-                    <div className="meta">
-                      <span className="chip fill">{m.jenjang}</span>
-                      {m.mapel && <span className="chip">{m.mapel}</span>}
-                    </div>
-                    {m.topik && <div style={{ fontSize: 13.5, color: 'var(--slate)' }}>{m.topik}</div>}
-                    {(m.images?.length > 0) && (
-                      <div className="thumbstrip">
-                        {m.images.slice(0, 3).map((g, i) => (
-                          <img key={i} src={g.thumbUrl} alt="" loading="lazy" />
-                        ))}
-                      </div>
-                    )}
-                    <time>Diperbarui {fmtDate(m.updatedAt)}</time>
-                    <div className="actions">
-                      <button className="btn btn-sm btn-ink" onClick={() => openDoc(m.id)}>Buka</button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <ProyekList
+            projects={projects}
+            docs={moduls}
+            onOpen={openProyek}
+            onOpenDoc={openDoc}
+            onChanged={refresh}
+          />
         </div>
       )}
       </div>

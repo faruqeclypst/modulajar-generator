@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Paywall from './Paywall';
+<<<<<<< HEAD
 import { getAiConfig, saveAiConfig, deleteAiConfig, getReferal } from '../lib/api';
 
 // Kunci AI sendiri (BYOK): simpan base URL + API key milik user.
@@ -189,6 +190,9 @@ function BagikanBonus() {
     </section>
   );
 }
+=======
+import { getProfile, saveProfile } from '../lib/api';
+>>>>>>> origin/w1-proyek
 
 // Halaman Pengaturan: hanya kontrol nyata, semuanya berfungsi.
 export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }) {
@@ -202,6 +206,20 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
   const [memuat, setMemuat] = useState(false);
   const [catatan, setCatatan] = useState('');
   const [paywall, setPaywall] = useState(null);
+  const [pegawai, setPegawai] = useState(() => {
+    const p = getProfile();
+    return { nip: p.nip || '', kepalaSekolah: p.kepalaSekolah || '', nipKepalaSekolah: p.nipKepalaSekolah || '' };
+  });
+  const [catatanPegawai, setCatatanPegawai] = useState('');
+
+  function simpanPegawai() {
+    saveProfile({
+      nip: pegawai.nip.trim(),
+      kepalaSekolah: pegawai.kepalaSekolah.trim(),
+      nipKepalaSekolah: pegawai.nipKepalaSekolah.trim(),
+    });
+    setCatatanPegawai('Tersimpan. Dipakai di Lembar Pengesahan dokumen.');
+  }
 
   function pilihUkuran(v) {
     setBesar(v);
@@ -254,6 +272,29 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
             <p className="hint" style={{ margin: '4px 0 0' }}>Diambil dari akun Google, tidak bisa diubah di sini.</p>
           </div>
         </div>
+      </section>
+
+      <section className="card" aria-labelledby="set-pegawai">
+        <h2 className="sec" id="set-pegawai" style={{ marginTop: 0 }}>Data Kepegawaian</h2>
+        <p className="hint" style={{ marginTop: 0 }}>Dipakai di Lembar Pengesahan dokumen. Cukup isi sekali, tersimpan di perangkat ini.</p>
+        <div className="grid2">
+          <div className="field">
+            <label htmlFor="set-nip">NIP Guru</label>
+            <input id="set-nip" value={pegawai.nip} onChange={(e) => setPegawai((p) => ({ ...p, nip: e.target.value }))} placeholder="cth: 198001012005011001" inputMode="numeric" />
+          </div>
+          <div className="field">
+            <label htmlFor="set-kepsek">Nama Kepala Sekolah</label>
+            <input id="set-kepsek" value={pegawai.kepalaSekolah} onChange={(e) => setPegawai((p) => ({ ...p, kepalaSekolah: e.target.value }))} placeholder="cth: Drs. Budi Santosa, M.Pd." />
+          </div>
+          <div className="field">
+            <label htmlFor="set-nip-kepsek">NIP Kepala Sekolah</label>
+            <input id="set-nip-kepsek" value={pegawai.nipKepalaSekolah} onChange={(e) => setPegawai((p) => ({ ...p, nipKepalaSekolah: e.target.value }))} placeholder="cth: 197501012000031002" inputMode="numeric" />
+          </div>
+        </div>
+        <div className="btn-row" style={{ marginTop: 12 }}>
+          <button type="button" className="btn btn-sm btn-primary" onClick={simpanPegawai}>Simpan Data Kepegawaian</button>
+        </div>
+        {catatanPegawai && <p className="hint" role="status" style={{ marginBottom: 0 }}>{catatanPegawai}</p>}
       </section>
 
       <section className="card" aria-labelledby="set-kuota">
