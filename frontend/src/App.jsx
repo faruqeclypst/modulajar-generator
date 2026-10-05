@@ -6,6 +6,7 @@ import RuangPerencanaan from './components/RuangPerencanaan';
 import GeneratorPaket from './components/GeneratorPaket';
 import { DOC_TYPES } from './lib/docs';
 import { listModuls, getModul, listPakets, paketProgress } from './lib/db';
+import { getSupabase, getSession } from './lib/supabase';
 
 const WA_LINK = 'https://wa.me/6285359907696?text=Halo%2C%20saya%20butuh%20bantuan%20ModulAjar';
 
@@ -37,7 +38,7 @@ function Landing({ onStart }) {
         <p>
           Modul Ajar, ATP, Prota, Prosem, LKPD, Bank Soal, KKTP, sampai CP —
           disusun AI mengikuti alur Kurikulum Merdeka yang benar (CP → ATP → Prota → Prosem → Modul),
-          bisa diedit per blok, dilengkapi gambar berlisensi. Tanpa akun, data tersimpan di perangkatmu.
+          bisa diedit per blok, dilengkapi gambar berlisensi. Login dengan Google — datamu tersimpan aman dan bisa dibuka dari perangkat mana pun.
         </p>
         <div className="btn-row">
           <button className="btn btn-primary" onClick={onStart}>Mulai Membuat</button>
@@ -87,7 +88,7 @@ function Landing({ onStart }) {
       <Reveal>
         <section className="cta-band">
           <h2>Siap menyusun perangkat ajarmu?</h2>
-          <p>Gratis. Tanpa daftar. Langsung jalan di browser.</p>
+          <p>Gratis. Login dengan Google, langsung jalan di browser.</p>
           <button className="btn btn-primary" onClick={onStart}>Buat Dokumen Sekarang</button>
         </section>
       </Reveal>
@@ -95,7 +96,53 @@ function Landing({ onStart }) {
   );
 }
 
+function LayarLogin({ onLogin, err }) {
+  const [busy, setBusy] = useState(false);
+  async function masuk() {
+    setBusy(true);
+    try {
+      const sb = await getSupabase();
+      const { error } = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) throw error;
+    } catch (e) {
+      alert('Gagal membuka login Google: ' + (e.message || e));
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="wrap">
+      <section className="hero-land" style={{ textAlign: 'center' }}>
+        <span className="kicker red">Untuk Guru Indonesia</span>
+        <h1>ModulAjar<br /><span className="accent">Perangkat Ajar AI.</span></h1>
+        <p>Masuk dengan akun Google untuk mulai menyusun CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Bank Soal, dan KKTP.</p>
+        {err && <div className="alert" style={{ textAlign: 'left' }}>{err}</div>}
+        <div className="btn-row" style={{ justifyContent: 'center' }}>
+          <button className="btn btn-primary" onClick={masuk} disabled={busy}>
+            {busy ? 'Membuka Google...' : 'Login dengan Google'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function LayarTunggu({ pesan }) {
+  return (
+    <div className="wrap">
+      <section className="hero-land" style={{ textAlign: 'center' }}>
+        <span className="kicker">ModulAjar</span>
+        <p>{pesan || 'Memuat...'}</p>
+      </section>
+    </div>
+  );
+}
+
 export default function App() {
+  const [auth, setAuth] = useState('loading'); // loading | login | app
+  const [authErr, setAuthErr] = useState('');
   const [view, setView] = useState('landing'); // landing | app | wizard | detail | ruang | paket
   const [moduls, setModuls] = useState([]);
   const [pakets, setPakets] = useState([]);
@@ -113,7 +160,25 @@ export default function App() {
     setPakets(await listPakets());
     setDraft(await getDraft());
   }
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      try {
+        const sb = await getSupabase();
+        const sess = await getSession();
+        if (!stop) setAuth(sess ? 'app' : 'login');
+        const { data: sub } = sb.auth.onAuthStateChange((_ev, sess2) => {
+          if (!stop) setAuth(sess2 ? 'app' : 'login');
+        });
+        stopSub = () => sub.subscription.unsubscribe();
+      } catch (e) {
+        if (!stop) { setAuthErr(e.message || String(e)); setAuth('login'); }
+      }
+    })();
+    let stopSub = null;
+    return () => { stop = true; if (stopSub) stopSub(); };
+  }, []);
+  useEffect(() => { if (auth === 'app') refresh(); }, [auth]);
   useEffect(() => { window.scrollTo(0, 0); }, [view]);
 
   function startNew(paketId) { setWizardPaket(paketId || null); setWizardTurunan(null); setWizardKey((k) => k + 1); setView('wizard'); }
@@ -125,6 +190,9 @@ export default function App() {
   }
   const goApp = () => { setView('app'); refresh(); };
   const goRuang = () => setView('ruang');
+
+  if (auth === 'loading') return <LayarTunggu pesan="Menyiapkan aplikasi..." />;
+  if (auth === 'login') return <LayarLogin err={authErr} />;
 
   return (
     <>
@@ -140,6 +208,7 @@ export default function App() {
           ) : (
             <>
               <button className="btn btn-sm" style={{ background: '#fff' }} onClick={() => setView('paket')}>Generator Paket</button>
+              <button className="btn btn-sm" style={{ background: '#fff' }} onClick={async () => { const sb = await getSupabase(); await sb.auth.signOut(); setView('landing'); }}>Keluar</button>
               {view === 'app' && <button className="btn btn-primary btn-sm" onClick={() => startNew()}>+ Buat Baru</button>}
               {view !== 'app' && <button className="btn btn-sm" style={{ background: '#fff' }} onClick={goApp}>Dokumen Saya</button>}
             </>
@@ -198,8 +267,8 @@ export default function App() {
                   {pakets.slice(0, 4).map((p) => {
                     const prog = paketProgress(p);
                     return (
-                      <span key={p.id} className="chip" style={prog === 4 ? { background: 'var(--ink)', color: '#fff' } : {}}>
-                        {p.mapel} · {prog}/4
+                      <span key={p.id} className="chip" style={prog === 5 ? { background: 'var(--ink)', color: '#fff' } : {}}>
+                        {p.mapel} · {prog}/5
                       </span>
                     );
                   })}
@@ -222,7 +291,7 @@ export default function App() {
             <div className="flow-num sm">02</div>
             <h2 style={{ margin: 0 }}>Dokumen Saya</h2>
           </div>
-          <p className="hint" style={{ marginTop: 0 }}>Tersimpan aman di perangkat ini — tanpa akun, tanpa login.</p>
+          <p className="hint" style={{ marginTop: 0 }}>Tersimpan aman di akunmu — bisa dibuka dari perangkat mana pun.</p>
 
           {moduls.length === 0 ? (
             <div className="empty">

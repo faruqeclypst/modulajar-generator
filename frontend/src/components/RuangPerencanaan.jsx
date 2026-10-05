@@ -8,7 +8,7 @@ import DocEditor from './DocEditor';
 const GEN_STAGE = ['Menyiapkan kerangka...', 'Merumuskan dari acuan...', 'Menyusun dokumen...', 'Merapikan hasil...'];
 
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
-const BUTUH = { cp: null, atp: 'cp', prota: 'atp', prosem: 'prota' };
+const BUTUH = { cp: null, atp: 'cp', minggu_efektif: 'atp', prota: 'minggu_efektif', prosem: 'prota' };
 
 export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
   const [pakets, setPakets] = useState([]);

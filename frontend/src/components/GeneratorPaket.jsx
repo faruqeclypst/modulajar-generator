@@ -1,71 +1,51 @@
 import { useEffect, useRef, useState } from 'react';
 import { JENJANG, FASE, MAPEL, MODEL } from '../lib/referensi';
 import { DOC_TYPES, SEMESTER } from '../lib/docs';
-import { generateDoc, rekomendasiAI, extractTitle, getProfile, saveProfile } from '../lib/api';
-import { saveModul, savePaket, getModul } from '../lib/db';
+import { getProfile, saveProfile } from '../lib/api';
+import { getToken } from '../lib/supabase';
 import UnggahDokumen from './UnggahDokumen';
 
-// Urutan rantai: tiap dokumen menjadi acuan otomatis bagi dokumen berikutnya
-const RANTAI = {
-  lengkap: ['cp', 'atp', 'prota', 'prosem', 'modul', 'lkpd', 'soal', 'kktp'],
-  perencanaan: ['cp', 'atp', 'prota', 'prosem'],
-  pelaksanaan: ['modul', 'lkpd', 'soal', 'kktp'],
-};
-const RANTAI_DESC = {
-  cp: 'Disusun dari info mapel dan fase, merujuk teks CP resmi bila ditempel.',
-  atp: 'TP diturunkan berurutan dari CP di atas.',
-  prota: 'Distribusi materi mengikuti urutan ATP di atas.',
-  prosem: 'Rincian mingguan mengikuti Prota di atas.',
-  modul: 'TP diambil dari ATP, kegiatan mengikuti sintaks model.',
-  lkpd: 'Kegiatan dan materi selaras dengan Modul Ajar di atas.',
-  soal: 'Kisi-kisi diturunkan dari TP pada Modul Ajar.',
-  kktp: 'Kriteria merujuk TP yang tercantum pada ATP.',
+// Generator Paket via job backend: browser boleh ditutup, job tetap jalan di server.
+const RANTAI_LABEL = {
+  lengkap: ['CP', 'ATP', 'Minggu Efektif', 'Prota', 'Prosem', 'KKTP', 'Modul 1..N', 'LKPD 1..N', 'Paket Soal'],
+  perencanaan: ['CP', 'ATP', 'Minggu Efektif', 'Prota', 'Prosem', 'KKTP'],
+  pelaksanaan: ['Modul 1..N', 'LKPD 1..N', 'Paket Soal'],
 };
 const MODE_INFO = {
-  lengkap: { nama: 'Paket Lengkap', meta: '8 dokumen · sekitar 6 menit', desc: 'Dari CP sampai KKTP dalam satu proses berurutan.' },
-  perencanaan: { nama: 'Paket Perencanaan', meta: '4 dokumen · sekitar 3 menit', desc: 'CP, ATP, Prota, Prosem. Pas untuk awal semester.' },
-  pelaksanaan: { nama: 'Paket Pelaksanaan', meta: '4 dokumen · sekitar 3 menit', desc: 'Modul Ajar, LKPD, Paket Soal, KKTP per topik.' },
+  lengkap: { nama: 'Paket Lengkap', meta: 'Perencanaan + N modul + N LKPD + soal', desc: 'Dari CP sampai KKTP, lalu Modul dan LKPD per topik. Berhenti sejenak setelah perencanaan agar bisa ditinjau.' },
+  perencanaan: { nama: 'Paket Perencanaan', meta: '6 dokumen', desc: 'CP, ATP, Minggu Efektif, Prota, Prosem, KKTP. Pas untuk awal semester.' },
+  pelaksanaan: { nama: 'Paket Pelaksanaan', meta: 'N modul + N LKPD + soal', desc: 'Modul Ajar, LKPD, dan Paket Soal per topik — dengan ATP/Prosem yang ditempel sebagai acuan.' },
 };
-const ID_PERENCANAAN = ['cp', 'atp', 'prota', 'prosem'];
-
-// Hasil paket terakhir disimpan agar tahan refresh halaman
-const KUNCI_RUN = 'modulajar.paketTerakhir';
 
 const emptyForm = {
   nama: '', sekolah: '', tahunAjaran: '',
   jenjang: 'SMP/MTs', fase: '', kelas: '', semester: 'Ganjil',
-  mapel: '', topik: '', alokasi: '', model: 'auto',
-  jmlPG: '10', jmlUraian: '3', materi: '', acuan: '', cpResmi: '',
+  mapel: '', topiks: '', alokasi: '', model: 'auto', jpPerMinggu: '',
+  jmlPG: '10', jmlUraian: '3', materi: '', acuan: '', cpResmi: '', mingguEfektif: '',
 };
 
-function acuanUntuk(id, ctx, tempel) {
-  switch (id) {
-    case 'cp': return tempel.cp;
-    case 'atp': return ctx.cp || '';
-    case 'prota': return ctx.atp || '';
-    case 'prosem': return ctx.prota || '';
-    case 'modul': return ctx.atp || ctx.prosem || tempel.atp;
-    case 'lkpd': return ctx.modul || '';
-    case 'soal': return ctx.modul || ctx.atp || '';
-    case 'kktp': return ctx.atp || tempel.atp;
-    default: return '';
-  }
+async function apiJob(path, method, body) {
+  const t = await getToken().catch(() => '');
+  const r = await fetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!d.ok) throw new Error(d.error || 'Server tidak merespons.');
+  return d;
 }
 
 export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
   const [mode, setMode] = useState('lengkap');
   const [form, setForm] = useState(() => ({ ...emptyForm, ...getProfile() }));
   const [tahap, setTahap] = useState('form'); // form | jalan | selesai
-  const [steps, setSteps] = useState([]);
-  const [detik, setDetik] = useState(0);
-  const [subStatus, setSubStatus] = useState('');
-  const [gagal, setGagal] = useState(null); // { index, pesan }
-  const [hasilIds, setHasilIds] = useState([]);
+  const [job, setJob] = useState(null);
   const [errForm, setErrForm] = useState({});
-  const ctxRef = useRef({});
-  const [runTersimpan, setRunTersimpan] = useState(null);
-  const rekomRef = useRef(null);
-  const batalRef = useRef(false);
+  const [errJalan, setErrJalan] = useState('');
+  const [detik, setDetik] = useState(0);
+  const [jobAktif, setJobAktif] = useState([]);
+  const pollRef = useRef(null);
   const timerRef = useRef(null);
 
   const faseOpts = FASE[form.jenjang] || [];
@@ -74,20 +54,11 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
     if (!faseOpts.includes(form.fase)) setForm((f) => ({ ...f, fase: faseOpts[0] || '' }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.jenjang]);
-  useEffect(() => () => { clearInterval(timerRef.current); }, []);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KUNCI_RUN);
-      if (raw) {
-        const r = JSON.parse(raw);
-        if (r && Array.isArray(r.hasil) && r.hasil.length) setRunTersimpan(r);
-      }
-    } catch { /* abaikan */ }
-  }, []);
+  useEffect(() => () => { hentikanPoll(); }, []);
+  useEffect(() => { cekJobAktif(); }, []);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  // Teks hasil unggahan dokumen ditambahkan ke kolom (tetap bisa diedit manual)
   function gabung(k, teks, nama) {
     setForm((f) => {
       const lama = (f[k] || '').trim();
@@ -95,154 +66,121 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
     });
   }
 
+  function daftarTopik() {
+    return form.topiks.split('\n').map((t) => t.trim()).filter(Boolean);
+  }
+
   function validasi() {
     const e = {};
     if (!form.nama.trim()) e.nama = 'Wajib diisi.';
     if (!form.sekolah.trim()) e.sekolah = 'Wajib diisi.';
     if (!form.mapel.trim()) e.mapel = 'Wajib diisi.';
-    if (!form.topik.trim()) e.topik = 'Wajib diisi.';
+    if (mode !== 'perencanaan' && !daftarTopik().length) e.topiks = 'Isi minimal satu topik (satu baris satu topik).';
     if (mode === 'pelaksanaan' && !form.acuan.trim()) e.acuan = 'Tempel ATP/Prosem sebagai acuan.';
     setErrForm(e);
     return Object.keys(e).length === 0;
   }
 
-  async function jalankan(dari) {
-    const ids = RANTAI[mode];
-    const info0 = { ...form };
-    const tempel = { cp: info0.cpResmi, atp: info0.acuan };
-    batalRef.current = false;
-    setGagal(null);
-    setTahap('jalan');
-    setSubStatus('');
-    setSteps(ids.map((id, i) => ({ id, status: i < dari ? 'ok' : 'antri' })));
-    const t0 = Date.now() - (dari > 0 ? detik * 1000 : 0);
-    const semua = dari > 0 ? [...hasilIds] : [];
-    clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setDetik(Math.floor((Date.now() - t0) / 1000)), 1000);
-    let pos = dari;
+  async function cekJobAktif() {
     try {
-      for (; pos < ids.length; pos++) {
-        if (batalRef.current) return;
-        const id = ids[pos];
-        setSteps((prev) => prev.map((s, j) => (j === pos ? { ...s, status: 'jalan' } : s)));
-        if (id === 'modul' && !rekomRef.current) {
-          setSubStatus('Menyiapkan rekomendasi model pembelajaran...');
-          try {
-            rekomRef.current = await rekomendasiAI({ jenjang: info0.jenjang, fase: info0.fase, mapel: info0.mapel, topik: info0.topik });
-          } catch { rekomRef.current = null; }
-          setSubStatus('');
-        }
-        if (batalRef.current) return;
-        const info = { ...info0 };
-        delete info.acuan; delete info.cpResmi; delete info.materi;
-        if (id === 'modul') {
-          if (!info.model || info.model === 'auto') info.model = rekomRef.current?.model || '';
-          if (!info.alokasi) info.alokasi = rekomRef.current?.alokasi || '';
-        }
-        const md = await generateDoc(
-          id, info, info0.materi,
-          acuanUntuk(id, ctxRef.current, tempel),
-          id === 'modul' ? rekomRef.current : undefined,
-        );
-        if (batalRef.current) return;
-        ctxRef.current[id] = md;
-        const judul = extractTitle(md);
-        const docId = await saveModul({
-          docType: id, judul,
-          jenjang: info0.jenjang, fase: info0.fase, kelas: info0.kelas, semester: info0.semester,
-          mapel: info0.mapel, topik: info0.topik, alokasi: info.alokasi, model: info.model,
-          nama: info0.nama, sekolah: info0.sekolah, tahunAjaran: info0.tahunAjaran,
-          markdown: md, images: [],
-        });
-        semua.push({ id, docId, judul });
-        setHasilIds([...semua]);
-        setSteps((prev) => prev.map((s, j) => (j === pos ? { ...s, status: 'ok' } : s)));
-      }
-      // Catat paket perencanaan agar muncul di Ruang Perencanaan
-      const peta = {};
-      for (const h of semua) if (ID_PERENCANAAN.includes(h.id)) peta[h.id] = h.docId;
-      if (Object.keys(peta).length === ID_PERENCANAAN.length) {
-        await savePaket({
-          mapel: info0.mapel, kelas: info0.kelas, semester: info0.semester,
-          tahunAjaran: info0.tahunAjaran, jenjang: info0.jenjang, fase: info0.fase,
-          nama: info0.nama, sekolah: info0.sekolah, docs: peta,
-        });
-      }
-      saveProfile({ nama: info0.nama, sekolah: info0.sekolah, tahunAjaran: info0.tahunAjaran, jenjang: info0.jenjang });
-      clearInterval(timerRef.current);
-      const totalDetik = Math.floor((Date.now() - t0) / 1000);
-      setDetik(totalDetik);
-      try {
-        localStorage.setItem(KUNCI_RUN, JSON.stringify({
-          mode, hasil: semua, detik: totalDetik, selesaiPada: Date.now(),
-        }));
-      } catch { /* abaikan */ }
-      setTahap('selesai');
-      onChanged && onChanged();
-    } catch (e) {
-      if (batalRef.current) return;
-      clearInterval(timerRef.current);
-      setSteps((prev) => prev.map((s, j) => (j === pos ? { ...s, status: 'gagal' } : s)));
-      setGagal({ index: pos, pesan: e.message || 'Terjadi kendala.' });
-    }
+      const d = await apiJob('/api/paket', 'GET');
+      setJobAktif((d.jobs || []).filter((j) => ['antri', 'berjalan', 'menunggu_review'].includes(j.status)));
+    } catch { /* abaikan */ }
   }
 
-  function mulai() {
-    if (!validasi()) return;
-    ctxRef.current = {}; rekomRef.current = null;
-    setHasilIds([]); setDetik(0); setRunTersimpan(null);
-    try { localStorage.removeItem(KUNCI_RUN); } catch { /* abaikan */ }
-    jalankan(0);
-    window.scrollTo(0, 0);
-  }
-
-  // Kembalikan tampilan hasil setelah refresh: pastikan dokumen masih ada
-  async function pulihkanHasil() {
-    if (!runTersimpan) return;
-    const ok = [];
-    for (const h of runTersimpan.hasil) {
-      try {
-        const d = await getModul(h.docId);
-        if (d) ok.push({ id: h.id, docId: h.docId, judul: d.judul || h.judul });
-      } catch { /* lewati */ }
-    }
-    if (!ok.length) {
-      setRunTersimpan(null);
-      try { localStorage.removeItem(KUNCI_RUN); } catch { /* abaikan */ }
-      return;
-    }
-    setMode(runTersimpan.mode || 'lengkap');
-    setHasilIds(ok);
-    setDetik(runTersimpan.detik || 0);
-    setTahap('selesai');
-    window.scrollTo(0, 0);
-  }
-
-  function batalkan() {
-    batalRef.current = true;
+  function hentikanPoll() {
+    clearInterval(pollRef.current);
     clearInterval(timerRef.current);
-    setTahap('form');
+  }
+
+  async function pantau(jobId) {
+    hentikanPoll();
+    setTahap('jalan');
+    setErrJalan('');
+    const t0 = Date.now();
+    timerRef.current = setInterval(() => setDetik(Math.floor((Date.now() - t0) / 1000)), 1000);
+    const ambil = async () => {
+      try {
+        const d = await apiJob('/api/paket/' + jobId, 'GET');
+        setJob(d.job);
+        if (['selesai', 'gagal', 'dibatalkan'].includes(d.job.status)) {
+          hentikanPoll();
+          if (d.job.status === 'selesai') { setTahap('selesai'); onChanged && onChanged(); }
+        }
+        cekJobAktif();
+      } catch (e) {
+        setErrJalan(e.message || 'Gagal memantau job.');
+      }
+    };
+    await ambil();
+    pollRef.current = setInterval(ambil, 3000);
     window.scrollTo(0, 0);
   }
 
-  const ids = RANTAI[mode];
+  async function mulai() {
+    if (!validasi()) return;
+    setErrJalan('');
+    try {
+      saveProfile({ nama: form.nama, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran, jenjang: form.jenjang });
+      const d = await apiJob('/api/paket', 'POST', {
+        mode,
+        info: {
+          nama: form.nama, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran,
+          jenjang: form.jenjang, fase: form.fase, kelas: form.kelas, semester: form.semester,
+          mapel: form.mapel, alokasi: form.alokasi, model: form.model, jpPerMinggu: form.jpPerMinggu,
+          jmlPG: form.jmlPG, jmlUraian: form.jmlUraian,
+        },
+        materi: form.materi,
+        topiks: daftarTopik(),
+        uploads: { cpResmi: form.cpResmi, mingguEfektif: form.mingguEfektif, acuan: form.acuan },
+      });
+      pantau(d.jobId);
+    } catch (e) {
+      setErrJalan(e.message || 'Gagal memulai job.');
+    }
+  }
+
+  async function lanjutkan() {
+    if (!job) return;
+    try {
+      await apiJob('/api/paket/' + job.id + '/lanjutkan', 'POST');
+      pantau(job.id);
+    } catch (e) {
+      setErrJalan(e.message || 'Gagal melanjutkan.');
+    }
+  }
+
+  async function batalkan() {
+    if (!job) { setTahap('form'); return; }
+    try { await apiJob('/api/paket/' + job.id + '/batalkan', 'POST'); } catch { /* abaikan */ }
+    hentikanPoll();
+    setTahap('form');
+    setJob(null);
+    cekJobAktif();
+  }
+
   const fmtWaktu = (s) => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  const langkah = job?.progress?.langkah || [];
+  const hasil = job?.hasil || [];
 
   return (
     <div className="wrap">
       <span className="kicker">Generator Paket</span>
-      <h1 className="page">Delapan Dokumen, Satu Klik</h1>
+      <h1 className="page">Paket Semester, Satu Klik</h1>
       <p className="lead">
-        CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Paket Soal, dan KKTP disusun berurutan.
-        Setiap dokumen otomatis menjadi acuan untuk dokumen berikutnya.
+        CP, ATP, Minggu Efektif, Prota, Prosem, KKTP — lalu Modul Ajar dan LKPD
+        untuk tiap topik. Dikerjakan server: browser boleh ditutup, paket tetap jalan.
       </p>
 
-      {tahap === 'form' && runTersimpan && (
+      {tahap === 'form' && jobAktif.length > 0 && (
         <div className="alert alert-info">
-          <b>Hasil paket terakhir masih tersimpan</b> ({runTersimpan.hasil.length} dokumen,
-          selesai {new Date(runTersimpan.selesaiPada).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}).
+          <b>Ada paket yang sedang berjalan</b> ({jobAktif.length}).
           <div className="btn-row">
-            <button className="btn btn-primary" onClick={pulihkanHasil}>Lihat hasil</button>
+            {jobAktif.map((j) => (
+              <button key={j.id} className="btn btn-sm btn-primary" onClick={() => pantau(j.id)}>
+                Pantau ({MODE_INFO[j.mode]?.nama || j.mode} · {j.status.replace('_', ' ')})
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -270,17 +208,14 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
 
           <div className="card" style={{ marginTop: 14 }}>
             <b style={{ fontSize: 13 }}>Alur acuan otomatis</b>
-            <p className="hint" style={{ margin: '6px 0 0' }}>
-              {ids.map((id) => DOC_TYPES[id]?.nama || id).join(' → ')}
-            </p>
+            <p className="hint" style={{ margin: '6px 0 0' }}>{RANTAI_LABEL[mode].join(' → ')}</p>
           </div>
 
           {mode !== 'pelaksanaan' ? (
             <div className="alert alert-info" style={{ marginTop: 14 }}>
-              <b>Belum punya CP / ATP / Prota / Prosem? Tidak masalah.</b> Mode ini
-              justru menyusunnya dari nol secara berurutan — kamu cukup isi data dasar
-              di bawah. Teks CP resmi boleh ditempel bila ada; bila tidak, AI menyusun
-              drafnya dari info jenjang, fase, dan mapel.
+              <b>Belum punya CP / ATP / Prota / Prosem? Tidak masalah.</b> Server
+              menyusunnya berurutan — kamu cukup isi data dasar di bawah. Teks CP resmi
+              boleh ditempel bila ada; bila tidak, AI menyusun drafnya dari info jenjang, fase, dan mapel.
             </div>
           ) : (
             <div className="alert alert-info" style={{ marginTop: 14 }}>
@@ -319,56 +254,85 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
               <datalist id="mapelList">{mapelOpts.map((m) => <option key={m} value={m} />)}</datalist>
               {errForm.mapel && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.mapel}</p>}</div>
           </div>
-          <div className="field"><label>Topik / Materi Pokok</label>
-            <input value={form.topik} onChange={(e) => set('topik', e.target.value)} placeholder="cth: Sistem pernapasan manusia" />
-            {errForm.topik && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.topik}</p>}</div>
+
+          {mode !== 'perencanaan' && (
+            <div className="field"><label>Daftar Topik <span className="hint">(satu baris satu topik — tiap topik jadi satu Modul + satu LKPD)</span></label>
+              <textarea value={form.topiks} onChange={(e) => set('topiks', e.target.value)}
+                placeholder={"cth:\nSistem pernapasan manusia\nSistem peredaran darah"} rows={4} />
+              {errForm.topiks && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.topiks}</p>}</div>
+          )}
+
           <div className="grid2">
             <div className="field"><label>Model Pembelajaran</label>
               <select value={form.model} onChange={(e) => set('model', e.target.value)}>
                 <option value="auto">Rekomendasi AI (otomatis)</option>
                 {MODEL.map((m) => <option key={m}>{m}</option>)}
               </select></div>
-            <div className="field"><label>Alokasi Waktu</label>
+            <div className="field"><label>Alokasi Waktu per Modul</label>
               <input value={form.alokasi} onChange={(e) => set('alokasi', e.target.value)} placeholder="cth: 2 x 45 menit" /></div>
+            <div className="field"><label>JP per Minggu <span className="hint">(opsional)</span></label>
+              <input value={form.jpPerMinggu} onChange={(e) => set('jpPerMinggu', e.target.value)} placeholder="cth: 3" /></div>
             <div className="field"><label>Jumlah Soal PG</label>
               <input type="number" min="0" value={form.jmlPG} onChange={(e) => set('jmlPG', e.target.value)} /></div>
             <div className="field"><label>Jumlah Soal Uraian</label>
               <input type="number" min="0" value={form.jmlUraian} onChange={(e) => set('jmlUraian', e.target.value)} /></div>
           </div>
+
           <div className="field"><label>Materi Sumber <span className="hint">(opsional)</span></label>
             <textarea value={form.materi} onChange={(e) => set('materi', e.target.value)}
               placeholder="Tempel ringkasan materi dari buku atau sumber tepercaya" rows={3} />
             <UnggahDokumen onTeks={(t, n) => gabung('materi', t, n)} /></div>
+
           {mode === 'pelaksanaan' && (
             <div className="field"><label>Dokumen Acuan (ATP/Prosem)</label>
               <textarea value={form.acuan} onChange={(e) => set('acuan', e.target.value)}
                 placeholder="Tempel ATP atau Prosem yang sudah ada" rows={4} />
-              <UnggahDokumen onTeks={(t, n) => gabung('acuan', t, n)} />
-              {errForm.acuan && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.acuan}</p>}</div>
+              {errForm.acuan && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.acuan}</p>}
+              <UnggahDokumen onTeks={(t, n) => gabung('acuan', t, n)} /></div>
           )}
-          <div className="field"><label>Teks CP Resmi <span className="hint">(opsional, bila ditempel AI merujuk persis ke teks ini)</span></label>
-            <textarea value={form.cpResmi} onChange={(e) => set('cpResmi', e.target.value)}
-              placeholder="Tempel CP resmi Kemendikdasmen bila ada" rows={3} />
-            <UnggahDokumen onTeks={(t, n) => gabung('cpResmi', t, n)} /></div>
+
+          {mode !== 'pelaksanaan' && (
+            <>
+              <div className="field"><label>Teks CP Resmi <span className="hint">(opsional)</span></label>
+                <textarea value={form.cpResmi} onChange={(e) => set('cpResmi', e.target.value)}
+                  placeholder="Tempel CP resmi Kemendikdasmen bila ada" rows={3} />
+                <UnggahDokumen onTeks={(t, n) => gabung('cpResmi', t, n)} /></div>
+              <div className="field"><label>Dokumen Minggu Efektif <span className="hint">(opsional — unggah bila sekolah sudah punya)</span></label>
+                <textarea value={form.mingguEfektif} onChange={(e) => set('mingguEfektif', e.target.value)}
+                  placeholder="Tempel dokumen minggu efektif sekolah, atau unggah file-nya" rows={3} />
+                <UnggahDokumen onTeks={(t, n) => gabung('mingguEfektif', t, n)} /></div>
+            </>
+          )}
+
+          {errJalan && <div className="alert" style={{ marginTop: 14 }}>{errJalan}</div>}
 
           <div className="btn-row">
             <button className="btn btn-primary" onClick={mulai}>Buat {MODE_INFO[mode].nama}</button>
             <button className="btn" onClick={onBack}>Kembali</button>
           </div>
-          <p className="hint">{MODE_INFO[mode].meta}. Proses berjalan berurutan dan tiap dokumen tersimpan otomatis ke Dokumen Saya.</p>
+          <p className="hint">Dikerjakan server — halaman ini boleh ditutup, pantau lagi nanti dari sini.</p>
         </>
       )}
 
-      {tahap === 'jalan' && (
+      {tahap === 'jalan' && job && (
         <>
           <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <b>Menyusun {MODE_INFO[mode].nama}...</b>
+            <b>Menyusun {MODE_INFO[job.mode]?.nama || 'paket'}... <span className="chip">{job.status.replace('_', ' ')}</span></b>
             <span className="chip">{fmtWaktu(detik)}</span>
           </div>
-          {subStatus && <p className="hint" style={{ marginTop: 10 }}>{subStatus}</p>}
+          {errJalan && <div className="alert" style={{ marginTop: 12 }}>{errJalan}</div>}
+          {job.status === 'menunggu_review' && (
+            <div className="alert alert-info" style={{ marginTop: 14 }}>
+              <b>Dokumen perencanaan selesai.</b> Tinjau dulu (buka dan edit bila perlu),
+              lalu lanjutkan ke pembuatan modul.
+              <div className="btn-row">
+                <button className="btn btn-primary" onClick={lanjutkan}>Lanjutkan ke pembuatan modul</button>
+              </div>
+            </div>
+          )}
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {steps.map((s, i) => (
-              <div key={s.id} className="card" style={{
+            {langkah.map((s, i) => (
+              <div key={s.key + i} className="card" style={{
                 padding: '12px 16px',
                 opacity: s.status === 'antri' ? 0.55 : 1,
                 borderColor: s.status === 'jalan' ? 'var(--red)' : undefined,
@@ -382,52 +346,55 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
                   }}>
                     {s.status === 'ok' ? '✓' : s.status === 'gagal' ? '!' : i + 1}
                   </span>
-                  <div>
-                    <b>{DOC_TYPES[s.id]?.nama || s.id}</b>
-                    <p className="hint" style={{ margin: 0 }}>{RANTAI_DESC[s.id]}</p>
+                  <div style={{ flex: 1 }}>
+                    <b>{s.label}</b>
                     {s.status === 'jalan' && <p className="hint" style={{ margin: 0, color: 'var(--red)' }}>Menyusun...</p>}
                   </div>
+                  {s.dokumenId && (
+                    <button className="btn btn-sm" onClick={() => onOpenDoc(s.dokumenId)}>Buka</button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
-          {gagal ? (
+          {job.status === 'gagal' && (
             <div className="alert" style={{ marginTop: 16 }}>
-              <b>Kendala pada {DOC_TYPES[RANTAI[mode][gagal.index]]?.nama}:</b> {gagal.pesan}
-              <br />Dokumen yang sudah selesai tetap tersimpan.
+              <b>Job gagal:</b> {job.error || 'Terjadi kendala.'}
               <div className="btn-row">
-                <button className="btn btn-primary" onClick={() => jalankan(gagal.index)}>Coba lagi dari langkah ini</button>
+                <button className="btn btn-primary" onClick={lanjutkan}>Coba lagi</button>
                 <button className="btn" onClick={batalkan}>Batalkan</button>
               </div>
             </div>
-          ) : (
+          )}
+          {!['gagal', 'menunggu_review'].includes(job.status) && (
             <div className="btn-row">
               <button className="btn" onClick={batalkan}>Batalkan</button>
             </div>
           )}
-          <p className="hint">Jangan tutup halaman ini sampai selesai.</p>
+          <p className="hint">Aman menutup halaman ini — pantau lagi dari Generator Paket.</p>
         </>
       )}
 
-      {tahap === 'selesai' && (
+      {tahap === 'selesai' && job && (
         <>
           <div className="alert alert-info">
-            <b>Paket selesai disusun</b> dalam {fmtWaktu(detik)}. Semua dokumen tersimpan di Dokumen Saya
-            {mode !== 'pelaksanaan' && ' dan paket perencanaan tercatat di Ruang Perencanaan'}. Klik untuk membuka dan mengeditnya.
+            <b>Paket selesai disusun</b>. Semua dokumen tersimpan di Dokumen Saya —
+            klik untuk membuka dan mengeditnya.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
-            {hasilIds.map((h) => (
-              <div key={h.docId} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px' }}>
+            {hasil.map((h) => (
+              <div key={h.dokumenId} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px' }}>
                 <div>
-                  <span className="chip red">{DOC_TYPES[h.id]?.nama}</span>
+                  <span className="chip red">{DOC_TYPES[h.docType]?.nama || h.docType}</span>
                   <b style={{ display: 'block', marginTop: 6 }}>{h.judul}</b>
+                  {h.topik && <span className="hint">{h.topik}</span>}
                 </div>
-                <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(h.docId)}>Buka</button>
+                <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(h.dokumenId)}>Buka</button>
               </div>
             ))}
           </div>
           <div className="btn-row">
-            <button className="btn btn-primary" onClick={() => { setTahap('form'); window.scrollTo(0, 0); }}>Buat paket baru</button>
+            <button className="btn btn-primary" onClick={() => { setTahap('form'); setJob(null); cekJobAktif(); window.scrollTo(0, 0); }}>Buat paket baru</button>
             <button className="btn" onClick={onBack}>Kembali ke Beranda</button>
           </div>
         </>

@@ -12,6 +12,12 @@ export const DOC_TYPES = {
     fields: ['jenjang', 'fase', 'kelas', 'semester', 'mapel', 'topik'],
     materi: true, gambar: false,
   },
+  minggu_efektif: {
+    nama: 'Minggu Efektif', tag: 'Perencanaan',
+    desc: 'Analisis minggu efektif satu semester: acuan alokasi Prota, Prosem, dan modul.',
+    fields: ['jenjang', 'fase', 'kelas', 'semester', 'mapel'],
+    materi: false, gambar: false,
+  },
   cp: {
     nama: 'Capaian Pembelajaran', tag: 'Perencanaan',
     desc: 'Draf CP per elemen untuk fase dan mata pelajaran.',
@@ -54,8 +60,9 @@ export const DOC_TYPES = {
 export const ALUR_PERENCANAAN = [
   { key: 'cp', langkah: '01', nama: 'Capaian Pembelajaran', desc: 'Tempel teks CP resmi, jadikan fondasi seluruh perangkat.' },
   { key: 'atp', langkah: '02', nama: 'ATP', desc: 'Alur Tujuan Pembelajaran diturunkan langsung dari CP.' },
-  { key: 'prota', langkah: '03', nama: 'Program Tahunan', desc: 'Distribusi materi setahun mengikuti ATP.' },
-  { key: 'prosem', langkah: '04', nama: 'Program Semester', desc: 'Rincian mingguan mengikuti Prota.' },
+  { key: 'minggu_efektif', langkah: '03', nama: 'Minggu Efektif', desc: 'Hitung minggu efektif semester ini — acuan alokasi Prota, Prosem, modul.' },
+  { key: 'prota', langkah: '04', nama: 'Program Tahunan', desc: 'Distribusi materi setahun mengikuti ATP dan minggu efektif.' },
+  { key: 'prosem', langkah: '05', nama: 'Program Semester', desc: 'Rincian mingguan mengikuti Prota dan minggu efektif.' },
 ];
 
 export const FIELD_LABEL = {

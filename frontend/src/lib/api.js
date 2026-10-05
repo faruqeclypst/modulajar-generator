@@ -1,9 +1,16 @@
+import { getToken } from './supabase';
+
+async function authHeaders() {
+  const t = await getToken().catch(() => '');
+  return t ? { Authorization: 'Bearer ' + t } : {};
+}
+
 export async function generateDoc(docType, info, materi, sumber, rekomendasi) {
   const body = { docType, info, materi, sumber };
   if (rekomendasi) body.rekomendasi = rekomendasi;
   const r = await fetch('/api/generate-doc', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
     body: JSON.stringify(body),
   });
   const d = await r.json().catch(() => ({}));
@@ -14,7 +21,7 @@ export async function generateDoc(docType, info, materi, sumber, rekomendasi) {
 export async function regenBlock(docType, blockType, blockText, docTitle, topic) {
   const r = await fetch('/api/regen-block', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
     body: JSON.stringify({ docType, blockType, blockText, docTitle, topic }),
   });
   const d = await r.json().catch(() => ({}));
@@ -25,7 +32,7 @@ export async function regenBlock(docType, blockType, blockText, docTitle, topic)
 export async function rekomendasiAI({ jenjang, fase, mapel, topik }) {
   const r = await fetch('/api/rekomendasi', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
     body: JSON.stringify({ jenjang, fase, mapel, topik }),
   });
   const d = await r.json().catch(() => ({}));
