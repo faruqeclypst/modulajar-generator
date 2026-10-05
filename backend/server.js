@@ -1955,12 +1955,7 @@ function requireAdmin(handler) {
   });
 }
 
-// Kunci periode kuota WIB 15:00 (aturan reset yang sama; ditulis mandiri agar
-// endpoint admin tetap benar walau digabung dengan cabang yang punya periodeKuota())
-function kunciPeriodeAdmin() {
-  const t = Date.now() + (7 - 15) * 3600 * 1000;
-  return new Date(t).toISOString().slice(0, 10);
-}
+// (kunciPeriodeAdmin disatukan ke periodeKuota() saat integrasi)
 
 app.get('/api/admin/ringkasan', requireAdmin(async (req, res) => {
   try {
@@ -1982,7 +1977,7 @@ app.get('/api/admin/ringkasan', requireAdmin(async (req, res) => {
       r.dokumenHariIni = count || 0;
     } catch { /* abaikan */ }
     try {
-      const { data } = await sb.from('kuota_harian').select('dipakai').eq('tanggal', kunciPeriodeAdmin());
+      const { data } = await sb.from('kuota_harian').select('dipakai').eq('tanggal', periodeKuota());
       r.kreditTerpakaiHariIni = (data || []).reduce((a, b) => a + (b.dipakai || 0), 0);
     } catch { /* abaikan */ }
     try {
