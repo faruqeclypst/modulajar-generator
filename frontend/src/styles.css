@@ -598,6 +598,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .dok-acuan-ul li:last-child { border-bottom: 0; }
 .dok-acuan-ul li.aktif { background: var(--wash); }
 .dok-acuan-ul input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: var(--red); }
+<<<<<<< HEAD
 .dok-acuan-ul label { font-size: 14.5px; line-height: 1.45; cursor: pointer; flex: 1; }
 
 /* ---------- fokus di atas latar gelap ----------
@@ -674,3 +675,44 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .check-row input[type="checkbox"] { width: 22px; height: 22px; flex: none; margin-top: 2px; accent-color: var(--red); cursor: pointer; }
 .check-row b { display: block; font-size: 15px; margin-bottom: 4px; }
 .check-row .hint { display: block; margin: 0; }
+=======
+.dok-acuan-ul label { font-size: 14.5px; line-height: 1.45; cursor: pointer; }
+
+/* admin: Dashboard Admin — kartu angka, tab, tabel, daftar masukan.
+   Keputusan (R-31): tabel scroll horizontal di dalam kontainer agar aman di HP;
+   tab berupa tombol native agar keyboard-accessible; badge "Baru" bata sebagai
+   satu-satunya aksen status penting. */
+.admin-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0 24px; }
+.admin-tab {
+  font-family: var(--font); font-size: 14px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .5px; padding: 12px 18px; min-height: 44px; cursor: pointer;
+  background: var(--paper-2); color: var(--ink); border: var(--bd); border-radius: 0;
+}
+.admin-tab.aktif { background: var(--ink); color: var(--paper); box-shadow: var(--sh-btn); }
+.admin-tab:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.admin-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 8px; }
+.admin-stat {
+  background: var(--paper-2); border: var(--bd); box-shadow: var(--sh);
+  padding: 18px 20px;
+}
+.admin-stat-label { display: block; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+.admin-stat-nilai { font-size: 32px; font-weight: 900; letter-spacing: -.5px; line-height: 1.1; }
+.admin-tabel-wrap { overflow-x: auto; border: var(--bd); background: var(--paper-2); }
+.admin-tabel { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 560px; }
+.admin-tabel th, .admin-tabel td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--wash); vertical-align: top; }
+.admin-tabel thead th { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); background: var(--paper); }
+.admin-tabel tbody tr:last-child td { border-bottom: 0; }
+.admin-tabel code { font-size: 13px; }
+.admin-masukan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.admin-masukan-item { background: var(--paper-2); border: var(--bd); box-shadow: var(--sh); padding: 18px 20px; }
+.admin-masukan-item.baru { border-left: 6px solid var(--red); }
+.admin-masukan-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.admin-masukan-isi { margin: 0; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+@media (max-width: 720px) {
+  .admin-stats { grid-template-columns: repeat(2, 1fr); }
+  .admin-stat-nilai { font-size: 26px; }
+}
+@media (max-width: 420px) {
+  .admin-stats { grid-template-columns: 1fr; }
+}
+>>>>>>> origin/w9-admin
