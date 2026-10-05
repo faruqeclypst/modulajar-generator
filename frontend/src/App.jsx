@@ -144,11 +144,30 @@ function LayarTunggu({ pesan }) {
   );
 }
 
+// Posisi halaman tersimpan agar refresh tidak melempar ke halaman utama.
+// Format: {view, docId} — docId hanya untuk view 'detail'.
+const VIEW_KEY = 'ma-view';
+const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan'];
+function bacaViewTersimpan() {
+  try {
+    const raw = localStorage.getItem(VIEW_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d || !VIEW_VALID.includes(d.view)) return null;
+    return d;
+  } catch { return null; }
+}
+
 export default function App() {
   const [auth, setAuth] = useState('loading'); // loading | login | app
   const [user, setUser] = useState(null);
   const [authErr, setAuthErr] = useState('');
-  const [view, setView] = useState('landing'); // landing | app | wizard | detail | ruang | paket | pengaturan
+  // Lazy dari localStorage agar tidak ada flash halaman utama saat refresh
+  const [view, setView] = useState(() => bacaViewTersimpan()?.view || 'landing'); // landing | app | wizard | detail | ruang | paket | pengaturan
+  const [restoring, setRestoring] = useState(() => {
+    const d = bacaViewTersimpan();
+    return d?.view === 'detail' && !!d.docId;
+  });
   const [moduls, setModuls] = useState([]);
   const [pakets, setPakets] = useState([]);
   const [active, setActive] = useState(null);
@@ -197,6 +216,41 @@ export default function App() {
     return () => { stop = true; if (stopSub) stopSub(); };
   }, []);
   useEffect(() => { if (auth === 'app') refresh(); }, [auth]);
+
+  // Restore dokumen tersimpan setelah login (hanya setelah auth==='app')
+  useEffect(() => {
+    if (auth !== 'app') return;
+    const d = bacaViewTersimpan();
+    if (!d) { setRestoring(false); return; }
+    if (d.view === 'detail' && d.docId) {
+      let stop = false;
+      getModul(d.docId).then((m) => {
+        if (stop) return;
+        if (m) {
+          if (!m.docType) m.docType = 'modul';
+          setActive(m);
+          setView('detail');
+        } else {
+          setView('app');
+        }
+      }).catch(() => { if (!stop) setView('app'); })
+        .finally(() => { if (!stop) setRestoring(false); });
+      return () => { stop = true; };
+    }
+    setRestoring(false);
+  }, [auth]);
+
+  // Simpan posisi setiap view/active berubah (hanya saat sudah login)
+  useEffect(() => {
+    if (auth !== 'app' || restoring) return;
+    if (view === 'detail' && !active?.id) return; // restore belum selesai, jangan timpa
+    try {
+      localStorage.setItem(VIEW_KEY, JSON.stringify({
+        view,
+        docId: view === 'detail' ? active?.id || null : null,
+      }));
+    } catch { /* abaikan */ }
+  }, [auth, view, active, restoring]);
   useEffect(() => { window.scrollTo(0, 0); }, [view]);
 
   function startNew(paketId) { setWizardPaket(paketId || null); setWizardTurunan(null); setWizardKey((k) => k + 1); setView('wizard'); }
@@ -213,11 +267,14 @@ export default function App() {
     const sb = await getSupabase();
     await sb.auth.signOut();
     setUser(null);
+    setActive(null);
+    try { localStorage.removeItem(VIEW_KEY); } catch { /* abaikan */ }
     setView('landing');
   }
 
   if (auth === 'loading') return <LayarTunggu pesan="Menyiapkan aplikasi…" />;
   if (auth === 'login') return <LayarLogin err={authErr} />;
+  if (restoring) return <LayarTunggu pesan="Memuat dokumen…" />;
 
   return (
     <>
@@ -240,6 +297,7 @@ export default function App() {
           preselectDocType={wizardTurunan?.docType}
           preselectModulId={wizardTurunan?.modulId}
           waLink={WA_LINK}
+          kuota={kuota}
           onKuotaChanged={muatKuota}
           onCancel={goApp}
           onDone={(id) => { openDoc(id); refresh(); }}
@@ -251,7 +309,7 @@ export default function App() {
       )}
 
       {view === 'paket' && (
-        <GeneratorPaket onBack={goApp} onOpenDoc={openDoc} onChanged={refresh} waLink={WA_LINK} onKuotaChanged={muatKuota} />
+        <GeneratorPaket onBack={goApp} onOpenDoc={openDoc} onChanged={refresh} waLink={WA_LINK} kuota={kuota} onKuotaChanged={muatKuota} />
       )}
 
       {view === 'detail' && active && (

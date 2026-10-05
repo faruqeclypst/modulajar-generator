@@ -5,6 +5,7 @@ import { getProfile, saveProfile } from '../lib/api';
 import { getToken } from '../lib/supabase';
 import UnggahDokumen from './UnggahDokumen';
 import Paywall from './Paywall';
+import TulisanAI from './TulisanAI';
 
 // Generator Paket via job backend: browser boleh ditutup, job tetap jalan di server.
 const RANTAI_LABEL = {
@@ -51,7 +52,7 @@ async function apiJob(path, method, body) {
   return d;
 }
 
-export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, onKuotaChanged }) {
+export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, kuota, onKuotaChanged }) {
   const [mode, setMode] = useState('lengkap');
   const [form, setForm] = useState(() => ({ ...emptyForm, ...getProfile() }));
   const [tahap, setTahap] = useState('form'); // form | jalan | selesai
@@ -181,6 +182,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, o
   const fmtWaktu = (s) => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
   const langkah = job?.progress?.langkah || [];
   const hasil = job?.hasil || [];
+  const live = job?.progress?.live || null; // tulisan AI realtime dari worker backend
   const selesaiCount = langkah.filter((s) => s.status === 'ok').length;
 
   return (
@@ -322,6 +324,12 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, o
 
           {errJalan && <div className="alert" style={{ marginTop: 14 }}>{errJalan}</div>}
 
+          {kuota && !kuota.admin && (
+            <p className="hint" style={{ margin: '0 0 4px' }}>Sisa kredit hari ini: <b>{kuota.sisa}</b> dari {kuota.batas}.</p>
+          )}
+          {kuota && kuota.admin && (
+            <p className="hint" style={{ margin: '0 0 4px' }}>Kredit: tanpa batas (Admin).</p>
+          )}
           <div className="btn-row">
             <button className="btn btn-primary" onClick={mulai}>Buat {MODE_INFO[mode].nama}</button>
             <button className="btn" onClick={onBack}>Kembali</button>
@@ -341,6 +349,14 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, o
             <span className="job-timer" aria-label="Waktu berjalan">{fmtWaktu(detik)}</span>
           </div>
           {errJalan && <div className="alert alert-error">{errJalan}</div>}
+          {live && live.teks && job.status === 'berjalan' && (
+            <div className="card">
+              <span className="kicker">Sedang ditulis AI</span>
+              <h3 style={{ margin: '0 0 4px' }}>{live.label}</h3>
+              {live.subfase && <p className="hint" style={{ marginTop: 0 }}>{live.subfase}</p>}
+              <TulisanAI segmen={[{ key: live.key, label: '', teks: live.teks }]} />
+            </div>
+          )}
           {job.status === 'menunggu_review' && (
             <div className="alert alert-info">
               <b>Dokumen perencanaan selesai.</b> Tinjau dulu (buka dan edit bila perlu),

@@ -133,8 +133,17 @@ Aturan:
 - Skala spacing 8px: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 72. Jarak antar seksi
   56px di desktop, 40px di mobile.
 - Lebar konten 1080px (`.wrap`), 720px untuk layar baca dan pengaturan
-  (`.wrap.narrow`).
-- Mobile-first. Target sentuh minimal 44px. Tidak ada overflow horizontal.
+  (`.wrap.narrow`). Tidak ada max-width ad-hoc lain untuk kontainer halaman;
+  semua view memakai salah satu dari dua ini agar lebar terasa konsisten.
+- Mobile-first. Target sentuh minimal 44px. Tidak ada overflow horizontal
+  di 360px, 390px, 768px, 1280px. Hero memakai clamp agar tidak raksasa
+  di desktop dan tidak meluber di mobile. Grid kartu menjadi 1 kolom
+  di mobile. Tabel di dokumen bisa scroll horizontal di dalam kontainernya
+  (`overflow-x: auto`) tanpa merusak layout halaman.
+- Posisi halaman bertahan saat refresh: view + id dokumen tersimpan di
+  localStorage (`ma-view`) setiap berubah, direstore setelah login
+  (detail menunggu `getModul` selesai; gagal → fallback beranda),
+  dihapus saat logout.
 - Ritme: layar kerja (daftar dokumen, job) memakai daftar/kartu yang mudah
   dipindai; layar baca memakai kolom sempit. Variasi mengikuti kebutuhan
   konten, bukan template.
@@ -185,16 +194,17 @@ Aturan:
 
 ### Topbar & Menu Pengguna
 
-- Topbar: latar ink, sticky. Kiri: logo (kotak bata berisi "M", nama
-  "ModulAjar" + sub "Perangkat Ajar AI"). Tengah/kanan: navigasi nyata
-  (Dokumen Saya, Ruang Perencanaan, Generator Paket). Kanan: chip pengguna
-  (avatar inisial + nama depan) yang membuka menu: **Pengaturan**,
-  **Keluar**.
-- Menu pengguna: popover paper-2, border 2px ink, radius 10px, shadow kaku.
-  Bisa dibuka/tutup dengan klik, bisa diakses keyboard (Enter/Space,
-  Escape menutup, fokus kembali ke pemicu).
-- Di mobile, navigasi menciut menjadi tombol "Menu" yang membuka daftar
-  vertikal yang sama. Tidak ada link mati.
+- Topbar: latar ink, sticky, tanpa wrap. Kiri: logo (kotak bata berisi "M", nama
+  "ModulAjar" + sub "Perangkat Ajar AI"; di layar sangat kecil hanya kotak "M").
+  Kanan: pil kredit + chip pengguna (foto profil Google bila ada, fallback
+  avatar inisial + nama depan) yang membuka menu: **Pengaturan**, **Keluar**.
+- View landing: hanya logo + tombol "Buka Aplikasi" + pil kredit + chip pengguna
+  (tanpa nav aplikasi). View aplikasi: nav (Dokumen Saya, Ruang Perencanaan,
+  Generator Paket) + pil kredit + chip pengguna (tanpa tombol "Buka Aplikasi").
+- Item nav tidak pernah wrap dua baris (`white-space: nowrap`).
+- Di bawah 980px, navigasi menciut menjadi tombol "Menu" yang membuka daftar
+  vertikal yang sama. Batas 980px (bukan 760px) agar tidak berdesakan di
+  laptop kecil / zoom besar. Tidak ada link mati.
 
 ### Layar Login
 
@@ -211,7 +221,8 @@ Aturan:
 ### Pengaturan
 
 - Halaman/kartu "Pengaturan" berisi seksi nyata saja:
-  1. **Profil**: avatar inisial, nama, email dari Google (read-only).
+  1. **Profil**: foto profil Google (72px; fallback inisial bila tidak ada),
+     nama, email dari Google (read-only).
   2. **Tampilan**: Ukuran teks (Normal/Besar). Fungsional, tersimpan di
      localStorage, langsung diterapkan.
   3. **Data**: info "Dokumen tersimpan di akunmu (Supabase)" + tombol
@@ -246,24 +257,32 @@ Aturan:
 - Alert info: border ink, latar wash. Alert error: border bata, teks bata
   gelap. Selalu berisi tindakan ("Muat ulang", "Coba lagi").
 
-### Kuota & Paywall
+### Kredit & Paywall
 
-- Aturan: 1 dokumen selesai dibuat = 1 kuota. User biasa mendapat
-  `KUOTA_HARIAN` dokumen per hari, reset harian WIB. Admin (`ADMIN_EMAILS`,
-  default faruq.blogger@gmail.com, komparasi case-insensitive): tanpa batas,
-  tidak dihitung.
+- Istilah user-facing: **"Kredit"**, bukan "Kuota". Aturan: 1 dokumen selesai
+  dibuat = 1 kredit. User biasa mendapat `KUOTA_HARIAN` kredit per hari, reset
+  harian WIB. Admin (`ADMIN_EMAILS`, default faruq.blogger@gmail.com,
+  komparasi case-insensitive): tanpa batas, tidak dihitung. Nama tabel, env,
+  dan fungsi backend tetap memakai "kuota".
 - Generate dokumen tunggal memakai endpoint SSE `POST /api/generate-doc/stream`
-  yang menampilkan tahapan asli server (fondasi, kegiatan, koreksi bila ada,
-  asesmen, rakit; satu tahap "susun" untuk dokumen non-modul).
-- Pembuatan paket (`POST /api/paket`) mengecek kuota di awal: estimasi =
+  yang menampilkan tahapan asli server (pahami, fondasi, kegiatan, koreksi
+  bila ada, asesmen, materi, rakit; satu tahap "susun" untuk dokumen non-modul).
+  Setiap tahap juga mengalirkan potongan teks mentah AI (`{tipe:'teks', key,
+  delta}`) yang ditampilkan di panel "Lihat tulisan AI" (collapsible,
+  auto-scroll, default terbuka saat generate berjalan).
+- Pembuatan paket (`POST /api/paket`) mengecek kredit di awal: estimasi =
   jumlah dokumen paket. Job yang sudah berjalan tidak diblokir di tengah jalan.
+  Di mode pantau, langkah yang sedang berjalan menampilkan kartu
+  "Sedang ditulis AI" berisi tulisan realtime dari `progress.live`.
 - Komponen: `ProsesLive` (stepper vertikal tahapan asli + bilah progres +
-  timer, gaya kartu job), `Paywall` (modal dua mode: kuota_habis dan upgrade;
-  tombol "Upgrade Sekarang" memanggil seam `lib/bayar.js mulaiUpgrade()` yang
-  masih stub dan jujur menampilkan "Pembayaran segera hadir" + opsi WhatsApp),
-  pil kuota di topbar ("Kuota X/Y" atau "Admin", klik membuka Pengaturan),
-  seksi "Kuota & Langganan" di Pengaturan.
-- Copy jujur: "Kuota harian habis. Kuota diperbarui besok." Tanpa klaim palsu,
+  timer + panel `TulisanAI`, gaya kartu job), `Paywall` (modal dua mode:
+  kuota_habis dan upgrade; tombol "Upgrade Sekarang" memanggil seam
+  `lib/bayar.js mulaiUpgrade()` yang masih stub dan jujur menampilkan
+  "Pembayaran segera hadir" + opsi WhatsApp), pil kredit di topbar
+  ("Kredit X/Y" atau "Admin", klik membuka Pengaturan), seksi
+  "Kredit & Langganan" di Pengaturan, baris "Sisa kredit hari ini: X"
+  di atas tombol generate (Wizard step 4 dan form Generator Paket).
+- Copy jujur: "Kredit harian habis. Kredit diperbarui besok." Tanpa klaim palsu,
   tanpa countdown palsu.
 
 ## Screens

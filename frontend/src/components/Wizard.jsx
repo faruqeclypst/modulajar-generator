@@ -1,18 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { JENJANG, FASE, MAPEL, MODEL } from '../lib/referensi';
 import { DOC_TYPES, FIELD_LABEL, SEMESTER } from '../lib/docs';
 import { generateDocStream, rekomendasiAI, extractTitle, buangJudulGanda, rapikanIdentitas, getProfile, saveProfile } from '../lib/api';
 import { parseProsemWeeks } from '../lib/prosem';
 import { saveDraft, getDraft, clearDraft, saveModul, listPakets, getPaket, getModul, listModuls } from '../lib/db';
 import DocEditor from './DocEditor';
-import ImagePicker from './ImagePicker';
 import ProsesLive from './ProsesLive';
 import Paywall from './Paywall';
 
 // Jenis dokumen yang wajib/sangat disarankan memakai acuan perencanaan
 const ACUAN_TYPES = ['modul', 'lkpd', 'soal', 'kktp'];
 
-const STEPS = ['Dokumen', 'Informasi', 'Materi', 'Generate', 'Gambar', 'Editor'];
+const STEPS = ['Dokumen', 'Informasi', 'Materi', 'Generate', 'Editor'];
 
 const emptyForm = {
   docType: 'modul', jenjang: 'SMA/MA', fase: '', kelas: '', semester: 'Ganjil',
@@ -25,12 +24,14 @@ function formAwal(preselectDocType, initial) {
   return { ...emptyForm, docType: preselectDocType || 'modul', ...getProfile(), ...(initial?.form || {}) };
 }
 
-export default function Wizard({ onDone, onCancel, initial, preselectPaketId, preselectDocType, preselectModulId, waLink, onKuotaChanged }) {
+export default function Wizard({ onDone, onCancel, initial, preselectPaketId, preselectDocType, preselectModulId, waLink, kuota, onKuotaChanged }) {
   const [step, setStep] = useState(preselectPaketId || preselectModulId ? 2 : 1);
   const [form, setForm] = useState(() => formAwal(preselectDocType, initial));
   const [loading, setLoading] = useState(false);
   const [tahapLive, setTahapLive] = useState([]);   // [{key,label}] tahapan asli dari server
   const [statusLive, setStatusLive] = useState({}); // {key: 'tunggu'|'jalan'|'ok'}
+  const [tulisan, setTulisan] = useState([]);       // [{key,label,teks}] tulisan AI realtime per tahap
+  const labelMap = useRef({});                     // key tahap -> label (untuk segmen tulisan)
   const [paywall, setPaywall] = useState(null);    // {mode, detail}
   const [error, setError] = useState('');
   const [markdown, setMarkdown] = useState('');
@@ -202,11 +203,24 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
 
   // Tandai satu tahap sebagai berjalan; tahap sebelumnya yang masih 'jalan' jadi 'ok'
   function tandaiTahap(key, label) {
+    labelMap.current[key] = label;
     setTahapLive((prev) => (prev.some((p) => p.key === key) ? prev : [...prev, { key, label }]));
     setStatusLive((prev) => {
       const next = { ...prev };
       for (const k of Object.keys(next)) if (next[k] === 'jalan') next[k] = 'ok';
       next[key] = 'jalan';
+      return next;
+    });
+  }
+
+  // Tambahkan delta teks ke segmen tahap yang sesuai (buat segmen bila belum ada)
+  function tambahTulisan(key, delta) {
+    const label = labelMap.current[key] || key;
+    setTulisan((prev) => {
+      const ix = prev.findIndex((s) => s.key === key);
+      if (ix === -1) return [...prev, { key, label, teks: delta }];
+      const next = [...prev];
+      next[ix] = { ...next[ix], teks: next[ix].teks + delta };
       return next;
     });
   }
@@ -217,13 +231,17 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     setLoading(true);
     setTahapLive([]);
     setStatusLive({});
+    setTulisan([]);
+    labelMap.current = {};
     try {
       const sumber = butuhAcuan ? await buildSumber() : '';
       let md = '';
       await generateDocStream(form.docType, form, form.materi, sumber, null, (ev) => {
         if (ev.tipe === 'tahap') tandaiTahap(ev.key, ev.label);
+        else if (ev.tipe === 'teks') tambahTulisan(ev.key, ev.delta || '');
         else if (ev.tipe === 'selesai') {
           md = ev.markdown || '';
+          setImages(ev.images || []); // gambar sudah disisipkan server ke naskah
           setStatusLive((prev) => {
             const next = { ...prev };
             for (const k of Object.keys(next)) next[k] = 'ok';
@@ -233,7 +251,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       });
       if (!md.trim()) throw new Error('AI mengembalikan dokumen kosong.');
       setMarkdown(md);
-      setStep(dt.gambar ? 5 : 6);
+      setStep(6);
       await clearDraft();
       onKuotaChanged && onKuotaChanged();
     } catch (e) {
@@ -260,7 +278,6 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     onDone(id);
   }
 
-  const gambarQuery = [form.topik, form.mapel].filter(Boolean).join(' ');
   const showMateri = dt.materi;
 
   return (
@@ -562,6 +579,12 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
             </div>
           )}
           <div className="alert alert-info">Proses generate membutuhkan ±30–60 detik. Jangan tutup halaman ini.</div>
+          {kuota && !kuota.admin && (
+            <p className="hint" style={{ margin: '0 0 4px' }}>Sisa kredit hari ini: <b>{kuota.sisa}</b> dari {kuota.batas}.</p>
+          )}
+          {kuota && kuota.admin && (
+            <p className="hint" style={{ margin: '0 0 4px' }}>Kredit: tanpa batas (Admin).</p>
+          )}
           <div className="btn-row">
             <button className="btn" onClick={() => setStep(showMateri ? 3 : 2)}>Kembali</button>
             <button className="btn btn-primary" onClick={handleGenerate}>Generate {dt.nama}</button>
@@ -570,27 +593,13 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       )}
 
       {step === 4 && loading && (
-        <ProsesLive judul={'Menyusun ' + dt.nama} tahap={tahapLive} status={statusLive} />
-      )}
-
-      {step === 5 && dt.gambar && (
-        <div className="card">
-          <span className="kicker">Langkah 05</span>
-          <h1 className="page">Gambar Referensi</h1>
-          <ImagePicker query={gambarQuery} initial={images} onChange={setImages} />
-          <div className="btn-row">
-            <button className="btn" onClick={() => setStep(4)}>Kembali</button>
-            <button className="btn btn-primary" onClick={() => setStep(6)}>
-              {images.length > 0 ? `Lanjut (${images.length} gambar)` : 'Lewati'}
-            </button>
-          </div>
-        </div>
+        <ProsesLive judul={'Menyusun ' + dt.nama} tahap={tahapLive} status={statusLive} tulisan={tulisan} />
       )}
 
       {step === 6 && (
         <EditorStep
           form={form} markdown={markdown} images={images}
-          onBack={() => setStep(dt.gambar ? 5 : 4)}
+          onBack={() => setStep(4)}
           onRegen={() => { setMarkdown(''); setStep(4); }}
           onSave={handleSave}
         />

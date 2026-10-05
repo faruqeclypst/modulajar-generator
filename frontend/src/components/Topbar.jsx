@@ -22,6 +22,12 @@ function inisial(user) {
   return (n[0] || 'G').toUpperCase();
 }
 
+// Foto profil Google dari user_metadata; null bila tidak ada (fallback inisial)
+function avatarUrl(user) {
+  const meta = user?.user_metadata || {};
+  return meta.avatar_url || meta.picture || null;
+}
+
 export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onSignOut }) {
   const [open, setOpen] = useState(false); // menu pengguna
   const [mobileOpen, setMobileOpen] = useState(false); // panel navigasi mobile
@@ -78,43 +84,50 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onSig
     </button>
   ));
 
+  const foto = avatarUrl(user);
+  const diLanding = view === 'landing';
+
   return (
     <header className="topbar">
       <div className="topbar-inner">
         <button type="button" className="logo" onClick={() => { onNav('landing'); setMobileOpen(false); }} aria-label="ModulAjar, ke halaman depan">
           <span className="logo-mark" aria-hidden="true">M</span>
-          <span><b>ModulAjar</b><small>Perangkat Ajar AI</small></span>
+          <span className="logo-teks"><b>ModulAjar</b><small>Perangkat Ajar AI</small></span>
         </button>
         <div className="spacer" />
 
-        <nav className="topnav-desktop" aria-label="Navigasi utama">
-          {navButtons(false)}
-        </nav>
-        {view === 'landing' && (
+        {!diLanding && (
+          <nav className="topnav-desktop" aria-label="Navigasi utama">
+            {navButtons(false)}
+          </nav>
+        )}
+        {diLanding && (
           <button type="button" className="btn btn-primary btn-sm topbar-cta" onClick={() => onNav('app')}>
             Buka Aplikasi
           </button>
         )}
 
-        <button
-          type="button"
-          className="menu-toggle"
-          aria-expanded={mobileOpen}
-          aria-controls="mobile-nav-panel"
-          onClick={() => setMobileOpen((o) => !o)}
-        >
-          Menu
-        </button>
+        {!diLanding && (
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav-panel"
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            Menu
+          </button>
+        )}
 
         {kuota && (
           <button
             type="button"
             className={'kuota-pil' + (kuota.admin ? ' admin' : '')}
             onClick={onOpenSettings}
-            title={kuota.admin ? 'Akun admin: tanpa batas kuota' : `Sisa ${kuota.sisa} dari ${kuota.batas} dokumen hari ini`}
-            aria-label={kuota.admin ? 'Akun admin, tanpa batas kuota. Buka pengaturan.' : `Sisa kuota ${kuota.sisa} dari ${kuota.batas}. Buka pengaturan.`}
+            title={kuota.admin ? 'Akun admin: tanpa batas kredit' : `Sisa ${kuota.sisa} dari ${kuota.batas} kredit hari ini`}
+            aria-label={kuota.admin ? 'Akun admin, tanpa batas kredit. Buka pengaturan.' : `Sisa kredit ${kuota.sisa} dari ${kuota.batas}. Buka pengaturan.`}
           >
-            {kuota.admin ? 'Admin' : `Kuota ${kuota.sisa}/${kuota.batas}`}
+            {kuota.admin ? 'Admin' : `Kredit ${kuota.sisa}/${kuota.batas}`}
           </button>
         )}
 
@@ -128,8 +141,12 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onSig
             onClick={() => setOpen((o) => !o)}
             onKeyDown={(e) => { if (e.key === 'Escape' && open) tutupKembali(); }}
           >
-            <span className="avatar" aria-hidden="true">{inisial(user)}</span>
-            <span>{namaDepan(user)}</span>
+            {foto ? (
+              <img className="avatar avatar-img" src={foto} alt="" referrerPolicy="no-referrer" aria-hidden="true" />
+            ) : (
+              <span className="avatar" aria-hidden="true">{inisial(user)}</span>
+            )}
+            <span className="chip-nama">{namaDepan(user)}</span>
           </button>
           {open && (
             <div ref={menuRef} className="user-menu" role="menu" aria-label="Menu akun">

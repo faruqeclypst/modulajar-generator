@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import TulisanAI from './TulisanAI';
 
 const STATUS_LABEL = { tunggu: 'Menunggu', jalan: 'Menyusun', ok: 'Selesai' };
 
@@ -8,9 +9,10 @@ function fmtDetik(s) {
 
 // Stepper vertikal untuk progress generate yang REAL dari backend (via SSE).
 // tahap: [{key,label}] sesuai urutan kedatangan event; status: {key:'tunggu'|'jalan'|'ok'}.
+// tulisan: [{key,label,teks}] opsional — tulisan AI realtime per tahap (komponen TulisanAI).
 // Spinner hanya pada tahap yang sedang berjalan: penanda loading yang nyata,
 // bukan dekorasi (ada label teks "Menyusun" di sampingnya).
-export default function ProsesLive({ judul, tahap, status }) {
+export default function ProsesLive({ judul, tahap, status, tulisan = [] }) {
   const [detik, setDetik] = useState(0);
   useEffect(() => {
     const t0 = Date.now();
@@ -33,6 +35,7 @@ export default function ProsesLive({ judul, tahap, status }) {
         <div className="progress-fill" style={{ width: (tahap.length ? (okCount / tahap.length) * 100 : 0) + '%' }} />
       </div>
       <p className="progress-label">Langkah {okCount} dari {tahap.length} · {fmtDetik(detik)}</p>
+      <TulisanAI segmen={tulisan} />
       <ol className="job-steps">
         {tahap.map((t, i) => {
           const st = status[t.key] || 'tunggu';

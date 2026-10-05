@@ -55,7 +55,7 @@ img { max-width: 100%; }
 .topbar { background: var(--ink); color: var(--paper); position: sticky; top: 0; z-index: 40; }
 .topbar-inner {
   max-width: 1080px; margin: 0 auto; padding: 10px 20px;
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: nowrap;
 }
 .logo { display: flex; align-items: center; gap: 12px; cursor: pointer; background: none; border: none; color: inherit; font: inherit; padding: 4px; text-align: left; }
 .logo-mark {
@@ -70,11 +70,10 @@ img { max-width: 100%; }
 .nav-item {
   background: none; border: none; color: var(--paper); font: inherit; font-weight: 700;
   font-size: 15px; padding: 12px 14px; min-height: 44px; cursor: pointer;
-  border-bottom: 3px solid transparent;
+  border-bottom: 3px solid transparent; white-space: nowrap;
 }
 .nav-item:hover { color: #fff; border-bottom-color: var(--red); }
 .nav-item.active { border-bottom-color: var(--red); color: #fff; }
-.topbar-cta { margin-left: 8px; }
 
 /* chip pengguna + menu */
 .user-chip {
@@ -87,6 +86,8 @@ img { max-width: 100%; }
   width: 32px; height: 32px; border-radius: 999px; background: var(--red); color: #fff;
   display: inline-grid; place-items: center; font-weight: 900; font-size: 15px; flex: none;
 }
+.avatar-img { object-fit: cover; }
+.chip-nama { white-space: nowrap; }
 .user-menu-wrap { position: relative; }
 .user-menu {
   position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px;
@@ -115,14 +116,24 @@ img { max-width: 100%; }
   font-size: 16px; text-align: left;
 }
 .mobile-panel .nav-item.active { border-bottom-color: var(--red); }
-@media (max-width: 760px) {
-  .topnav-desktop, .topbar-cta { display: none; }
+/* Di bawah 980px nav desktop menciut jadi tombol "Menu" (panel vertikal).
+   Batas dinaikkan dari 760px agar tidak berdesakan di laptop kecil / zoom besar. */
+@media (max-width: 980px) {
+  .topnav-desktop { display: none; }
   .menu-toggle {
     display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
     border: 2px solid var(--paper); color: var(--paper); font: inherit; font-weight: 800;
     font-size: 14px; text-transform: uppercase; letter-spacing: .5px;
-    padding: 10px 16px; min-height: 44px;
+    padding: 10px 16px; min-height: 44px; white-space: nowrap;
   }
+}
+/* Layar sangat kecil: padatkan topbar agar tidak overflow horizontal */
+@media (max-width: 560px) {
+  .topbar-inner { padding: 8px 12px; gap: 8px; }
+  .logo-teks { display: none; }
+  .logo { gap: 0; }
+  .chip-nama { display: none; }
+  .user-chip { padding: 5px; }
 }
 
 /* ---------- layout ---------- */
@@ -356,7 +367,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .paper-head { border-bottom: 4px solid var(--ink); padding-bottom: 20px; margin-bottom: 24px; }
 .paper-head .doclabel { font-size: 12px; font-weight: 800; letter-spacing: 3px; color: var(--red-dark); text-transform: uppercase; margin-bottom: 8px; }
 .paper-head h1 { font-size: clamp(24px, 4.5vw, 38px); font-weight: 900; line-height: 1.15; margin: 0 0 14px; letter-spacing: -.5px; }
-.info-table { width: 100%; border-collapse: collapse; margin: 0; font-size: 14.5px; }
+.info-table { width: 100%; border-collapse: collapse; margin: 0; font-size: 14.5px; display: block; overflow-x: auto; }
 .info-table th, .info-table td { border: 2px solid var(--ink); padding: 9px 12px; text-align: left; vertical-align: top; }
 .info-table th { background: var(--ink); color: var(--paper); width: 220px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
 @media (max-width: 560px) { .info-table th { width: 130px; } }
@@ -403,6 +414,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 /* ---------- pengaturan ---------- */
 .set-row { display: flex; gap: 16px; align-items: flex-start; }
 .set-avatar { width: 64px; height: 64px; border-radius: 999px; background: var(--ink); color: var(--paper); display: inline-grid; place-items: center; font-weight: 900; font-size: 26px; flex: none; border: 2px solid var(--ink); }
+.set-avatar-img { width: 72px; height: 72px; object-fit: cover; }
 .set-field { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
 .set-value { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
 .radio-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -418,7 +430,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 
 /* ---------- landing ---------- */
 .hero-land { border: var(--bd); background: var(--ink); color: var(--paper); box-shadow: 8px 8px 0 var(--red); padding: clamp(34px, 6vw, 70px); margin: 10px 0 30px; position: relative; overflow: hidden; }
-.hero-land h1 { font-size: clamp(38px, 8vw, 84px); font-weight: 900; line-height: .95; margin: 0 0 18px; letter-spacing: -2px; text-transform: uppercase; position: relative; z-index: 2; }
+.hero-land h1 { font-size: clamp(30px, 8vw, 84px); font-weight: 900; line-height: .95; margin: 0 0 18px; letter-spacing: -2px; text-transform: uppercase; position: relative; z-index: 2; }
 .hero-land h1 .accent { color: #E8604F; }
 .hero-land p { color: #D9D4C6; max-width: 58ch; font-size: 17px; position: relative; z-index: 2; }
 .hero-land .btn-row { position: relative; z-index: 2; }
@@ -457,17 +469,41 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 /* judul tidak tertutup navbar lengket saat scroll */
 .paper, .card { scroll-margin-top: 90px; }
 
-/* ---------- kuota & paywall ---------- */
-/* pil kuota di topbar: kecil, gaya chip, klik membuka Pengaturan */
+/* ---------- tulisan AI realtime ---------- */
+/* Panel collapsible berisi teks mentah yang sedang ditulis AI (auto-scroll). */
+.tulisan-ai {
+  margin-top: 14px; background: var(--paper); border: var(--bd);
+  border-radius: 8px; padding: 8px 16px 14px;
+}
+.tulisan-ai > summary {
+  cursor: pointer; font-weight: 800; font-size: 14px;
+  min-height: 44px; display: inline-flex; align-items: center;
+}
+.tulisan-ai-seg { border-top: 2px solid var(--wash); margin-top: 10px; padding-top: 10px; }
+.tulisan-ai-seg:first-of-type { border-top: none; margin-top: 2px; padding-top: 4px; }
+.tulisan-ai-seg h4 {
+  margin: 0 0 6px; font-size: 12px; font-weight: 800;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
+}
+.tulisan-ai-teks {
+  margin: 0; max-height: 280px; overflow-y: auto;
+  white-space: pre-wrap; word-break: break-word;
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  font-size: 13px; line-height: 1.65; color: var(--slate);
+}
+
+/* ---------- kredit & paywall ---------- */
+/* pil kredit di topbar: kecil, gaya chip, klik membuka Pengaturan */
 .kuota-pil {
   display: inline-flex; align-items: center; background: var(--paper-2); color: var(--ink);
   border: 2px solid var(--paper); border-radius: 999px; font: inherit;
   font-weight: 800; font-size: 13px; padding: 8px 14px; min-height: 44px; cursor: pointer;
+  white-space: nowrap;
 }
 .kuota-pil:hover { background: #fff; }
 .kuota-pil.admin { background: var(--red); color: #fff; }
 .kuota-pil:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
-@media (max-width: 760px) {
+@media (max-width: 980px) {
   .kuota-pil { font-size: 12px; padding: 8px 10px; }
 }
 

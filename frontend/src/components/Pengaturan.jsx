@@ -7,6 +7,7 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
   const nama = meta.full_name || meta.name || '';
   const email = user?.email || '';
   const inisial = (nama || email || 'G').trim()[0].toUpperCase();
+  const foto = meta.avatar_url || meta.picture || null;
 
   const [besar, setBesar] = useState(() => localStorage.getItem('ma-font-besar') === '1');
   const [memuat, setMemuat] = useState(false);
@@ -51,7 +52,11 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
       <section className="card" aria-labelledby="set-profil">
         <h2 className="sec" id="set-profil" style={{ marginTop: 0 }}>Profil</h2>
         <div className="set-row">
-          <span className="set-avatar" aria-hidden="true">{inisial}</span>
+          {foto ? (
+            <img className="set-avatar set-avatar-img" src={foto} alt="" referrerPolicy="no-referrer" aria-hidden="true" />
+          ) : (
+            <span className="set-avatar" aria-hidden="true">{inisial}</span>
+          )}
           <div>
             <div className="set-field">Nama</div>
             <div className="set-value">{nama || 'Belum ada nama'}</div>
@@ -63,9 +68,9 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
       </section>
 
       <section className="card" aria-labelledby="set-kuota">
-        <h2 className="sec" id="set-kuota" style={{ marginTop: 0 }}>Kuota &amp; Langganan</h2>
+        <h2 className="sec" id="set-kuota" style={{ marginTop: 0 }}>Kredit &amp; Langganan</h2>
         {!kuota && (
-          <p style={{ marginBottom: 0 }}>Memuat status kuota…</p>
+          <p style={{ marginBottom: 0 }}>Memuat status kredit…</p>
         )}
         {kuota && kuota.admin && (
           <p style={{ marginBottom: 0 }}>
@@ -75,8 +80,8 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
         {kuota && !kuota.admin && (
           <>
             <p style={{ marginTop: 0 }}>
-              Sisa <b>{kuota.sisa}</b> dari <b>{kuota.batas}</b> dokumen hari ini.
-              Kuota diperbarui setiap hari.
+              Sisa <b>{kuota.sisa}</b> dari <b>{kuota.batas}</b> kredit hari ini.
+              Kredit diperbarui setiap hari.
             </p>
             <div className="btn-row" style={{ marginTop: 12, marginBottom: 0 }}>
               <button type="button" className="btn btn-sm btn-primary" onClick={() => setPaywall({ mode: 'upgrade' })}>

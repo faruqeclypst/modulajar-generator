@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { mulaiUpgrade } from '../lib/bayar';
 
-// Paywall: modal penawaran upgrade saat kuota habis (atau dibuka manual).
+// Paywall: modal penawaran upgrade saat kredit habis (atau dibuka manual).
 // mode 'kuota_habis': judul + pemakaian X dari Y + info butuh/sisa bila ada.
 // mode 'upgrade': langsung ke tampilan upgrade.
 // mulaiUpgrade() masih STUB (lihat lib/bayar.js): menampilkan pesan
@@ -35,16 +35,16 @@ export default function Paywall({ mode, detail, onClose, waLink }) {
       <div className="paywall-card" role="dialog" aria-modal="true" aria-labelledby="paywall-judul">
         {layar === 'info' && (
           <>
-            <span className="kicker red">Kuota</span>
-            <h2 id="paywall-judul">Kuota harian habis</h2>
+            <span className="kicker red">Kredit</span>
+            <h2 id="paywall-judul">Kredit harian habis</h2>
             <p>
               {typeof dipakai === 'number' && typeof batas === 'number'
-                ? `Kamu memakai ${dipakai} dari ${batas} dokumen hari ini. `
-                : 'Kuota dokumen harianmu sudah habis. '}
+                ? `Kamu memakai ${dipakai} dari ${batas} kredit hari ini. `
+                : 'Kredit harianmu sudah habis. '}
               {typeof butuh === 'number' && typeof sisa === 'number'
-                ? `Paket ini butuh ${butuh} dokumen, sisa kuotamu ${sisa}. `
+                ? `Paket ini butuh ${butuh} dokumen, sisa kreditmu ${sisa}. `
                 : ''}
-              Kuota diperbarui besok, atau upgrade untuk membuat tanpa batas.
+              Kredit diperbarui besok, atau upgrade untuk membuat tanpa batas.
             </p>
             <div className="btn-row">
               <button ref={utamaRef} type="button" className="btn btn-primary" onClick={() => setLayar('upgrade')}>
@@ -60,7 +60,7 @@ export default function Paywall({ mode, detail, onClose, waLink }) {
             <span className="kicker red">Upgrade</span>
             <h2 id="paywall-judul">Buat dokumen tanpa batas</h2>
             <p>
-              Satu akun upgrade, kuota harian tidak berlaku lagi.
+              Satu akun upgrade, kredit harian tidak berlaku lagi.
               Cocok untuk awal semester saat banyak perangkat harus disusun sekaligus.
             </p>
             <div className="btn-row">

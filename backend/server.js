@@ -90,18 +90,52 @@ function requireAuth(handler) {
   };
 }
 
-async function ai(system, user, maxTokens = 8000, temperature = 0.7) {
+async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = null) {
+  const body = { model: MODEL, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], temperature, max_tokens: maxTokens };
+  if (onDelta) body.stream = true; // streaming SSE ala OpenAI: delta.content per chunk
   const r = await fetch(KENARI_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.KENARI_API_KEY },
-    body: JSON.stringify({ model: MODEL, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], temperature, max_tokens: maxTokens }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(180000),
   });
   if (!r.ok) throw new Error('AI gagal merespons (HTTP ' + r.status + ')');
-  const data = await r.json();
-  const text = data.choices?.[0]?.message?.content || '';
-  if (!text.trim()) throw new Error('AI mengembalikan respons kosong.');
-  return text;
+  if (!onDelta) {
+    const data = await r.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    if (!text.trim()) throw new Error('AI mengembalikan respons kosong.');
+    return text;
+  }
+  // Jalur streaming: teruskan tiap delta ke pemanggil, kembalikan teks penuh
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '', full = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf('\n\n')) !== -1) {
+      const chunk = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      for (const line of chunk.split('\n')) {
+        const t = line.trim();
+        if (!t.startsWith('data:')) continue;
+        const payload = t.slice(5).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const d = JSON.parse(payload);
+          const delta = d.choices?.[0]?.delta?.content || '';
+          if (delta) {
+            full += delta;
+            try { await onDelta(delta); } catch { /* callback user, jangan gagalkan stream */ }
+          }
+        } catch { /* baris rusak, abaikan */ }
+      }
+    }
+  }
+  if (!full.trim()) throw new Error('AI mengembalikan respons kosong.');
+  return full;
 }
 
 // ================= REGULASI & ATURAN GLOBAL =================
@@ -385,8 +419,36 @@ Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTI
   return { system, user };
 }
 
-function rakitModul(info, fondasi, budget, sintaks, kegiatanMd, asesmenMd) {
+// Tahap 4 (baru): materi pembelajaran lengkap + bank soal + rubrik penilaian.
+// Dipisah dari tahap 3 agar tiap panggilan AI tetap fokus dan tidak terpotong.
+function promptTahapMateri(info, fondasi, materi, sumber) {
+  const nPG = info.jmlPG || 10;
+  const nUraian = info.jmlUraian || 5;
+  const system = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
+Tugasmu HANYA menyusun bagian MATERI PEMBELAJARAN dan BANK SOAL dalam markdown. ${ANTI_FIKSI}
+Materi harus selaras dengan Tujuan Pembelajaran berikut:
+${fondasi.tp.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+
+Struktur WAJIB persis:
+### 10. Materi Pembelajaran
+Uraian materi yang lengkap dan runtut per sub-topik: konsep kunci, penjelasan dengan contoh konkret yang dekat dengan kehidupan peserta didik Indonesia, dan (bila relevan) langkah atau mekanisme. Bahasa formal namun komunikatif. Minimal 400 kata.
+
+### 11. Bank Soal
+- **Soal Pilihan Ganda** (${nPG} soal): tiap soal bernomor, 4 opsi (a-d), tulis kunci jawaban di akhir bagian ini (format: 1-b, 2-c, ...).
+- **Soal Uraian** (${nUraian} soal): tiap soal bernomor beserta pedoman penskoran singkat.
+Soal harus mengukur TP di atas, bervariasi dari C1 sampai C4.
+
+### 12. Rubrik Penilaian
+Tabel rubrik: kolom Aspek | Skor 4 | Skor 3 | Skor 2 | Skor 1 — untuk penilaian uraian/produk di atas. Plus panduan konversi skor ke nilai 0-100.
+
+Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTILAH_BARU}`;
+  const user = `Susun materi pembelajaran dan bank soal untuk modul "${fondasi.judul}".\nData: ${IDENT(info)}\n- Mata Pelajaran: ${info.mapel || '-'} | Materi: ${info.topik || '-'}\n\n${konteksSumber(materi, sumber)}`;
+  return { system, user };
+}
+
+function rakitModul(info, fondasi, budget, sintaks, kegiatanMd, asesmenMd, materiMd) {
   const alokasiLabel = `${info.alokasi || '-'} (${budget.pendahuluan + budget.inti + budget.penutup} menit)`;
+  const tanggal = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
   return `# ${fondasi.judul}
 
 ## A. Informasi Umum
@@ -420,6 +482,22 @@ ${fondasi.pemantik.map((p) => `- ${p}`).join('\n')}
 ${kegiatanMd}
 
 ${asesmenMd}
+
+${materiMd}
+
+## D. Lembar Pengesahan
+
+Modul ajar ini telah disusun dan disetujui untuk digunakan dalam kegiatan pembelajaran.
+
+**Sekolah**: ${info.sekolah || '(diisi guru)'}
+
+| | |
+|---|---|
+| Mengetahui, | ............, ${tanggal} |
+| Kepala Sekolah | Guru Mata Pelajaran |
+| | |
+| ( ............................................ ) | ( ${info.nama || '............................................'} ) |
+| NIP. ........................................ | NIP. ........................................ |
 `;
 }
 
@@ -434,7 +512,7 @@ export function bagianKegiatan(markdown) {
 
 function validasiAkhir(markdown, budget) {
   const masalah = [];
-  const wajib = ['## A. Informasi Umum', '### 1.', '### 2.', '### 6.', '### 7.', '## C. Lampiran'];
+  const wajib = ['## A. Informasi Umum', '### 1.', '### 2.', '### 6.', '### 7.', '### 10.', '### 11.', '### 12.', '## C. Lampiran', '## D. Lembar Pengesahan'];
   for (const h of wajib) if (!markdown.includes(h)) masalah.push(`Heading hilang: ${h}`);
   const total = jumlahMenit(bagianKegiatan(markdown));
   const ekspektasi = budget.pendahuluan + budget.inti + budget.penutup;
@@ -457,8 +535,50 @@ function ekstrakJson(raw) {
   }
 }
 
-async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap = () => {}) {
-  // Tahap 1 — fondasi terstruktur
+// Guru sering mengisi Topik/Alokasi dengan bahasa santai berupa INSTRUKSI
+// ("cari aja di internet", "sesuaikan 1JP=40 menit"), bukan nilai final.
+// Fungsi ini menerjemahkannya menjadi nilai konkret via satu AI call kecil.
+// Gagal → lempar error, ditangani siapkanInfo (pakai info apa adanya).
+async function interpretasiInput(info) {
+  const system = `Kamu adalah penerjemah input guru menjadi data formulir yang rapi. Guru Indonesia sering mengisi formulir dengan bahasa santai atau instruksi, bukan nilai final. Tugasmu: ubah menjadi NILAI FINAL yang konkret. Konteks (JANGAN diubah): Jenjang, Fase, Kelas, Mapel, Nama, Sekolah, Tahun Ajaran, Semester, Model. Aturan: 1. TOPIK/MATERI: jika berisi instruksi ('cari aja di...', 'sesuai mapel dan kelas', 'terserah', 'apapun', dll) atau tidak jelas, TENTUKAN satu topik paling tepat untuk mapel+kelas+jenjang itu berdasarkan kurikulum Indonesia yang umum; kembalikan topik final yang konkret dan spesifik, BUKAN instruksinya. Jika sudah konkret, kembalikan apa adanya dengan kapitalisasi rapi. 2. ALOKASI: jika berisi instruksi ('sesuaikan', '1JP = 40 menit', 'pendahuluan 10 inti 20 penutup 10'), ekstrak total menit dan pembagiannya; kembalikan format kanonis 'N x M menit' (contoh '1 x 40 menit'). Jika hanya total tanpa pembagian, kembalikan pendahuluan/inti/penutup = null. 3. Jangan pernah mengembalikan teks instruksi mentah. Kembalikan JSON MURNI: {"topik": "...", "alokasi": "1 x 40 menit", "pendahuluan": 10, "inti": 20, "penutup": 10}.`;
+  const userMsg = `Jenjang: ${info.jenjang || '-'} | Fase: ${info.fase || '-'} | Kelas: ${info.kelas || '-'} | Mapel: ${info.mapel || '-'} | Semester: ${info.semester || '-'} | Model: ${info.model || '-'}\nTopik (mentah): ${info.topik || '-'}\nAlokasi (mentah): ${info.alokasi || '-'}`;
+  const raw = await ai(system, userMsg, 800, 0.3);
+  return ekstrakJson(raw);
+}
+
+// Bersihkan info guru: topik/alokasi konkret + budget menit.
+// Selalu aman dipanggil: gagal interpretasi → info apa adanya + budget default.
+async function siapkanInfo(info) {
+  try {
+    const r = await interpretasiInput(info);
+    const infoBaru = {
+      ...info,
+      topik: (r.topik && String(r.topik).trim()) || info.topik,
+      alokasi: (r.alokasi && String(r.alokasi).trim()) || info.alokasi,
+    };
+    const { totalMenit } = parseAlokasi(infoBaru.alokasi);
+    const p = Number(r.pendahuluan), i = Number(r.inti), n = Number(r.penutup);
+    const budget = (p > 0 && i > 0 && n > 0 && p + i + n === totalMenit)
+      ? { pendahuluan: p, inti: i, penutup: n }
+      : budgetKegiatan(totalMenit);
+    return { info: infoBaru, budget };
+  } catch (e) {
+    console.warn('[modulajar] interpretasi input gagal, pakai info apa adanya:', e.message);
+    const { totalMenit } = parseAlokasi(info.alokasi);
+    return { info, budget: budgetKegiatan(totalMenit) };
+  }
+}
+
+async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap = () => {}, onTeks = () => {}) {
+  // Tahap 0 — pahami maksud pengisian formulir (guru sering menulis instruksi santai,
+  // bukan nilai final; ubah menjadi nilai konkret sebelum dipakai tahap lain)
+  await onTahap('pahami');
+  const siap = await siapkanInfo(info);
+  info = siap.info;
+  const budget = siap.budget;
+  const { label } = parseAlokasi(info.alokasi);
+
+  // Tahap 1 — fondasi terstruktur (JSON internal: tidak di-stream agar tidak tampil mentah ke user)
   await onTahap('fondasi');
   const p1 = promptTahap1(info, materi, sumber, rekomendasi);
   let fondasi;
@@ -472,19 +592,18 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap 
   if (!fondasi || !Array.isArray(fondasi.tp) || fondasi.tp.length < 1) throw new Error('Tahap 1 gagal: TP kosong.');
 
   // Tahap 2 — kegiatan + validasi menit (retry 1x dengan koreksi)
+  // budget sudah dihitung di tahap 0 (siapkanInfo), memakai pembagian guru bila valid
   await onTahap('kegiatan');
-  const { totalMenit, label } = parseAlokasi(info.alokasi);
-  const budget = budgetKegiatan(totalMenit);
   const sintaks = deteksiSintaks(info.model || (rekomendasi && rekomendasi.model) || '');
   const p2 = promptTahap2(info, fondasi, budget, sintaks, materi, sumber);
-  let kegiatanMd = await ai(p2.system, p2.user, 6000, 0.7);
+  let kegiatanMd = await ai(p2.system, p2.user, 6000, 0.7, (d) => onTeks('kegiatan', d));
   let totalKegiatan = jumlahMenit(kegiatanMd);
   const target = budget.pendahuluan + budget.inti + budget.penutup;
   if (totalKegiatan !== target) {
     console.warn(`[modulajar] tahap 2: total menit ${totalKegiatan} != ${target} (${label}), retry dengan koreksi`);
     await onTahap('koreksi');
     const koreksi = `\n\nKOREKSI: total menit kegiatanmu ${totalKegiatan}, HARUS TEPAT ${target} (Pendahuluan ${budget.pendahuluan} + Inti ${budget.inti} + Penutup ${budget.penutup}). Tulis ulang dengan total yang tepat.`;
-    kegiatanMd = await ai(p2.system, p2.user + koreksi, 6000, 0.5);
+    kegiatanMd = await ai(p2.system, p2.user + koreksi, 6000, 0.5, (d) => onTeks('kegiatan', d));
     totalKegiatan = jumlahMenit(kegiatanMd);
     if (totalKegiatan !== target) console.warn(`[modulajar] tahap 2: retry masih meleset (${totalKegiatan} != ${target})`);
   }
@@ -492,11 +611,16 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap 
   // Tahap 3 — asesmen & pelengkap dari TP
   await onTahap('asesmen');
   const p3 = promptTahap3(info, fondasi, materi, sumber);
-  const asesmenMd = await ai(p3.system, p3.user, 5000, 0.7);
+  const asesmenMd = await ai(p3.system, p3.user, 5000, 0.7, (d) => onTeks('asesmen', d));
 
-  // Tahap 4 — assembly + validasi akhir
+  // Tahap 4 — materi pembelajaran + bank soal + rubrik
+  await onTahap('materi');
+  const p4 = promptTahapMateri(info, fondasi, materi, sumber);
+  const materiMd = await ai(p4.system, p4.user, 7000, 0.7, (d) => onTeks('materi', d));
+
+  // Tahap 5 — assembly + validasi akhir
   await onTahap('rakit');
-  const markdown = rakitModul(info, fondasi, budget, sintaks, kegiatanMd.trim(), asesmenMd.trim());
+  const markdown = rakitModul(info, fondasi, budget, sintaks, kegiatanMd.trim(), asesmenMd.trim(), materiMd.trim());
   const masalah = validasiAkhir(markdown, budget);
   if (masalah.length) console.warn('[modulajar] validasi akhir:', masalah.join(' | '));
   return markdown;
@@ -633,6 +757,7 @@ Aturan: Bahasa Indonesia formal. Gunakan kata kerja operasional.`,
 
   prota: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
 Susun PROGRAM TAHUNAN (PROTA) satu tahun ajaran. WAJIB ikuti struktur markdown persis di bawah.
+Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', pastikan distribusi materi mencakup semester ganjil dan genap secara seimbang dalam satu tahun ajaran penuh.
 ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (ATP), distribusi materi WAJIB mengikuti urutan materi pokok dan alokasi pada ATP tersebut.
 
 # Program Tahunan (PROTA) — [Mata Pelajaran] Kelas [X]
@@ -664,6 +789,7 @@ Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 
   prosem: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
 Susun PROGRAM SEMESTER (PROSEM) rinci per minggu. WAJIB ikuti struktur markdown persis di bawah.
+Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', susun untuk SATU TAHUN AJARAN penuh mencakup semester ganjil dan genap (±32 minggu efektif) dengan pemisah yang jelas antar semester.
 ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (PROTA), rincian mingguan WAJIB mengikuti distribusi materi dan alokasi pada PROTA tersebut.
 
 # Program Semester (PROSEM) — [Mata Pelajaran] Kelas [X] Semester [X]
@@ -689,6 +815,7 @@ Aturan: Bahasa Indonesia formal. Alur materi logis dan berurutan. ${ISTILAH_BARU
 
   minggu_efektif: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
 Susun ANALISIS MINGGU EFEKTIF untuk satu semester. WAJIB ikuti struktur markdown persis di bawah.
+Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', susun untuk SATU TAHUN AJARAN penuh mencakup semester ganjil dan genap, dengan tabel per semester dan baris TOTAL gabungan.
 ${ANTI_FIKSI} Jika guru menempel/mengunggah DOKUMEN MINGGU EFEKTIF milik sekolah sebagai acuan, susun dengan setia mengikuti data tersebut.
 
 # Analisis Minggu Efektif — [Mata Pelajaran] Kelas [X] Semester [X]
@@ -818,20 +945,24 @@ Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 };
 
 // Inti generate satu dokumen — dipakai route langsung maupun job paket
-async function generateDocInternal(docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null, onTahap = () => {}) {
+async function generateDocInternal(docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null, onTahap = () => {}, onTeks = () => {}) {
   if (!process.env.KENARI_API_KEY) throw new Error('Kunci AI belum dikonfigurasi di server.');
   if (docType === 'modul') {
     try {
-      return await generateModulPipeline(info, materi, sumber, rekomendasi, onTahap);
+      return await generateModulPipeline(info, materi, sumber, rekomendasi, onTahap, onTeks);
     } catch (e) {
       console.error('[modulajar] pipeline gagal, fallback ke single-shot:', e.message);
     }
   }
   const system = docType === 'modul' ? LEGACY_MODUL : PROMPTS[docType];
   if (!system) throw new Error('Jenis dokumen tidak dikenal: ' + docType);
+  // Non-modul (atau fallback modul): bersihkan input santai guru dulu agar
+  // dokumen tidak menggemakan instruksi mentah seperti "cari aja di internet".
+  await onTahap('pahami');
+  info = (await siapkanInfo(info)).info;
   await onTahap('susun');
   const userMsg = `Susun dokumen dengan data berikut:\n${IDENT(info)}\n- Materi Pokok/Topik: ${info.topik || '-'}\n- Alokasi Waktu: ${info.alokasi || '-'}\n- Model Pembelajaran: ${info.model || '-'}\n- Jumlah Soal PG: ${info.jmlPG || '-'} | Uraian: ${info.jmlUraian || '-'}\n\n${konteksSumber(materi, sumber)}`;
-  return await ai(system, userMsg);
+  return await ai(system, userMsg, 8000, 0.7, (d) => onTeks('susun', d));
 }
 
 async function rekomendasiAIInternal({ jenjang = '', fase = '', mapel = '', topik = '' }) {
@@ -901,6 +1032,29 @@ async function cariGambar(query, max = 3) {
   } catch { return []; }
 }
 
+// Sisipkan gambar relevan langsung ke dalam markdown (tanpa persetujuan user).
+// Gambar diletakkan sebelum "### 11. Bank Soal" agar menyatu dengan materi;
+// jika heading tidak ketemu, ditempel di akhir dokumen.
+// Format inline "![judul](fig:url)" sudah didukung DocPaper & export docx.
+async function sisipkanGambarOtomatis(markdown, info, max = 3) {
+  try {
+    const query = [info.mapel, info.topik].filter(Boolean).join(' ');
+    if (!query.trim()) return { markdown, images: [] };
+    const images = await cariGambar(query, max);
+    if (!images.length) return { markdown, images: [] };
+    const blok = images.map((g) =>
+      `\n\n![${g.title}](fig:${g.thumbUrl})\n*Sumber gambar: ${g.title} (${g.license})*`
+    ).join('');
+    const anchor = '\n### 11. Bank Soal';
+    const md = markdown.includes(anchor)
+      ? markdown.replace(anchor, blok + anchor)
+      : markdown + blok;
+    return { markdown: md, images };
+  } catch {
+    return { markdown, images: [] };
+  }
+}
+
 async function sbGetJob(id) {
   const { data, error } = await sb.from('jobs').select('*').eq('id', id).single();
   if (error || !data) throw new Error('Job tidak ditemukan.');
@@ -953,6 +1107,11 @@ async function jalankanJob(jobId) {
     }
     for (const l of langkah) if (l.status === 'gagal') l.status = 'antri';
 
+    // Tulisan AI yang sedang berjalan (untuk ditampilkan realtime di frontend).
+    // Diisi oleh kerjakan() via onTeks, dibaca updateProgress(). Last-write-wins
+    // bila beberapa worker paralel sama-sama menulis.
+    let liveAktif = null;
+
     let rekomendasi = null, rekDiminta = false;
     async function pastikanRekomendasi() {
       if (!rekDiminta) {
@@ -984,11 +1143,9 @@ async function jalankanJob(jobId) {
     async function updateProgress(fase) {
       const selesai = langkah.filter((l) => l.status === 'ok').length;
       const jalan = langkah.find((l) => l.status === 'jalan');
-      await sbUpdateJob(jobId, {
-        status: 'berjalan',
-        progress: { total: langkah.length, selesai, fase: fase || (jalan ? jalan.label : ''), langkah },
-        hasil,
-      });
+      const progress = { total: langkah.length, selesai, fase: fase || (jalan ? jalan.label : ''), langkah };
+      if (liveAktif) progress.live = liveAktif;
+      await sbUpdateJob(jobId, { status: 'berjalan', progress, hasil });
     }
 
     async function kerjakan(step) {
@@ -1007,14 +1164,46 @@ async function jalankanJob(jobId) {
             if (!infoStep.model || infoStep.model === 'auto') infoStep.model = rek?.model || '';
             if (!infoStep.alokasi) infoStep.alokasi = rek?.alokasi || '';
           }
-          markdown = await generateDocInternal(
-            step.docType, infoStep, cfg.materi || '',
-            acuanUntuk(step.docType, step.topik), step.docType === 'modul' ? rek : undefined,
-          );
+          // Live progress: subfase per tahap + akumulasi tulisan AI.
+          // Tulis ke DB maksimal 1x per 2 detik agar tidak membanjiri Supabase.
+          let teksBuf = '', subfaseBuf = '', lastWrite = 0;
+          const tulisLive = async (force = false) => {
+            const now = Date.now();
+            if (!force && now - lastWrite < 2000) return;
+            lastWrite = now;
+            liveAktif = {
+              key: step.key,
+              label: step.label + (step.topik ? ' — ' + step.topik : ''),
+              subfase: subfaseBuf,
+              teks: teksBuf.slice(-3000),
+            };
+            await updateProgress();
+          };
+          const onTahap = async (key) => {
+            subfaseBuf = key === 'susun' ? '' : (TAHAP_LABEL[key] || key);
+            step.subfase = subfaseBuf;
+            await tulisLive();
+          };
+          const onTeks = (key, delta) => {
+            teksBuf += delta;
+            tulisLive().catch(() => {});
+          };
+          try {
+            markdown = await generateDocInternal(
+              step.docType, infoStep, cfg.materi || '',
+              acuanUntuk(step.docType, step.topik), step.docType === 'modul' ? rek : undefined,
+              onTahap, onTeks,
+            );
+          } finally {
+            liveAktif = null; // langkah selesai/gagal: bersihkan tampilan live
+          }
         }
+        // Gambar relevan langsung disisipkan ke naskah (tanpa persetujuan)
         let images = [];
         if (step.docType === 'modul' || step.docType === 'lkpd') {
-          images = await cariGambar([info0.mapel, step.topik].filter(Boolean).join(' '));
+          const r = await sisipkanGambarOtomatis(markdown, { ...info0, topik: step.topik });
+          markdown = r.markdown;
+          images = r.images;
         }
         const judul = extractTitle(markdown);
         const meta = { ...info0, topik: step.topik || topiks.join('; ') };
@@ -1211,10 +1400,12 @@ const NAMA_DOKUMEN = {
   cp: 'CP', atp: 'ATP', prota: 'Prota', prosem: 'Prosem', minggu_efektif: 'Minggu Efektif',
 };
 const TAHAP_LABEL = {
+  pahami: 'Memahami maksud pengisian formulir',
   fondasi: 'Menyusun fondasi: CP, TP, dan dimensi lulusan',
   kegiatan: 'Menyusun kegiatan inti mengikuti sintaks model',
   koreksi: 'Mengoreksi alokasi waktu',
   asesmen: 'Menyusun asesmen dan pelengkap',
+  materi: 'Menyusun materi, bank soal, dan rubrik',
   rakit: 'Merakit dokumen final',
 };
 
@@ -1248,10 +1439,21 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
     const onTahap = async (key) => {
       kirim({ tipe: 'tahap', key, label: key === 'susun' ? 'Menyusun ' + namaDoc : (TAHAP_LABEL[key] || key) });
     };
+    // Teruskan tulisan AI apa adanya agar user bisa melihat prosesnya realtime
+    const onTeks = (key, delta) => {
+      kirim({ tipe: 'teks', key, delta });
+    };
     try {
-      const markdown = await generateDocInternal(docType, info, materi, sumber, rekomendasi, onTahap);
+      let markdown = await generateDocInternal(docType, info, materi, sumber, rekomendasi, onTahap, onTeks);
+      // Gambar relevan langsung disisipkan (modul/LKPD), tanpa persetujuan
+      let images = [];
+      if (docType === 'modul' || docType === 'lkpd') {
+        const r = await sisipkanGambarOtomatis(markdown, info, 3);
+        markdown = r.markdown;
+        images = r.images;
+      }
       if (sb && !isAdmin(req.user)) await tambahKuota(req.user.id, 1);
-      kirim({ tipe: 'selesai', markdown });
+      kirim({ tipe: 'selesai', markdown, images });
     } catch (e) {
       kirim({ tipe: 'gagal', error: e.message || String(e) });
     }
