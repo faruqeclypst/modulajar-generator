@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import TulisanAI from './TulisanAI';
+import StempelSelesai from './StempelSelesai';
 
 const STATUS_LABEL = { tunggu: 'Menunggu', jalan: 'Menyusun', ok: 'Selesai' };
 
@@ -41,6 +42,9 @@ export default function ProsesLive({ judul, tahap, status, tulisan = [] }) {
       </div>
       <p className="progress-label">Langkah {okCount} dari {tahap.length} · {fmtDetik(detik)}</p>
       <TulisanAI segmen={tulisan} live={live} />
+      {semuaSelesai && (
+        <StempelSelesai teks="Dokumen selesai disusun" subteks="Klik dokumen untuk membuka dan mengeditnya." />
+      )}
       {tahap.length === 0 ? (
         <div className="shimmer-wrap" role="status" aria-label="Menyiapkan generate">
           <span className="shimmer" aria-hidden="true" />

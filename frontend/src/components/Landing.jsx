@@ -49,7 +49,7 @@ const FAQ = [
   ['Bagaimana paket satu klik bekerja?',
     'Pilih mode Paket Lengkap, isi data sekali, tekan buat. Server menyusun CP sampai bank soal berurutan di belakang layar. Browser boleh ditutup; pantau lagi nanti dari Generator Paket. Kalau satu langkah gagal, ulangi langkah itu saja tanpa mengulang dari awal.'],
   ['Bisakah saya memakai API key AI sendiri?',
-    'Bisa. Di Pengaturan ada "Kunci AI Sendiri": isi base URL dan API key milikmu. Selama aktif, generate memakai kuncimu dan tidak memotong kuota harian.'],
+    'Bisa. Di Pengaturan ada "Kunci AI Sendiri": isi base URL dan API key milikmu. Selama aktif, generate memakai kuncimu dan tidak memotong kredit harian.'],
   ['Format apa yang bisa diunduh?',
     'Word (.docx) yang rapi dan PDF lewat tombol Cetak. Keduanya menyertakan lembar pengesahan resmi: kolom tanda tangan Kepala Sekolah dan Guru beserta NIP.'],
   ['Di mana dokumen saya tersimpan?',
@@ -145,7 +145,7 @@ export default function Landing({ onStart, onDocs, waLink }) {
             </div>
           </div>
           <ul className="land-price-list">
-            <li><b>Kunci AI sendiri.</b> Punya API key? Isi di Pengaturan. Selama aktif, generate tidak memotong kuota harian.</li>
+            <li><b>Kunci AI sendiri.</b> Punya API key? Isi di Pengaturan. Selama aktif, generate tidak memotong kredit harian.</li>
             <li><b>Bagikan, dapat bonus.</b> Tiap teman yang bergabung lewat link-mu memberimu +3 kredit (maks 5 per 3 hari).</li>
             {waLink && <li><b>Butuh lebih banyak?</b> <a href={waLink} target="_blank" rel="noreferrer">Hubungi kami via WhatsApp</a> untuk paket khusus sekolah.</li>}
           </ul>

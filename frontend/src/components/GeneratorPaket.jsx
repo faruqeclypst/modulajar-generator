@@ -8,6 +8,7 @@ import FormulirDasar from './FormulirDasar';
 import UnggahDokumen from './UnggahDokumen';
 import Paywall from './Paywall';
 import TulisanAI from './TulisanAI';
+import StempelSelesai from './StempelSelesai';
 
 // Generator Paket via job backend: browser boleh ditutup, job tetap jalan di server.
 const RANTAI_LABEL = {
@@ -486,10 +487,10 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
 
       {tahap === 'selesai' && job && (
         <>
-          <div className="alert alert-info">
-            <b>Paket selesai disusun</b>. Semua dokumen tersimpan di Dokumen Saya.
-            Klik untuk membuka dan mengeditnya.
-          </div>
+          <StempelSelesai
+            teks="Paket selesai disusun"
+            subteks="Semua dokumen tersimpan. Klik untuk membuka dan mengeditnya."
+          />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
             {hasil.map((h) => (
               <div key={h.dokumenId} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px' }}>

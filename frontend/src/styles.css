@@ -884,3 +884,37 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   .land-price-num { font-size: 56px; }
   .land-faq-item p { padding-left: 20px; }
 }
+
+/* ---------- stempel selesai: penanda generate rampung ----------
+   Gaya stempel karet di atas kertas: lingkaran ganda bata, centang
+   menggambar sendiri, mendarat dengan sedikit putaran seperti dicap.
+   Sekali tayang, singkat; nonaktif saat prefers-reduced-motion. */
+.stempel-wrap {
+  display: flex; align-items: center; gap: 16px;
+  margin: 18px 0 6px; padding: 14px 18px;
+  background: var(--paper-2); border: var(--bd); box-shadow: var(--sh);
+}
+.stempel {
+  flex: none; width: 64px; height: 64px; border-radius: 50%;
+  border: 3px solid var(--red); outline: 2px solid var(--red); outline-offset: 3px;
+  color: var(--red); display: grid; place-items: center; background: var(--paper);
+  transform: rotate(-8deg);
+  animation: stempelCap .45s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+.stempel-cap { width: 34px; height: 34px; }
+.stempel-cap path {
+  stroke-dasharray: 40; stroke-dashoffset: 40;
+  animation: stempelCentang .35s ease .3s forwards;
+}
+@keyframes stempelCap {
+  from { opacity: 0; transform: rotate(-8deg) scale(1.7); }
+  60% { opacity: 1; transform: rotate(-8deg) scale(.94); }
+  to { opacity: 1; transform: rotate(-8deg) scale(1); }
+}
+@keyframes stempelCentang { to { stroke-dashoffset: 0; } }
+.stempel-teks b { display: block; font-size: 17px; }
+.stempel-teks .hint { margin: 2px 0 0; }
+@media (prefers-reduced-motion: reduce) {
+  .stempel, .stempel-cap path { animation: none; }
+  .stempel-cap path { stroke-dashoffset: 0; }
+}
