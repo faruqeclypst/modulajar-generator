@@ -343,14 +343,14 @@ const IDENT = (info) => `
 
 function blokAcuan(sumber) {
   if (!(sumber && sumber.trim())) return '';
-  return `\n\nDOKUMEN ACUAN PERENCANAAN (sumber resmi — WAJIB dijadikan dasar utama):\n${sumber.trim()}\n\nATURAN ACUAN: Seluruh TP, materi pokok, indikator, dan alokasi waktu HARUS diambil dari dokumen acuan di atas. DILARANG mengarang indikator, fakta, rumus, data, atau tujuan pembelajaran yang tidak tercantum dalam acuan. Jika sesuatu tidak tercantum di acuan, jangan diada-adakan — tulis sesuai acuan apa adanya.`;
+  return `\n\nDOKUMEN ACUAN PERENCANAAN (sumber resmi, WAJIB dijadikan dasar utama):\n${sumber.trim()}\n\nATURAN ACUAN: Seluruh TP, materi pokok, indikator, dan alokasi waktu HARUS diambil dari dokumen acuan di atas. DILARANG mengarang indikator, fakta, rumus, data, atau tujuan pembelajaran yang tidak tercantum dalam acuan. Jika sesuatu tidak tercantum di acuan, jangan diada-adakan, tulis sesuai acuan apa adanya.`;
 }
 
 // Hierarki sumber yang dipakai di semua tahap: acuan perencanaan > materi sumber > pengetahuan model.
 function konteksSumber(materi, sumber) {
   const parts = [];
   if (materi && materi.trim()) parts.push(`MATERI SUMBER (acuan utama ISI pembelajaran):\n${materi.trim()}`);
-  else parts.push(`MATERI SUMBER: (tidak ada — susun berdasarkan topik dengan pengetahuan yang mapan)`);
+  else parts.push(`MATERI SUMBER: (tidak ada, susun berdasarkan topik dengan pengetahuan yang mapan)`);
   parts.push(blokAcuan(sumber));
   return parts.join('\n');
 }
@@ -392,7 +392,7 @@ function promptTahap2(info, fondasi, budget, sintaks, materi, sumber) {
 Tugasmu HANYA menyusun bagian KEGIATAN PEMBELAJARAN dalam markdown. ${ANTI_FIKSI}
 Terapkan prinsip pembelajaran mendalam: berkesadaran, bermakna, menggembirakan.
 
-BUDGET WAKTU (sudah dihitung — WAJIB dipatuhi tepat):
+BUDGET WAKTU (sudah dihitung, WAJIB dipatuhi tepat):
 - Total: ${budget.pendahuluan + budget.inti + budget.penutup} menit
 - Pendahuluan: TEPAT ${budget.pendahuluan} menit
 - Kegiatan Inti: TEPAT ${budget.inti} menit
@@ -695,7 +695,7 @@ ${ANTI_FIKSI} ${ANTI_SLOP} ${KONSISTENSI}
 Parafrase CP nasional yang relevan dengan fase. Jika ada DOKUMEN ACUAN, rujuk CP dari sana.
 
 ### 2. Tujuan Pembelajaran (TP)
-Minimal 3 TP format ABCD, diberi nomor. Jika ada DOKUMEN ACUAN, TP WAJIB diambil dari ATP/Prosem pada acuan — jangan mengarang TP baru.
+Minimal 3 TP format ABCD, diberi nomor. Jika ada DOKUMEN ACUAN, TP WAJIB diambil dari ATP/Prosem pada acuan, jangan mengarang TP baru.
 
 ### 3. Dimensi Profil Lulusan
 Sebutkan 2-3 dimensi dari ${DIMENSI_LULUSAN} yang dikembangkan dalam modul ini beserta wujudnya dalam kegiatan.
@@ -740,15 +740,15 @@ Pertanyaan refleksi untuk peserta didik dan guru.
 - **Glosarium**: istilah + definisi singkat
 - **Daftar Pustaka**: minimal 3 sumber nyata (buku/teori/penulis yang benar-benar ada)
 
-Aturan: Bahasa Indonesia formal. Kegiatan inti mengikuti sintaks model pembelajaran. Sesuaikan kedalaman dengan jenjang/fase. Gunakan kerangka 8 Dimensi Profil Lulusan — BUKAN lagi Profil Pelajar Pancasila/P5.`;
+Aturan: Bahasa Indonesia formal. Kegiatan inti mengikuti sintaks model pembelajaran. Sesuaikan kedalaman dengan jenjang/fase. Gunakan kerangka 8 Dimensi Profil Lulusan, BUKAN lagi Profil Pelajar Pancasila/P5.`;
 
 // ================= PROMPTS DOKUMEN LAIN (single-shot, tidak berubah) =================
 const PROMPTS = {
   atp: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
 Susun ALUR TUJUAN PEMBELAJARAN (ATP) untuk satu semester. WAJIB ikuti struktur markdown persis di bawah.
-${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (CP), turunkan TP langsung dari CP tersebut secara berurutan dan logis — jangan mengarang TP di luar CP acuan.
+${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (CP), turunkan TP langsung dari CP tersebut secara berurutan dan logis, jangan mengarang TP di luar CP acuan.
 
-# Alur Tujuan Pembelajaran (ATP) — [Mata Pelajaran] Kelas [X] Semester [X]
+# Alur Tujuan Pembelajaran (ATP): [Mata Pelajaran] Kelas [X] Semester [X]
 
 ## A. Informasi Umum
 - **Nama Penyusun**: [dari data]
@@ -778,9 +778,9 @@ Aturan: Bahasa Indonesia formal. TP operasional dan terukur.`,
 
   cp: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
 Susun draf CAPAIAN PEMBELAJARAN (CP) per elemen untuk fase dan mata pelajaran yang diminta. WAJIB ikuti struktur markdown persis di bawah.
-${ANTI_FIKSI} Selaraskan dengan kerangka CP nasional Kemendikdasmen untuk fase/mapel tersebut — jangan mengarang elemen atau kompetensi di luar kerangka resmi. Jika guru menempel TEKS CP RESMI sebagai acuan, susun draf dengan setia merujuk teks tersebut tanpa menambah kompetensi baru.
+${ANTI_FIKSI} Selaraskan dengan kerangka CP nasional Kemendikdasmen untuk fase/mapel tersebut, jangan mengarang elemen atau kompetensi di luar kerangka resmi. Jika guru menempel TEKS CP RESMI sebagai acuan, susun draf dengan setia merujuk teks tersebut tanpa menambah kompetensi baru.
 
-# Capaian Pembelajaran — [Mata Pelajaran] Fase [X]
+# Capaian Pembelajaran: [Mata Pelajaran] Fase [X]
 
 ## A. Informasi Umum
 - **Nama Penyusun**: [dari data]
@@ -810,7 +810,7 @@ Susun PROGRAM TAHUNAN (PROTA) satu tahun ajaran. WAJIB ikuti struktur markdown p
 Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', pastikan distribusi materi mencakup semester ganjil dan genap secara seimbang dalam satu tahun ajaran penuh.
 ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (ATP), distribusi materi WAJIB mengikuti urutan materi pokok dan alokasi pada ATP tersebut.
 
-# Program Tahunan (PROTA) — [Mata Pelajaran] Kelas [X]
+# Program Tahunan (PROTA): [Mata Pelajaran] Kelas [X]
 
 ## A. Informasi Umum
 - **Nama Penyusun**: [dari data]
@@ -844,7 +844,7 @@ Susun PROGRAM SEMESTER (PROSEM) rinci per minggu. WAJIB ikuti struktur markdown 
 Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', susun untuk SATU TAHUN AJARAN penuh mencakup semester ganjil dan genap (±32 minggu efektif) dengan pemisah yang jelas antar semester.
 ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (PROTA), rincian mingguan WAJIB mengikuti distribusi materi dan alokasi pada PROTA tersebut.
 
-# Program Semester (PROSEM) — [Mata Pelajaran] Kelas [X] Semester [X]
+# Program Semester (PROSEM): [Mata Pelajaran] Kelas [X] Semester [X]
 
 ## A. Informasi Umum
 - **Nama Penyusun**: [dari data]
@@ -872,7 +872,7 @@ Susun ANALISIS MINGGU EFEKTIF untuk satu semester. WAJIB ikuti struktur markdown
 Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', susun untuk SATU TAHUN AJARAN penuh mencakup semester ganjil dan genap, dengan tabel per semester dan baris TOTAL gabungan.
 ${ANTI_FIKSI} Jika guru menempel/mengunggah DOKUMEN MINGGU EFEKTIF milik sekolah sebagai acuan, susun dengan setia mengikuti data tersebut.
 
-# Analisis Minggu Efektif — [Mata Pelajaran] Kelas [X] Semester [X]
+# Analisis Minggu Efektif: [Mata Pelajaran] Kelas [X] Semester [X]
 
 ## A. Informasi Umum
 - **Nama Penyusun**: [dari data]
@@ -907,7 +907,7 @@ Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 Susun LEMBAR KERJA PESERTA DIDIK (LKPD) yang siap cetak dan dikerjakan siswa. WAJIB ikuti struktur markdown persis di bawah. Gunakan bahasa yang ramah untuk siswa (sapaan "kamu/kalian").
 ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (modul ajar), kegiatan dan materi LKPD WAJIB selaras dengan TP dan materi pada modul tersebut.
 
-# LKPD — [Judul Kegiatan]
+# LKPD: [Judul Kegiatan]
 
 ## A. Identitas
 WAJIB tabel markdown persis format ini (satu field satu baris). Jangan menambah field lain apa pun.
@@ -947,7 +947,7 @@ Aturan: Bahasa Indonesia yang mudah dipahami sesuai jenjang. Tugas autentik dan 
 Susun PAKET SOAL lengkap dengan kisi-kisi, soal, kunci jawaban, dan pedoman penskoran. WAJIB ikuti struktur markdown persis di bawah.
 ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (modul ajar/ATP), kisi-kisi WAJIB diturunkan dari TP/indikator pada acuan, jangan mengarang indikator baru. Jika tidak ada acuan, turunkan dari materi pokok/topik pada data.
 
-# Paket Soal — [Materi] Kelas [X]
+# Paket Soal: [Materi] Kelas [X]
 
 ## A. Informasi Umum
 - **Nama Penyusun**: [dari data]
@@ -978,9 +978,9 @@ Aturan: Bahasa Indonesia formal. Sebar level kognitif C1-C6. Soal HOTS (C4-C6) m
   },
 
   kktp: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
-Susun KRITERIA KETERCAPAIAN TUJUAN PEMBELAJARAN (KKTP) — tolok ukur yang dipakai guru untuk menilai apakah peserta didik mencapai TP. Jika ada DOKUMEN ACUAN, WAJIB merujuk pada TP yang tercantum di acuan, jangan mengarang TP baru. Jika tidak ada acuan, turunkan TP dari materi pokok/topik pada data.
+Susun KRITERIA KETERCAPAIAN TUJUAN PEMBELAJARAN (KKTP): tolok ukur yang dipakai guru untuk menilai apakah peserta didik mencapai TP. Jika ada DOKUMEN ACUAN, WAJIB merujuk pada TP yang tercantum di acuan, jangan mengarang TP baru. Jika tidak ada acuan, turunkan TP dari materi pokok/topik pada data.
 
-# KKTP — [Mata Pelajaran] Kelas [X] Semester [X]
+# KKTP: [Mata Pelajaran] Kelas [X] Semester [X]
 
 ## A. Informasi Umum
 - **Nama Penyusun**: [dari data]
@@ -1308,8 +1308,9 @@ async function jalankanJob(jobId) {
       await kerjakan(step);
       fase1Baru++;
     }
-    // Jeda review setelah perencanaan (mode lengkap)
-    if (job.mode === 'lengkap' && fase1Baru > 0) {
+    // Jeda review setelah perencanaan HANYA bila guru memintanya lewat checkbox
+    // "Jeda untuk review setelah perencanaan" di form (default mati: paket jalan terus satu klik).
+    if (job.mode === 'lengkap' && fase1Baru > 0 && cfg.reviewJeda) {
       await sbUpdateJob(jobId, { status: 'menunggu_review' });
       return;
     }
@@ -1365,7 +1366,7 @@ function validasiPanjang(teks, maks, nama) {
 app.post('/api/paket', requireAuth(async (req, res) => {
   try {
     if (!butuhSb(req, res)) return;
-    const { mode = 'lengkap', info: infoRaw = {}, materi = '', topiks: topiksRaw = [], uploads: uploadsRaw = {} } = req.body || {};
+    const { mode = 'lengkap', info: infoRaw = {}, materi = '', topiks: topiksRaw = [], uploads: uploadsRaw = {}, reviewJeda = false } = req.body || {};
     if (!['lengkap', 'perencanaan', 'pelaksanaan'].includes(mode))
       return kirimGagal(res, 400, 'Mode tidak dikenal.');
     const info = objekAman(infoRaw);
@@ -1396,7 +1397,7 @@ app.post('/api/paket', requireAuth(async (req, res) => {
     }
     const { data, error } = await sb.from('jobs').insert({
       user_id: req.user.id, mode, status: 'antri',
-      config: { info, materi: materi || '', topiks: daftarTopik, uploads },
+      config: { info, materi: materi || '', topiks: daftarTopik, uploads, reviewJeda: !!reviewJeda },
       progress: { total: langkah.length, selesai: 0, fase: '', langkah }, hasil: [],
     }).select('id').single();
     if (error) throw new Error(error.message);
@@ -1421,7 +1422,7 @@ app.get('/api/paket', requireAuth(async (req, res) => {
       .order('created_at', { ascending: false }).limit(10);
     res.json({ ok: true, jobs: data || [] });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message || String(e) });
+    kirimGagal(res, 500, e.message || String(e));
   }
 }));
 
@@ -1568,7 +1569,21 @@ function validasiGenerate({ docType, infoRaw, materi, sumber }) {
   return validasiPanjang(materi, 20000, 'Materi') || validasiPanjang(sumber, 20000, 'Sumber acuan');
 }
 
-app.post('/api/generate-doc', requireAuth(async (req, res) => {
+const TAHAP_LABEL = {
+  pahami: 'Memahami maksud pengisian formulir',
+  fondasi: 'Menyusun fondasi: CP, TP, dan dimensi lulusan',
+  kegiatan: 'Menyusun kegiatan inti mengikuti sintaks model',
+  koreksi: 'Mengoreksi alokasi waktu',
+  asesmen: 'Menyusun asesmen dan pelengkap',
+  materi: 'Menyusun materi, bank soal, dan rubrik',
+  rakit: 'Merakit dokumen final',
+};
+
+// Generate dokumen tunggal dengan progress live via Server-Sent Events.
+// Kuota dicek DULU (402 JSON biasa bila habis), lalu stream event:
+//   data: {"tipe":"tahap","key":"...","label":"..."}
+//   data: {"tipe":"selesai","markdown":"..."} | data: {"tipe":"gagal","error":"..."}
+app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
   try {
     const { docType = 'modul', info: infoRaw = {}, materi = '', sumber = '', rekomendasi = null } = req.body || {};
     const errValid = validasiGenerate({ docType, infoRaw, materi, sumber });
@@ -1584,13 +1599,6 @@ app.post('/api/generate-doc', requireAuth(async (req, res) => {
         });
       }
     }
-    const markdown = await generateDocInternal(docType, info, materi, sumber, rekomendasi);
-    if (sb && !isAdmin(req.user)) await tambahKuota(req.user.id, 1);
-    res.json({ ok: true, markdown });
-  } catch (e) {
-    kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
-  }
-}));
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
@@ -1624,7 +1632,8 @@ app.post('/api/generate-doc', requireAuth(async (req, res) => {
     }
     res.end();
   } catch (e) {
-    if (!res.headersSent) res.status(500).json({ ok: false, error: 'Kesalahan server: ' + (e.message || e) });
+    // Bila header SSE sudah terkirim, status tidak bisa diubah: cukup akhiri stream
+    if (!res.headersSent) kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
     else res.end();
   }
 }));
@@ -1643,21 +1652,23 @@ app.get('/api/kuota', requireAuth(async (req, res) => {
       tanggal: info.tanggal,
     });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message || String(e) });
+    kirimGagal(res, 500, e.message || String(e));
   }
 }));
 
 // Regenerate satu blok ala Gutenberg
 app.post('/api/regen-block', requireAuth(async (req, res) => {
   try {
-    if (!process.env.KENARI_API_KEY) return res.status(500).json({ ok: false, error: 'Kunci AI belum dikonfigurasi di server.' });
-    const { docType = 'modul', blockType = 'p', blockText = '', docTitle = '', topic = '' } = req.body;
-    if (!blockText.trim()) return res.status(400).json({ ok: false, error: 'Blok kosong.' });
+    if (!process.env.KENARI_API_KEY) return kirimGagal(res, 500, 'Kunci AI belum dikonfigurasi di server.');
+    const { docType = 'modul', blockType = 'p', blockText = '', docTitle = '', topic = '' } = req.body || {};
+    if (!String(blockText).trim()) return kirimGagal(res, 400, 'Blok kosong.');
+    const errPanjang = validasiPanjang(blockText, 20000, 'Blok');
+    if (errPanjang) return kirimGagal(res, 400, errPanjang);
     const system = `Kamu membantu guru menyunting ${docType} Kurikulum Merdeka. Tulis ulang BLOK berikut agar lebih baik: lebih jelas, lebih rinci, tetap sesuai Kurikulum Merdeka, dan tetap dalam Bahasa Indonesia formal. PERTAHANKAN format markdown blok ini (heading tetap heading, list tetap list, tabel tetap tabel). Jika blok berisi alokasi waktu per langkah (mis. "(2 menit)"), PERTAHANKAN alokasi tersebut dan pastikan totalnya tetap konsisten. Kembalikan HANYA isi blok yang sudah ditulis ulang, tanpa pembuka/penutup/pembahasan tambahan.`;
     const text = await ai(system, `Konteks dokumen: "${docTitle}" — Topik: ${topic}\n\nBLOK (${blockType}):\n${blockText}`, 3000, 0.8);
     res.json({ ok: true, text: text.trim() });
   } catch (e) {
-    res.status(500).json({ ok: false, error: 'Kesalahan server: ' + (e.message || e) });
+    kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
   }
 }));
 
@@ -1667,7 +1678,7 @@ app.post('/api/rekomendasi', requireAuth(async (req, res) => {
     const rekomendasi = await rekomendasiAIInternal(req.body || {});
     res.json({ ok: true, rekomendasi });
   } catch (e) {
-    res.status(500).json({ ok: false, error: 'Kesalahan server: ' + (e.message || e) });
+    kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
   }
 }));
 
