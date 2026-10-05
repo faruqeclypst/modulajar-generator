@@ -148,6 +148,7 @@ img { max-width: 100%; }
   text-transform: uppercase; background: var(--ink); color: var(--paper);
   padding: 5px 12px; margin-bottom: 14px;
 }
+.kicker.red { background: var(--red); }
 h1.page { font-size: clamp(28px, 5vw, 40px); font-weight: 900; line-height: 1.08; margin: 0 0 10px; letter-spacing: -.5px; text-transform: uppercase; }
 h2.sec { font-size: 24px; font-weight: 800; line-height: 1.2; margin: 28px 0 12px; }
 p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch; line-height: 1.65; }
@@ -266,7 +267,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .job-steps { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .job-step {
   display: flex; align-items: center; gap: 14px; background: var(--paper-2);
-  border: var(--bd); box-shadow: var(--sh-btn); padding: 12px 16px;
+  border: var(--bd); box-shadow: var(--sh-btn); padding: 12px 16px; flex-wrap: wrap;
 }
 .job-step.is-antri { opacity: .6; }
 .job-step.is-jalan { border-color: var(--ink); box-shadow: 5px 5px 0 var(--red); }
@@ -306,7 +307,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .doc-card.selected p { color: #D9D4C6; }
 .doc-card h3 { margin: 8px 0 4px; font-size: 16px; font-weight: 900; }
 .doc-card p { margin: 0; font-size: 12.5px; color: var(--slate); }
-.rekom-box { border: var(--bd); background: #FFFBEB; box-shadow: var(--sh-btn); padding: 16px 18px; margin: 14px 0; }
+.rekom-box { border: var(--bd); background: var(--wash); box-shadow: var(--sh-btn); padding: 16px 18px; margin: 14px 0; }
 .rekom-box h4 { margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; font-size: 13px; color: var(--red-dark); }
 .rekom-box p { margin: 6px 0; font-size: 14px; }
 .rekom-box ul { margin: 6px 0; padding-left: 20px; font-size: 14px; }
@@ -439,7 +440,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .marquee-track span { font-weight: 900; letter-spacing: 2px; font-size: 15px; padding-right: 12px; }
 @keyframes marq { to { transform: translateX(-50%); } }
 .sec-title { font-size: clamp(26px, 5vw, 44px); font-weight: 900; text-transform: uppercase; letter-spacing: -1px; line-height: 1.05; margin: 0 0 22px; }
-.doc-card-land { cursor: pointer; padding: 20px; margin: 0; }
+.doc-card-land { padding: 20px; margin: 0; }
 .doc-card-land:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
 .doc-card-land h3 { margin: 10px 0 6px; font-size: 18px; font-weight: 900; }
 .doc-card-land p { margin: 0; font-size: 13.5px; color: var(--slate); }
@@ -473,15 +474,18 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 /* Panel collapsible berisi teks mentah yang sedang ditulis AI (auto-scroll). */
 .tulisan-ai {
   margin-top: 14px; background: var(--paper); border: var(--bd);
-  border-radius: 8px; padding: 8px 16px 14px;
+  border-radius: 0; padding: 8px 16px 14px;
 }
-.tulisan-ai > summary {
-  cursor: pointer; font-weight: 800; font-size: 14px;
-  min-height: 44px; display: inline-flex; align-items: center;
+/* tombol buka/tutup panel: satu baris penuh, target sentuh 44px */
+.tulisan-ai-toggle {
+  appearance: none; background: none; border: none; padding: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 44px; cursor: pointer; font: inherit; color: inherit;
+  text-align: left;
 }
-.tulisan-ai-seg { border-top: 2px solid var(--wash); margin-top: 10px; padding-top: 10px; }
-.tulisan-ai-seg:first-of-type { border-top: none; margin-top: 2px; padding-top: 4px; }
-.tulisan-ai-seg h4 {
+.tulisan-ai-segmen { border-top: 2px solid var(--wash); margin-top: 10px; padding-top: 10px; }
+.tulisan-ai-segmen:first-of-type { border-top: none; margin-top: 2px; padding-top: 4px; }
+.tulisan-ai-label {
   margin: 0 0 6px; font-size: 12px; font-weight: 800;
   letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
 }
@@ -536,8 +540,13 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .dok-acuan-list { max-height: 230px; overflow-y: auto; border: var(--bd); background: var(--paper-2); }
 .dok-acuan-grup { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0; padding: 10px 12px 2px; }
 .dok-acuan-ul { list-style: none; margin: 0; padding: 0 0 6px; }
-.dok-acuan-ul li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--wash); }
+.dok-acuan-ul li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--wash); min-height: 44px; }
 .dok-acuan-ul li:last-child { border-bottom: 0; }
 .dok-acuan-ul li.aktif { background: var(--wash); }
 .dok-acuan-ul input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: var(--red); }
-.dok-acuan-ul label { font-size: 14.5px; line-height: 1.45; cursor: pointer; }
+.dok-acuan-ul label { font-size: 14.5px; line-height: 1.45; cursor: pointer; flex: 1; }
+
+/* ---------- fokus di atas latar gelap ----------
+   Outline bata lemah di atas ink; putih memberi kontras AA yang jelas. */
+.topbar :focus-visible,
+.hero-land :focus-visible { outline-color: #fff; }

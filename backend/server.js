@@ -25,26 +25,63 @@ function isAdmin(user) {
 function tanggalWIB() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
 }
+// Peringatan kuota dibatasi agar log tidak kebanjiran saat tabel hilang
+let kuotaWarnAt = 0;
+function warnKuota(e) {
+  const kini = Date.now();
+  if (kini - kuotaWarnAt < 10 * 60 * 1000) return;
+  kuotaWarnAt = kini;
+  console.warn('[modulajar] KUOTA NONAKTIF SEMENTARA: tabel kuota_harian tidak bisa diakses (' +
+    (e?.message || e) + '). Jalankan SQL section 4 di supabase-schema.sql. Generate tetap diizinkan.');
+}
 async function kuotaInfo(userId) {
   const tanggal = tanggalWIB();
   let dipakai = 0;
   if (sb) {
-    const { data } = await sb.from('kuota_harian')
-      .select('dipakai').eq('user_id', userId).eq('tanggal', tanggal).single();
-    dipakai = data?.dipakai || 0;
+    try {
+      const { data, error } = await sb.from('kuota_harian')
+        .select('dipakai').eq('user_id', userId).eq('tanggal', tanggal).single();
+      // PGRST116 = baris belum ada (user belum memakai kuota hari ini): wajar, bukan error
+      if (error && error.code !== 'PGRST116') throw error;
+      dipakai = data?.dipakai || 0;
+    } catch (e) {
+      warnKuota(e); // tabel hilang: kuota dianggap penuh (fail-open), generate tidak digagalkan
+    }
   }
   return { batas: KUOTA_HARIAN, dipakai, sisa: Math.max(0, KUOTA_HARIAN - dipakai), tanggal };
 }
-async function tambahKuota(userId, n = 1) {
+// Increment kuota diserialkan: langkah paralel (modul/LKPD, konkurensi 3)
+// tidak boleh baca-tulis bersamaan sampai ada increment yang hilang
+let antriKuota = Promise.resolve();
+function tambahKuota(userId, n = 1) {
+  antriKuota = antriKuota.then(() => tambahKuotaInner(userId, n)).catch(() => {});
+  return antriKuota;
+}
+async function tambahKuotaInner(userId, n = 1) {
   if (!sb) return;
-  const tanggal = tanggalWIB();
-  const { data } = await sb.from('kuota_harian')
-    .select('dipakai').eq('user_id', userId).eq('tanggal', tanggal).single();
-  if (data) {
-    await sb.from('kuota_harian').update({ dipakai: data.dipakai + n })
-      .eq('user_id', userId).eq('tanggal', tanggal);
-  } else {
-    await sb.from('kuota_harian').insert({ user_id: userId, tanggal, dipakai: n });
+  try {
+    const tanggal = tanggalWIB();
+    const { data, error } = await sb.from('kuota_harian')
+      .select('dipakai').eq('user_id', userId).eq('tanggal', tanggal).single();
+    if (error && error.code !== 'PGRST116') throw error;
+    if (data) {
+      const { error: e2 } = await sb.from('kuota_harian').update({ dipakai: data.dipakai + n })
+        .eq('user_id', userId).eq('tanggal', tanggal);
+      if (e2) throw e2;
+    } else {
+      const { error: e3 } = await sb.from('kuota_harian').insert({ user_id: userId, tanggal, dipakai: n });
+      if (e3) {
+        if (e3.code === '23505') {
+          // Balapan insert (multi-proses): baca ulang lalu update
+          const { data: d2 } = await sb.from('kuota_harian')
+            .select('dipakai').eq('user_id', userId).eq('tanggal', tanggal).single();
+          if (d2) await sb.from('kuota_harian').update({ dipakai: d2.dipakai + n })
+            .eq('user_id', userId).eq('tanggal', tanggal);
+        } else throw e3;
+      }
+    }
+  } catch (e) {
+    warnKuota(e); // kegagalan kuota tidak boleh menggagalkan generate
   }
 }
 async function cekKuota(userId, butuh = 1) {
@@ -145,6 +182,9 @@ async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = n
 const DIMENSI_LULUSAN = `8 Dimensi Profil Lulusan (Permendikdasmen No. 10/2025): 1) Keimanan dan Ketakwaan kepada Tuhan Yang Maha Esa; 2) Kewargaan; 3) Penalaran Kritis; 4) Kreativitas; 5) Kolaborasi; 6) Kemandirian; 7) Kesehatan; 8) Komunikasi`;
 const ANTI_FIKSI = `DILARANG mengarang: jangan membuat indikator, fakta, rumus, data, definisi, atau tujuan pembelajaran yang fiktif/tidak nyata. Semua materi harus materi yang benar-benar ada dan kredibel. Jika ragu, tulis sesuai pengetahuan yang mapan, bukan karangan.`;
 const ISTILAH_BARU = `Gunakan istilah "8 Dimensi Profil Lulusan" (Permendikdasmen No. 10/2025); JANGAN gunakan istilah lama "Profil Pelajar Pancasila"/"P5".`;
+// Kualitas isi: larang placeholder kosong dan jaga konsistensi istilah di semua dokumen.
+const ANTI_SLOP = `Tulis isi yang lengkap dan siap pakai. DILARANG menulis "...", "[...]", "[diisi]", atau placeholder kosong sebagai isi bagian mana pun. Setiap bagian harus berisi teks final yang benar-benar bisa dipakai guru di kelas.`;
+const KONSISTENSI = `Pakai sebutan mata pelajaran, kelas, fase, semester, dan topik PERSIS seperti pada data di atas di seluruh dokumen. Jangan mengubah-ubah istilahnya di tengah dokumen.`;
 
 // ================= SINTAKS MODEL PEMBELAJARAN (kanonis, server-side) =================
 // Dulu sintaks diserahkan ke ingatan model AI ("sesuai sintaks model yang dipilih") —
@@ -298,7 +338,8 @@ const IDENT = (info) => `
 - Sekolah: ${info.sekolah || '(diisi guru)'}
 - Tahun Ajaran: ${info.tahunAjaran || '-'}
 - Jenjang: ${info.jenjang || '-'} | Fase: ${info.fase || '-'} | Kelas: ${info.kelas || '-'} | Semester: ${info.semester || '-'}
-- Mata Pelajaran: ${info.mapel || '-'}`;
+- Mata Pelajaran: ${info.mapel || '-'}
+- JP per Minggu: ${info.jpPerMinggu || '-'}`;
 
 function blokAcuan(sumber) {
   if (!(sumber && sumber.trim())) return '';
@@ -332,13 +373,15 @@ Tugasmu HANYA menyusun fondasi modul (bukan modul lengkap). ${ANTI_FIKSI}
 Kembalikan JSON MURNI tanpa markdown dan tanpa teks lain, dengan struktur persis:
 {"judul": "...", "cp": "...", "tp": ["...", "...", "..."], "dimensi": [{"nama": "...", "wujud": "..."}], "pemahaman": "...", "pemantik": ["...", "...", "..."]}
 Aturan:
-- "judul": judul modul yang menarik dan spesifik.
+- "judul": judul modul yang spesifik, menyebut topik dan konteks atau pendekatan kegiatannya (bukan judul generik seperti "Modul Ajar IPA").
 - "cp": parafrase Capaian Pembelajaran nasional yang relevan dengan fase. Jika ada DOKUMEN ACUAN, rujuk CP dari sana.
 - "tp": minimal 3 Tujuan Pembelajaran format ABCD (Audience, Behavior, Condition, Degree), diberi makna operasional dan terukur. Jika ada DOKUMEN ACUAN, TP WAJIB diambil dari ATP/Prosem pada acuan.
 - "dimensi": 2-3 dimensi dari: ${DIMENSI_LULUSAN}, masing-masing beserta wujudnya dalam kegiatan.
 - "pemahaman": 2-3 kalimat pemahaman bermakna bagi peserta didik.
-- "pemantik": 3-5 pertanyaan pemantik yang terbuka.
-- Bahasa Indonesia formal. ${ISTILAH_BARU}`;
+- "pemantik": 3-5 pertanyaan pemantik yang terbuka dan dekat dengan pengalaman peserta didik.
+- Sesuaikan kedalaman bahasa, contoh, dan kompleksitas dengan jenjang, fase, dan kelas pada data.
+- Isi setiap field dengan teks final, bukan placeholder. ${KONSISTENSI}
+Bahasa Indonesia formal. ${ISTILAH_BARU}`;
   const user = `Susun fondasi modul dengan data berikut:\n${IDENT(info)}\n- Materi Pokok/Topik: ${info.topik || '-'}${kunciRekomendasi}\n\n${konteksSumber(materi, sumber)}`;
   return { system, user };
 }
@@ -359,27 +402,26 @@ MODEL: ${sintaks.nama}. Kegiatan inti WAJIB mengikuti fase-fase sintaks berikut 
 ${daftarFase}
 
 FORMAT WAJIB (penanda menit hanya dalam dua bentuk ini, jangan campur):
-- Sub-heading bagian: "#### a. Pendahuluan — ${budget.pendahuluan} menit" (pakai strip "—", TANPA kurung)
-- Sub-heading fase: "**Fase N: [nama fase]** — alokasi Y menit" (pakai strip "—", TANPA kurung)
+- Sub-heading bagian: "#### a. Pendahuluan: ${budget.pendahuluan} menit" (pakai titik dua, TANPA kurung)
+- Sub-heading fase: "**Fase N: [nama fase]**, alokasi Y menit" (pakai koma, TANPA kurung)
 - Setiap langkah kegiatan diakhiri "(X menit)" (WAJIB dalam kurung)
 
-#### a. Pendahuluan — ${budget.pendahuluan} menit
+#### a. Pendahuluan: ${budget.pendahuluan} menit
 1. [langkah] (X menit)
 2. [langkah] (X menit)
 (jumlah semua (X menit) pada bagian ini HARUS TEPAT ${budget.pendahuluan})
 
-#### b. Kegiatan Inti — ${budget.inti} menit
+#### b. Kegiatan Inti: ${budget.inti} menit
 Untuk SETIAP fase sintaks di atas, tulis sub-heading dengan format persis:
-**Fase N: [nama fase]** — alokasi Y menit
+**Fase N: [nama fase]**, alokasi Y menit
 lalu langkah-langkahnya, masing-masing diakhiri (X menit).
 Jumlah (X menit) dalam satu fase HARUS TEPAT = Y menit fase tersebut, dan jumlah seluruh fase HARUS TEPAT ${budget.inti} menit.
-PENTING: angka menit fase hanya boleh muncul di sub-heading fase (format "— alokasi Y menit", TANPA kurung), sedangkan angka menit langkah selalu dalam kurung "(X menit)". Jangan menulis angka menit dalam kurung di sub-heading bagian maupun fase.
+PENTING: angka menit fase hanya boleh muncul di sub-heading fase (format koma "alokasi Y menit", TANPA kurung), sedangkan angka menit langkah selalu dalam kurung "(X menit)". Jangan menulis angka menit dalam kurung di sub-heading bagian maupun fase.
 
-#### c. Penutup — ${budget.penutup} menit
-Langkah refleksi, umpan balik, tindak lanjut — masing-masing diakhiri (X menit), total TEPAT ${budget.penutup} menit.
+#### c. Penutup: ${budget.penutup} menit
+Langkah refleksi, umpan balik, tindak lanjut, masing-masing diakhiri (X menit), total TEPAT ${budget.penutup} menit.
 
-#### c. Penutup (${budget.penutup} menit)
-Langkah refleksi, umpan balik, tindak lanjut — masing-masing diakhiri (X menit), total TEPAT ${budget.penutup} menit.
+Tulis langkah kegiatan yang konkret dan bisa langsung dilaksanakan (siapa berbuat apa, dengan bahan atau media apa), bukan instruksi umum seperti "Guru melaksanakan pembelajaran". ${ANTI_SLOP} ${KONSISTENSI}
 
 Kembalikan HANYA markdown kegiatan (tiga sub-bagian di atas), tanpa pembuka/penutup tambahan. Bahasa Indonesia formal.`;
   const user = `Susun kegiatan pembelajaran untuk modul "${fondasi.judul}".
@@ -398,12 +440,12 @@ ${fondasi.tp.map((t, i) => `${i + 1}. ${t}`).join('\n')}
 Struktur WAJIB persis:
 ### 7. Asesmen
 - **Asesmen Diagnostik**: ...
-- **Asesmen Formatif**: ... beserta contoh instrumen/soal singkat yang mengukur TP di atas
+- **Asesmen Formatif**: ... beserta contoh instrumen atau soal singkat yang lengkap dan benar-benar bisa dipakai untuk mengukur TP di atas (tulis soalnya utuh beserta kunci bila berupa soal, bukan kerangka seperti "Soal 1: ...")
 - **Asesmen Sumatif**: ... beserta kisi-kisi singkat yang merujuk TP di atas
 
 ### 8. Pengayaan dan Remedial
-- **Pengayaan**: ...
-- **Remedial**: ...
+- **Pengayaan**: kegiatan konkret untuk peserta didik yang melampaui TP
+- **Remedial**: kegiatan konkret untuk peserta didik yang belum mencapai TP
 
 ### 9. Refleksi Peserta Didik dan Guru
 Pertanyaan refleksi untuk peserta didik dan untuk guru.
@@ -413,6 +455,8 @@ Pertanyaan refleksi untuk peserta didik dan untuk guru.
 - **Bahan Bacaan**: ringkasan materi pengayaan untuk guru
 - **Glosarium**: istilah + definisi singkat
 - **Daftar Pustaka**: minimal 3 sumber nyata (buku/teori/penulis yang benar-benar ada)
+
+${ANTI_SLOP} ${KONSISTENSI}
 
 Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTILAH_BARU}`;
   const user = `Susun asesmen dan pelengkap untuk modul "${fondasi.judul}".\nData: ${IDENT(info)}\n- Mata Pelajaran: ${info.mapel || '-'} | Materi: ${info.topik || '-'}\n\n${konteksSumber(materi, sumber)}`;
@@ -434,12 +478,14 @@ Struktur WAJIB persis:
 Uraian materi yang lengkap dan runtut per sub-topik: konsep kunci, penjelasan dengan contoh konkret yang dekat dengan kehidupan peserta didik Indonesia, dan (bila relevan) langkah atau mekanisme. Bahasa formal namun komunikatif. Minimal 400 kata.
 
 ### 11. Bank Soal
-- **Soal Pilihan Ganda** (${nPG} soal): tiap soal bernomor, 4 opsi (a-d), tulis kunci jawaban di akhir bagian ini (format: 1-b, 2-c, ...).
+- **Soal Pilihan Ganda** (${nPG} soal): tiap soal bernomor, 4 opsi (A-D). Opsi pengecoh harus masuk akal (miskonsepsi yang umum terjadi), bukan asal. Tulis kunci jawaban di akhir bagian ini dengan format: 1-B, 2-C, ...
 - **Soal Uraian** (${nUraian} soal): tiap soal bernomor beserta pedoman penskoran singkat.
 Soal harus mengukur TP di atas, bervariasi dari C1 sampai C4.
 
 ### 12. Rubrik Penilaian
-Tabel rubrik: kolom Aspek | Skor 4 | Skor 3 | Skor 2 | Skor 1 — untuk penilaian uraian/produk di atas. Plus panduan konversi skor ke nilai 0-100.
+Tabel rubrik: kolom Aspek | Skor 4 | Skor 3 | Skor 2 | Skor 1, untuk penilaian uraian atau produk di atas. Deskriptor tiap sel harus konkret dan bisa diamati (bukan "baik", "cukup", "kurang" tanpa penjelasan). Plus panduan konversi skor ke nilai 0-100.
+
+${ANTI_SLOP} ${KONSISTENSI}
 
 Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTILAH_BARU}`;
   const user = `Susun materi pembelajaran dan bank soal untuk modul "${fondasi.judul}".\nData: ${IDENT(info)}\n- Mata Pelajaran: ${info.mapel || '-'} | Materi: ${info.topik || '-'}\n\n${konteksSumber(materi, sumber)}`;
@@ -458,7 +504,7 @@ function rakitModul(info, fondasi, budget, sintaks, kegiatanMd, asesmenMd, mater
 - **Jenjang / Fase / Kelas**: ${info.jenjang || '-'} / ${info.fase || '-'} / ${info.kelas || '-'}
 - **Mata Pelajaran**: ${info.mapel || '-'}
 - **Materi Pokok**: ${info.topik || '-'}
-- **Alokasi Waktu**: ${alokasiLabel} — Pendahuluan ${budget.pendahuluan} menit, Inti ${budget.inti} menit, Penutup ${budget.penutup} menit
+- **Alokasi Waktu**: ${alokasiLabel}. Rincian: Pendahuluan ${budget.pendahuluan} menit, Inti ${budget.inti} menit, Penutup ${budget.penutup} menit
 - **Model Pembelajaran**: ${sintaks.nama}
 
 ## B. Komponen Inti
@@ -628,8 +674,8 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap 
 
 // Prompt single-shot lama untuk docType=modul — dipakai sebagai FALLBACK
 const LEGACY_MODUL = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
-Susun MODUL AJAR yang lengkap, rapi, siap pakai. WAJIB ikuti struktur markdown persis di bawah. Jangan tambah/kurangi heading. Isi dengan substansi nyata (bukan placeholder), kecuali Nama Penyusun yang sudah diberikan.
-${ANTI_FIKSI}
+Susun MODUL AJAR yang lengkap, rapi, siap pakai. WAJIB ikuti struktur markdown persis di bawah. Jangan tambah/kurangi heading.
+${ANTI_FIKSI} ${ANTI_SLOP} ${KONSISTENSI}
 
 # [Judul modul yang menarik dan spesifik]
 
@@ -667,14 +713,14 @@ SETIAP langkah kegiatan WAJIB diakhiri alokasi waktu per langkah dengan format (
 2. Guru menyampaikan tujuan pembelajaran (3 menit)
 3. Apersepsi mengaitkan materi sebelumnya (5 menit)
 
-#### a. Pendahuluan (10 menit)
+#### a. Pendahuluan: 10 menit
 Langkah berurutan, masing-masing diakhiri (X menit), total tepat 10 menit.
 
-#### b. Kegiatan Inti (... menit)
-Langkah sesuai sintaks model pembelajaran yang dipilih, masing-masing diakhiri (X menit), total tepat sama dengan alokasi Kegiatan Inti. Terapkan prinsip pembelajaran mendalam: berkesadaran, bermakna, menggembirakan.
+#### b. Kegiatan Inti: ... menit
+Langkah sesuai sintaks model pembelajaran yang dipilih, masing-masing diakhiri (X menit), total tepat sama dengan alokasi Kegiatan Inti. Terapkan prinsip pembelajaran mendalam: berkesadaran, bermakna, menggembirakan. Tulis langkah yang konkret dan bisa langsung dilaksanakan, bukan instruksi umum.
 
-#### c. Penutup (10 menit)
-Refleksi, umpan balik, tindak lanjut — masing-masing diakhiri (X menit), total tepat 10 menit.
+#### c. Penutup: 10 menit
+Refleksi, umpan balik, tindak lanjut, masing-masing diakhiri (X menit), total tepat 10 menit.
 
 ### 7. Asesmen
 - **Asesmen Diagnostik**: ...
@@ -721,10 +767,12 @@ Susun tabel alur per bab/materi pokok. WAJIB format tabel markdown:
 |----|--------------------|---------------------|--------------|---------|
 | 1 | ... | ... | ... | ... |
 
-Urutkan dari yang konkret ke abstrak / mudah ke sulit. Alokasi total realistis satu semester (±16 pertemuan efektif).
+Urutkan dari yang konkret ke abstrak / mudah ke sulit. Jika data memuat JP per minggu, pakai untuk menghitung total JP; bila tidak ada, asumsikan alokasi total yang realistis satu semester (sekitar 16 pertemuan efektif).
 
 ## D. Catatan Pengembangan
 Prasyarat antar materi dan diferensiasi yang disarankan. ${ISTILAH_BARU}
+
+${ANTI_SLOP} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. TP operasional dan terukur.`,
 
@@ -753,6 +801,8 @@ Pada akhir fase, peserta didik mampu: ... (uraian perilaku yang dapat diamati, 3
 ## D. Catatan
 Keterkaitan antar elemen dan dengan Profil Lulusan (8 Dimensi Profil Lulusan, Permendikdasmen No. 10/2025).
 
+${ANTI_SLOP} ${KONSISTENSI}
+
 Aturan: Bahasa Indonesia formal. Gunakan kata kerja operasional.`,
 
   prota: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
@@ -780,10 +830,12 @@ WAJIB format tabel markdown:
 | Ganjil | ... | ... | ... |
 | Genap | ... | ... | ... |
 
-Cakup seluruh materi pokok esensial satu tahun. Alokasi realistis.
+Cakup seluruh materi pokok esensial satu tahun. Alokasi realistis; jika data memuat JP per minggu, pakai sebagai dasar hitungan.
 
 ## D. Catatan
 Penyesuaian untuk minggu tidak efektif dan pengayaan/remedial.
+
+${ANTI_SLOP} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 
@@ -811,6 +863,8 @@ WAJIB format tabel markdown (±16 minggu efektif):
 ## C. Cadangan & Pengayaan
 Alokasi minggu cadangan untuk remedial/pengayaan dan asesmen sumatif akhir.
 
+${ANTI_SLOP} ${KONSISTENSI}
+
 Aturan: Bahasa Indonesia formal. Alur materi logis dan berurutan. ${ISTILAH_BARU}`,
 
   minggu_efektif: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
@@ -828,7 +882,7 @@ ${ANTI_FIKSI} Jika guru menempel/mengunggah DOKUMEN MINGGU EFEKTIF milik sekolah
 - **Mata Pelajaran**: ...
 
 ## B. Kalender Pendidikan Ringkas
-Uraian bulan-bulan dalam semester berjalan beserta catatan hari libur, ujian, dan kegiatan sekolah.
+Uraian bulan-bulan dalam semester berjalan beserta catatan hari libur, ujian, dan kegiatan sekolah. Jangan mengarang tanggal atau hari libur spesifik: susun berdasarkan pola umum kalender pendidikan nasional (semester ganjil Juli sampai Desember, semester genap Januari sampai Juni) dan tulis catatan bahwa guru wajib menyesuaikan dengan kalender pendidikan sekolah masing-masing.
 
 ## C. Perhitungan Minggu Efektif
 WAJIB format tabel markdown:
@@ -844,6 +898,8 @@ Alokasi JP per minggu untuk mata pelajaran ini dan total JP efektif selama satu 
 
 ## E. Catatan Penyesuaian
 Hal yang perlu disesuaikan bila kalender pendidikan berubah.
+
+${ANTI_SLOP} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 
@@ -872,19 +928,24 @@ WAJIB tabel markdown persis format ini (satu field satu baris). Jangan menambah 
 Langkah kerja kelompok/individu yang jelas dan berurutan.
 
 ## D. Kegiatan / Tugas
-Aktivitas inti: pengamatan, diskusi, percobaan, atau pemecahan masalah — dengan ruang jawab yang jelas (gunakan garis/tabel bila perlu).
+Aktivitas inti: pengamatan, diskusi, percobaan, atau pemecahan masalah. Setiap tugas harus bisa langsung dikerjakan di lembar ini: sediakan ruang jawab yang jelas (garis, tabel, atau kotak jawab). Jangan menulis instruksi tanpa tempat menjawab.
 
 ## E. Pertanyaan Refleksi
 3 pertanyaan refleksi untuk siswa.
 
 ## F. Penilaian
-Rubrik singkat untuk guru (aspek, kriteria, skor).
+Rubrik singkat untuk guru (aspek, kriteria, skor). Kriteria tiap skor harus konkret dan bisa diamati.
+
+${ANTI_SLOP} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia yang mudah dipahami sesuai jenjang. Tugas autentik dan kontekstual. ${ISTILAH_BARU}`,
 
-  soal: `Kamu adalah asisten penyusun asesmen Kurikulum Merdeka untuk guru Indonesia.
+  soal: (info = {}) => {
+    const nPG = Number(info.jmlPG) || 10;
+    const nUraian = Number(info.jmlUraian) || 5;
+    return `Kamu adalah asisten penyusun asesmen Kurikulum Merdeka untuk guru Indonesia.
 Susun PAKET SOAL lengkap dengan kisi-kisi, soal, kunci jawaban, dan pedoman penskoran. WAJIB ikuti struktur markdown persis di bawah.
-${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (modul ajar/ATP), kisi-kisi WAJIB diturunkan dari TP/indikator pada acuan — jangan mengarang indikator baru.
+${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (modul ajar/ATP), kisi-kisi WAJIB diturunkan dari TP/indikator pada acuan, jangan mengarang indikator baru. Jika tidak ada acuan, turunkan dari materi pokok/topik pada data.
 
 # Paket Soal — [Materi] Kelas [X]
 
@@ -900,21 +961,24 @@ WAJIB format tabel markdown:
 
 | No | TP / Indikator | Bentuk Soal | No. Soal | Level Kognitif |
 |----|----------------|-------------|----------|----------------|
-| 1 | ... | PG/Uraian | ... | C1–C6 |
+| 1 | ... | PG/Uraian | ... | C1-C6 |
 
 ## C. Soal Pilihan Ganda
-[N] soal, masing-masing dengan 4-5 opsi (A–E). Tandai kunci dengan **bold** pada opsi yang benar.
+${nPG} soal, masing-masing dengan 4 opsi (A-D). Opsi pengecoh harus masuk akal (miskonsepsi yang umum terjadi), bukan asal.
 
 ## D. Soal Uraian
-[N] soal uraian singkat/esai.
+${nUraian} soal uraian singkat/esai.
 
 ## E. Kunci Jawaban dan Pedoman Penskoran
-Kunci PG dan rubrik penskoran uraian (skor per langkah).
+Kunci PG dengan format: 1-B, 2-C, ... (tanpa bold pada opsi). Rubrik penskoran uraian: skor per langkah penyelesaian, dengan deskriptor yang konkret.
 
-Aturan: Bahasa Indonesia formal. Sebar level kognitif C1–C6. Soal HOTS minimal 20%. ${ISTILAH_BARU}`,
+${ANTI_SLOP} ${KONSISTENSI}
+
+Aturan: Bahasa Indonesia formal. Sebar level kognitif C1-C6. Soal HOTS (C4-C6) minimal 20%. ${ISTILAH_BARU}`;
+  },
 
   kktp: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
-Susun KRITERIA KETERCAPAIAN TUJUAN PEMBELAJARAN (KKTP) — tolok ukur yang dipakai guru untuk menilai apakah peserta didik mencapai TP. WAJIB merujuk pada TP yang tercantum di acuan — jangan mengarang TP baru.
+Susun KRITERIA KETERCAPAIAN TUJUAN PEMBELAJARAN (KKTP) — tolok ukur yang dipakai guru untuk menilai apakah peserta didik mencapai TP. Jika ada DOKUMEN ACUAN, WAJIB merujuk pada TP yang tercantum di acuan, jangan mengarang TP baru. Jika tidak ada acuan, turunkan TP dari materi pokok/topik pada data.
 
 # KKTP — [Mata Pelajaran] Kelas [X] Semester [X]
 
@@ -941,6 +1005,8 @@ Deskripsikan kategori ketercapaian (mis. Sangat Baik / Baik / Cukup / Perlu Bimb
 - **Pengayaan**: bagi yang melampaui kriteria
 - **Remedial**: bagi yang belum mencapai kriteria
 
+${ANTI_SLOP} ${KONSISTENSI}
+
 Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 };
 
@@ -954,7 +1020,8 @@ async function generateDocInternal(docType = 'modul', info = {}, materi = '', su
       console.error('[modulajar] pipeline gagal, fallback ke single-shot:', e.message);
     }
   }
-  const system = docType === 'modul' ? LEGACY_MODUL : PROMPTS[docType];
+  const p = PROMPTS[docType];
+  const system = docType === 'modul' ? LEGACY_MODUL : (typeof p === 'function' ? p(info) : p);
   if (!system) throw new Error('Jenis dokumen tidak dikenal: ' + docType);
   // Non-modul (atau fallback modul): bersihkan input santai guru dulu agar
   // dokumen tidak menggemakan instruksi mentah seperti "cari aja di internet".
@@ -1057,7 +1124,11 @@ async function sisipkanGambarOtomatis(markdown, info, max = 3) {
 
 async function sbGetJob(id) {
   const { data, error } = await sb.from('jobs').select('*').eq('id', id).single();
-  if (error || !data) throw new Error('Job tidak ditemukan.');
+  if (error || !data) {
+    const e = new Error('Job tidak ditemukan.');
+    e.status = 404;
+    throw e;
+  }
   return data;
 }
 async function sbUpdateJob(id, patch) {
@@ -1105,7 +1176,9 @@ async function jalankanJob(jobId) {
         if (data) md[h.key] = data.markdown;
       }
     }
-    for (const l of langkah) if (l.status === 'gagal') l.status = 'antri';
+    // Resume: langkah 'gagal' DAN 'jalan' yang basi dikembalikan ke 'antri'
+    // ('jalan' basi = worker mati/restart di tengah langkah; dokumen 'ok' tidak diulang)
+    for (const l of langkah) if (l.status === 'gagal' || l.status === 'jalan') l.status = 'antri';
 
     // Tulisan AI yang sedang berjalan (untuk ditampilkan realtime di frontend).
     // Diisi oleh kerjakan() via onTeks, dibaca updateProgress(). Last-write-wins
@@ -1145,6 +1218,8 @@ async function jalankanJob(jobId) {
       const jalan = langkah.find((l) => l.status === 'jalan');
       const progress = { total: langkah.length, selesai, fase: fase || (jalan ? jalan.label : ''), langkah };
       if (liveAktif) progress.live = liveAktif;
+      // Pertahankan hitungan pemulihan otomatis agar sweeper tidak me-resume tanpa batas
+      if (job.progress?.autoResume) progress.autoResume = job.progress.autoResume;
       await sbUpdateJob(jobId, { status: 'berjalan', progress, hasil });
     }
 
@@ -1267,21 +1342,46 @@ async function jalankanJob(jobId) {
 }
 
 function butuhSb(req, res) {
-  if (!sb) { res.status(503).json({ ok: false, error: 'Supabase belum dikonfigurasi di server.' }); return false; }
+  if (!sb) { kirimGagal(res, 503, 'Supabase belum dikonfigurasi di server.'); return false; }
   return true;
+}
+
+// Respons error konsisten: {ok:false, error, code?}
+function kirimGagal(res, status, error, code) {
+  const body = { ok: false, error };
+  if (code) body.code = code;
+  return res.status(status).json(body);
+}
+// Pastikan nilai adalah objek polos (bukan array/null/string)
+function objekAman(v) {
+  return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+}
+// Kembalikan pesan error bila teks melebihi batas, atau null bila aman
+function validasiPanjang(teks, maks, nama) {
+  if (String(teks || '').length > maks) return nama + ' terlalu panjang (maks ' + maks + ' karakter).';
+  return null;
 }
 
 app.post('/api/paket', requireAuth(async (req, res) => {
   try {
     if (!butuhSb(req, res)) return;
-    const { mode = 'lengkap', info = {}, materi = '', topiks = [], uploads = {} } = req.body || {};
+    const { mode = 'lengkap', info: infoRaw = {}, materi = '', topiks: topiksRaw = [], uploads: uploadsRaw = {} } = req.body || {};
     if (!['lengkap', 'perencanaan', 'pelaksanaan'].includes(mode))
-      return res.status(400).json({ ok: false, error: 'Mode tidak dikenal.' });
+      return kirimGagal(res, 400, 'Mode tidak dikenal.');
+    const info = objekAman(infoRaw);
+    const uploads = objekAman(uploadsRaw);
     if (!(info.mapel || '').trim())
-      return res.status(400).json({ ok: false, error: 'Mata pelajaran wajib diisi.' });
-    const daftarTopik = [...new Set((topiks || []).map((t) => String(t).trim()).filter(Boolean))].slice(0, 20);
+      return kirimGagal(res, 400, 'Mata pelajaran wajib diisi.');
+    if (topiksRaw !== undefined && !Array.isArray(topiksRaw))
+      return kirimGagal(res, 400, 'Daftar topik harus berupa list.');
+    const daftarTopik = [...new Set(topiksRaw.map((t) => String(t).trim()).filter(Boolean))].slice(0, 20);
+    const topikPanjang = daftarTopik.find((t) => t.length > 200);
+    if (topikPanjang)
+      return kirimGagal(res, 400, 'Topik terlalu panjang (maks 200 karakter): "' + topikPanjang.slice(0, 60) + '".');
     if ((mode === 'lengkap' || mode === 'pelaksanaan') && !daftarTopik.length)
-      return res.status(400).json({ ok: false, error: 'Daftar topik kosong.' });
+      return kirimGagal(res, 400, 'Daftar topik kosong. Tambahkan minimal satu topik.');
+    const errMateri = validasiPanjang(materi, 20000, 'Materi');
+    if (errMateri) return kirimGagal(res, 400, errMateri);
     const langkah = rencanaJob(mode, daftarTopik);
     // Cek kuota SEBELUM job dibuat: estimasi = jumlah dokumen yang akan disusun
     if (!isAdmin(req.user)) {
@@ -1296,14 +1396,20 @@ app.post('/api/paket', requireAuth(async (req, res) => {
     }
     const { data, error } = await sb.from('jobs').insert({
       user_id: req.user.id, mode, status: 'antri',
-      config: { info, materi: materi || '', topiks: daftarTopik, uploads: uploads || {} },
+      config: { info, materi: materi || '', topiks: daftarTopik, uploads },
       progress: { total: langkah.length, selesai: 0, fase: '', langkah }, hasil: [],
     }).select('id').single();
     if (error) throw new Error(error.message);
-    sbUpdateJob(data.id, { status: 'berjalan' }).then(() => jalankanJob(data.id));
+    // Rantai start: bila update status gagal, tandai job gagal agar tidak yatim
+    sbUpdateJob(data.id, { status: 'berjalan' })
+      .then(() => jalankanJob(data.id))
+      .catch(async (e2) => {
+        try { await sbUpdateJob(data.id, { status: 'gagal', error: 'Gagal memulai job: ' + (e2.message || e2) }); }
+        catch { /* abaikan */ }
+      });
     res.json({ ok: true, jobId: data.id });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message || String(e) });
+    kirimGagal(res, 500, e.message || String(e));
   }
 }));
 
@@ -1323,10 +1429,10 @@ app.get('/api/paket/:id', requireAuth(async (req, res) => {
   try {
     if (!butuhSb(req, res)) return;
     const job = await sbGetJob(req.params.id);
-    if (job.user_id !== req.user.id) return res.status(403).json({ ok: false, error: 'Akses ditolak.' });
+    if (job.user_id !== req.user.id) return kirimGagal(res, 403, 'Akses ditolak.');
     res.json({ ok: true, job: serializeJob(job) });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message || String(e) });
+    kirimGagal(res, e.status || 500, e.message || String(e));
   }
 }));
 
@@ -1334,14 +1440,16 @@ app.post('/api/paket/:id/lanjutkan', requireAuth(async (req, res) => {
   try {
     if (!butuhSb(req, res)) return;
     const job = await sbGetJob(req.params.id);
-    if (job.user_id !== req.user.id) return res.status(403).json({ ok: false, error: 'Akses ditolak.' });
-    if (!['menunggu_review', 'gagal'].includes(job.status))
-      return res.status(400).json({ ok: false, error: 'Job tidak dalam status bisa dilanjutkan.' });
+    if (job.user_id !== req.user.id) return kirimGagal(res, 403, 'Akses ditolak.');
+    // 'berjalan' diizinkan juga: idempoten (workerAktif mencegah eksekusi ganda),
+    // berguna bila worker mati diam-diam tanpa menandai gagal
+    if (!['menunggu_review', 'gagal', 'berjalan'].includes(job.status))
+      return kirimGagal(res, 400, 'Job tidak dalam status bisa dilanjutkan.');
     await sbUpdateJob(job.id, { status: 'berjalan', error: null });
     jalankanJob(job.id);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message || String(e) });
+    kirimGagal(res, e.status || 500, e.message || String(e));
   }
 }));
 
@@ -1349,23 +1457,73 @@ app.post('/api/paket/:id/batalkan', requireAuth(async (req, res) => {
   try {
     if (!butuhSb(req, res)) return;
     const job = await sbGetJob(req.params.id);
-    if (job.user_id !== req.user.id) return res.status(403).json({ ok: false, error: 'Akses ditolak.' });
+    if (job.user_id !== req.user.id) return kirimGagal(res, 403, 'Akses ditolak.');
     await sbUpdateJob(job.id, { status: 'dibatalkan' });
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message || String(e) });
+    kirimGagal(res, e.status || 500, e.message || String(e));
   }
 }));
 
-// Lanjutkan job yang terpotong saat server restart
+// ============ PEMULIHAN JOB ============
+// Batas basi: updateProgress() menulis updated_at tiap ≤2 detik saat worker hidup
+// (live write saat streaming) dan tiap ganti langkah. >30 menit tanpa update
+// berarti worker mati tanpa sempat menandai gagal.
+const STUCK_MENIT = 30;
+const MAKS_AUTO_RESUME = 3;
+
+async function pulihkanJobBasi() {
+  if (!sb) return;
+  try {
+    const batas = new Date(Date.now() - STUCK_MENIT * 60000).toISOString();
+    const { data, error } = await sb.from('jobs')
+      .select('id,status,updated_at,progress')
+      .in('status', ['berjalan', 'antri'])
+      .lt('updated_at', batas);
+    if (error) throw error;
+    let dilanjutkan = 0, digagalkan = 0;
+    for (const j of data || []) {
+      if (workerAktif.has(j.id)) continue; // worker hidup di proses ini: jangan diganggu
+      const autoN = j.progress?.autoResume || 0;
+      if (autoN >= MAKS_AUTO_RESUME) {
+        await sbUpdateJob(j.id, {
+          status: 'gagal',
+          error: 'Terhenti karena tidak ada kemajuan selama ' + STUCK_MENIT +
+            ' menit. Tekan "Lanjutkan dari yang gagal" untuk mengulang langkah yang belum selesai.',
+        });
+        digagalkan++;
+        continue;
+      }
+      const langkah = j.progress?.langkah || [];
+      for (const l of langkah) if (l.status === 'jalan') l.status = 'antri';
+      await sbUpdateJob(j.id, {
+        status: 'berjalan', error: null,
+        progress: { ...(j.progress || {}), langkah, autoResume: autoN + 1 },
+      });
+      jalankanJob(j.id); // idempoten: langkah 'ok' dilewati, 'antri' dikerjakan
+      dilanjutkan++;
+    }
+    if (dilanjutkan || digagalkan)
+      console.log('[modulajar] pulihkan job basi: ' + dilanjutkan + ' dilanjutkan, ' + digagalkan + ' ditandai gagal');
+  } catch (e) {
+    console.error('[modulajar] pulihkan job basi gagal:', e.message);
+  }
+}
+
+// Saat server (re)start: semua job 'berjalan'/'antri' adalah yatim (worker mati
+// bersama proses lama) → lanjutkan. workerAktif masih kosong sehingga aman
+// dari eksekusi ganda.
 (async () => {
   if (!sb) return;
   try {
-    const { data } = await sb.from('jobs').select('id').eq('status', 'berjalan');
+    const { data, error } = await sb.from('jobs').select('id').in('status', ['berjalan', 'antri']);
+    if (error) throw error;
     for (const j of data || []) jalankanJob(j.id);
-    if (data?.length) console.log('[modulajar] melanjutkan ' + data.length + ' job tertunda');
-  } catch (e) { console.error('[modulajar] resume job gagal:', e.message); }
+    if (data?.length) console.log('[modulajar] melanjutkan ' + data.length + ' job tertunda saat start');
+  } catch (e) { console.error('[modulajar] resume job saat start gagal:', e.message); }
 })();
+// Sweeper berkala untuk worker yang mati tanpa crash (mis. promise menggantung)
+setInterval(pulihkanJobBasi, 10 * 60 * 1000);
 
 // ================= ROUTES =================
 app.get('/api/config', (req, res) => {
@@ -1375,7 +1533,10 @@ app.get('/api/config', (req, res) => {
 
 app.post('/api/generate-doc', requireAuth(async (req, res) => {
   try {
-    const { docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null } = req.body;
+    const { docType = 'modul', info: infoRaw = {}, materi = '', sumber = '', rekomendasi = null } = req.body || {};
+    const errValid = validasiGenerate({ docType, infoRaw, materi, sumber });
+    if (errValid) return kirimGagal(res, 400, errValid);
+    const info = objekAman(infoRaw);
     if (sb && !isAdmin(req.user)) {
       const cek = await cekKuota(req.user.id, 1);
       if (!cek.cukup) {
@@ -1390,7 +1551,7 @@ app.post('/api/generate-doc', requireAuth(async (req, res) => {
     if (sb && !isAdmin(req.user)) await tambahKuota(req.user.id, 1);
     res.json({ ok: true, markdown });
   } catch (e) {
-    res.status(500).json({ ok: false, error: 'Kesalahan server: ' + (e.message || e) });
+    kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
   }
 }));
 
@@ -1399,23 +1560,20 @@ const NAMA_DOKUMEN = {
   modul: 'Modul Ajar', lkpd: 'LKPD', soal: 'Paket Soal', kktp: 'KKTP',
   cp: 'CP', atp: 'ATP', prota: 'Prota', prosem: 'Prosem', minggu_efektif: 'Minggu Efektif',
 };
-const TAHAP_LABEL = {
-  pahami: 'Memahami maksud pengisian formulir',
-  fondasi: 'Menyusun fondasi: CP, TP, dan dimensi lulusan',
-  kegiatan: 'Menyusun kegiatan inti mengikuti sintaks model',
-  koreksi: 'Mengoreksi alokasi waktu',
-  asesmen: 'Menyusun asesmen dan pelengkap',
-  materi: 'Menyusun materi, bank soal, dan rubrik',
-  rakit: 'Merakit dokumen final',
-};
+// Validasi umum payload generate dokumen tunggal
+function validasiGenerate({ docType, infoRaw, materi, sumber }) {
+  if (!Object.keys(NAMA_DOKUMEN).includes(docType)) return 'Jenis dokumen tidak dikenal.';
+  if (infoRaw !== undefined && (typeof infoRaw !== 'object' || infoRaw === null || Array.isArray(infoRaw)))
+    return 'Data info tidak valid.';
+  return validasiPanjang(materi, 20000, 'Materi') || validasiPanjang(sumber, 20000, 'Sumber acuan');
+}
 
-// Generate dokumen tunggal dengan progress live via Server-Sent Events.
-// Kuota dicek DULU (402 JSON biasa bila habis), lalu stream event:
-//   data: {"tipe":"tahap","key":"...","label":"..."}
-//   data: {"tipe":"selesai","markdown":"..."} | data: {"tipe":"gagal","error":"..."}
-app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
+app.post('/api/generate-doc', requireAuth(async (req, res) => {
   try {
-    const { docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null } = req.body || {};
+    const { docType = 'modul', info: infoRaw = {}, materi = '', sumber = '', rekomendasi = null } = req.body || {};
+    const errValid = validasiGenerate({ docType, infoRaw, materi, sumber });
+    if (errValid) return kirimGagal(res, 400, errValid);
+    const info = objekAman(infoRaw);
     if (sb && !isAdmin(req.user)) {
       const cek = await cekKuota(req.user.id, 1);
       if (!cek.cukup) {
@@ -1426,6 +1584,13 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
         });
       }
     }
+    const markdown = await generateDocInternal(docType, info, materi, sumber, rekomendasi);
+    if (sb && !isAdmin(req.user)) await tambahKuota(req.user.id, 1);
+    res.json({ ok: true, markdown });
+  } catch (e) {
+    kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
+  }
+}));
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',

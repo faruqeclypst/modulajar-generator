@@ -145,7 +145,7 @@ function LayarTunggu({ pesan }) {
 }
 
 // Posisi halaman tersimpan agar refresh tidak melempar ke halaman utama.
-// Format: {view, docId} — docId hanya untuk view 'detail'.
+// Format: {view, docId} (docId hanya untuk view 'detail').
 const VIEW_KEY = 'ma-view';
 const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan'];
 function bacaViewTersimpan() {
