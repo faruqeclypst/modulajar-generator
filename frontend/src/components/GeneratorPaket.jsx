@@ -59,6 +59,9 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   const [job, setJob] = useState(null);
   const [errForm, setErrForm] = useState({});
   const [errJalan, setErrJalan] = useState('');
+  const [menghubungkan, setMenghubungkan] = useState(false);
+  const gagalPoll = useRef(0);
+  const ambilRef = useRef(null);
   const [detik, setDetik] = useState(0);
   const [jobAktif, setJobAktif] = useState([]);
   const [paywall, setPaywall] = useState(null); // {mode, detail}
@@ -114,11 +117,16 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
     hentikanPoll();
     setTahap('jalan');
     setErrJalan('');
+    setMenghubungkan(false);
+    gagalPoll.current = 0;
     const t0 = Date.now();
     timerRef.current = setInterval(() => setDetik(Math.floor((Date.now() - t0) / 1000)), 1000);
     const ambil = async () => {
       try {
         const d = await apiJob('/api/paket/' + jobId, 'GET');
+        gagalPoll.current = 0;
+        setMenghubungkan(false);
+        setErrJalan('');
         setJob(d.job);
         if (['selesai', 'gagal', 'dibatalkan'].includes(d.job.status)) {
           hentikanPoll();
@@ -126,9 +134,17 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
         }
         cekJobAktif();
       } catch (e) {
-        setErrJalan(e.message || 'Gagal memantau job.');
+        // Job tetap berjalan di server; gangguan sesaat jangan ditampilkan sebagai error besar
+        gagalPoll.current += 1;
+        if (gagalPoll.current >= 3) {
+          setMenghubungkan(false);
+          setErrJalan('Koneksi ke server terputus. Tenang, paket tetap disusun di server.');
+        } else {
+          setMenghubungkan(true);
+        }
       }
     };
+    ambilRef.current = ambil;
     await ambil();
     pollRef.current = setInterval(ambil, 3000);
     window.scrollTo(0, 0);
@@ -348,7 +364,17 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
             </div>
             <span className="job-timer" aria-label="Waktu berjalan">{fmtWaktu(detik)}</span>
           </div>
-          {errJalan && <div className="alert alert-error">{errJalan}</div>}
+          {menghubungkan && !errJalan && job.status === 'berjalan' && (
+            <p className="hint" role="status">Menghubungkan ulang ke server…</p>
+          )}
+          {errJalan && (
+            <div className="alert alert-error">
+              {errJalan}
+              <div className="btn-row">
+                <button className="btn btn-sm btn-ink" onClick={() => ambilRef.current && ambilRef.current()}>Muat ulang status</button>
+              </div>
+            </div>
+          )}
           {live && live.teks && job.status === 'berjalan' && (
             <div className="card">
               <span className="kicker">Sedang ditulis AI</span>
@@ -385,6 +411,9 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
                     {s.dokumenId && (
                       <button className="btn btn-sm" onClick={() => onOpenDoc(s.dokumenId)}>Buka</button>
                     )}
+                    {s.status === 'gagal' && job.status === 'gagal' && (
+                      <button className="btn btn-sm btn-primary" onClick={lanjutkan}>Ulangi langkah ini</button>
+                    )}
                   </li>
                 ))}
               </ol>
@@ -392,9 +421,15 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
           )}
           {job.status === 'gagal' && (
             <div className="alert" style={{ marginTop: 16 }}>
-              <b>Job gagal:</b> {job.error || 'Terjadi kendala.'}
+              <b>Paket terhenti:</b> {job.error || 'Terjadi kendala.'}
+              {langkah.some((s) => s.status === 'gagal') && (
+                <p style={{ margin: '8px 0 0' }}>
+                  Langkah yang gagal: {langkah.filter((s) => s.status === 'gagal').map((s) => s.label).join(', ')}.
+                  Langkah yang sudah selesai tidak diulang.
+                </p>
+              )}
               <div className="btn-row">
-                <button className="btn btn-primary" onClick={lanjutkan}>Coba lagi</button>
+                <button className="btn btn-primary" onClick={lanjutkan}>Lanjutkan dari yang gagal</button>
                 <button className="btn" onClick={batalkan}>Batalkan</button>
               </div>
             </div>
