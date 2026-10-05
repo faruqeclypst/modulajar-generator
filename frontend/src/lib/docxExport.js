@@ -1,12 +1,31 @@
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, Footer, Header, PageNumber, ImageRun,
-  ShadingType,
+  ShadingType, TableBorders, BorderStyle,
 } from 'docx';
 import { splitInfoUmum, buangJudulGanda, rapikanIdentitas } from './api';
+import { ekstrakPengesahan, buangPengesahan } from './pengesahan';
 import { DOC_TYPES } from './docs';
 
 const FONT = 'Times New Roman';
+
+// Margin halaman standar dokumen resmi Indonesia: atas 3cm, kiri 4cm, bawah 3cm, kanan 3cm
+const MARGIN = { top: 1701, left: 2268, bottom: 1701, right: 1701 };
+
+const BORDER_HITAM = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
+const TABEL_BORDER = {
+  top: BORDER_HITAM, bottom: BORDER_HITAM, left: BORDER_HITAM, right: BORDER_HITAM,
+  insideHorizontal: BORDER_HITAM, insideVertical: BORDER_HITAM,
+};
+const TANPA_BORDER = {
+  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+};
+const SEL_MARGIN = { top: 60, bottom: 60, left: 120, right: 120 };
 
 function inlineRuns(text, size = 24) {
   const parts = String(text).split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
@@ -32,11 +51,13 @@ function mdTable(lines) {
   const norm = rows.map((r) => { const c = [...r]; while (c.length < cols) c.push(''); return c; });
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: TABEL_BORDER,
     rows: norm.map((r, ri) =>
       new TableRow({
         cantSplit: true, // baris tabel tidak terbelah halaman
         children: r.map((c) =>
           new TableCell({
+            margins: SEL_MARGIN,
             shading: ri === 0 ? { type: ShadingType.CLEAR, fill: '1B1B1A' } : undefined,
             children: [
               new Paragraph({
@@ -123,7 +144,7 @@ function mdToParagraphs(md, imgMap = {}) {
       const depth = Math.min(2, Math.floor(m[1].length / 2));
       out.push(new Paragraph({ numbering: { reference: 'num-alpha', level: depth }, spacing: { after: 80 }, children: inlineRuns(m[2]) }));
     }
-    else if (/^---+$/.test(t)) out.push(new Paragraph({ spacing: { before: 200, after: 200 }, children: [] }));
+    else if (/^---+$/.test(t)) out.push(new Paragraph({ thematicBreak: true, spacing: { before: 200, after: 200 } }));
     else out.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { after: 160 }, children: inlineRuns(t) }));
     i++;
   }
@@ -133,16 +154,18 @@ function mdToParagraphs(md, imgMap = {}) {
 function infoTable(rows) {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: TABEL_BORDER,
     rows: rows.map(([k, v]) =>
       new TableRow({
         cantSplit: true,
         children: [
           new TableCell({
             width: { size: 32, type: WidthType.PERCENTAGE },
+            margins: SEL_MARGIN,
             shading: { type: ShadingType.CLEAR, fill: '1B1B1A' },
             children: [new Paragraph({ children: [new TextRun({ text: k, bold: true, font: FONT, size: 22, color: 'FFFFFF' })] })],
           }),
-          new TableCell({ children: [new Paragraph({ children: inlineRuns(v || '-', 22) })] }),
+          new TableCell({ margins: SEL_MARGIN, children: [new Paragraph({ children: inlineRuns(v || '-', 22) })] }),
         ],
       })
     ),
@@ -166,10 +189,77 @@ async function fetchImageBytes(thumbUrl) {
   } catch { return null; }
 }
 
-export async function exportDocx({ judul, docType = 'modul', markdown, images = [] }) {
+// Blok "Lembar Pengesahan" resmi untuk Word: judul + pengantar + sekolah
+// + tabel 2 kolom tanpa garis (ruang tanda tangan di tengah).
+function blokPengesahan(sah) {
+  const out = [];
+  const sel = (text, { bold = false, underline = false, keepNext = false } = {}) =>
+    new TableCell({
+      width: { size: 50, type: WidthType.PERCENTAGE },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          keepNext,
+          children: [
+            new TextRun({
+              text: text || '', bold, font: FONT, size: 24,
+              ...(underline ? { underline: {} } : {}),
+            }),
+          ],
+        }),
+      ],
+    });
+  const baris = (a, b, opt) =>
+    new TableRow({ cantSplit: true, children: [sel(a, opt), sel(b, opt)] });
+
+  out.push(heading('LEMBAR PENGESAHAN', HeadingLevel.HEADING_1, 28, 480));
+  if (sah.intro) {
+    out.push(new Paragraph({
+      alignment: AlignmentType.JUSTIFIED,
+      spacing: { after: 160 },
+      children: inlineRuns(sah.intro),
+    }));
+  }
+  if (sah.sekolah) {
+    out.push(new Paragraph({
+      spacing: { after: 240 },
+      children: [
+        new TextRun({ text: 'Sekolah: ', bold: true, font: FONT, size: 24 }),
+        new TextRun({ text: sah.sekolah, font: FONT, size: 24 }),
+      ],
+    }));
+  }
+  out.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: TANPA_BORDER,
+      rows: [
+        baris(sah.kiri.atas, sah.kanan.atas, { keepNext: true }),
+        baris(sah.kiri.jabatan, sah.kanan.jabatan, { bold: true, keepNext: true }),
+        // ruang tanda tangan (~2,5 cm)
+        new TableRow({
+          cantSplit: true,
+          children: [0, 1].map(() =>
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              children: [new Paragraph({ spacing: { before: 1300 }, children: [] })],
+            })
+          ),
+        }),
+        baris(sah.kiri.nama, sah.kanan.nama, { bold: true, underline: true, keepNext: true }),
+        baris(sah.kiri.nip, sah.kanan.nip, {}),
+      ],
+    })
+  );
+  return out;
+}
+
+// Bangun objek Document (murni, tanpa DOM) agar bisa diuji lewat Node.
+export async function buildDocxDocument({ judul, docType = 'modul', markdown, images = [] }) {
   const typeName = (DOC_TYPES[docType] || {}).nama || 'Dokumen Ajar';
   const { infoRows, rest } = splitInfoUmum(rapikanIdentitas(markdown || ''));
-  const body = buangJudulGanda(rest, judul || typeName);
+  const sah = ekstrakPengesahan(rest);
+  const body = buangJudulGanda(sah ? buangPengesahan(rest) : rest, judul || typeName);
   const children = [];
 
   children.push(
@@ -240,12 +330,17 @@ export async function exportDocx({ judul, docType = 'modul', markdown, images = 
     }
   }
 
+  // Lembar pengesahan selalu terakhir, dirender resmi (bukan tabel mentah)
+  if (sah) children.push(...blokPengesahan(sah));
+
   const doc = new Document({
     styles: {
       default: {
         document: { run: { font: FONT, size: 24 } },
         heading1: { run: { font: FONT, size: 28, bold: true } },
         heading2: { run: { font: FONT, size: 26, bold: true } },
+        heading3: { run: { font: FONT, size: 24, bold: true } },
+        heading4: { run: { font: FONT, size: 22, bold: true } },
       },
     },
     numbering: {
@@ -256,7 +351,7 @@ export async function exportDocx({ judul, docType = 'modul', markdown, images = 
     },
     sections: [{
       properties: {
-        page: { size: { width: 11906, height: 16838 }, margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 } },
+        page: { size: { width: 11906, height: 16838 }, margin: MARGIN },
       },
       headers: {
         default: new Header({
@@ -272,6 +367,13 @@ export async function exportDocx({ judul, docType = 'modul', markdown, images = 
     }],
   });
 
+  return doc;
+}
+
+export async function exportDocx(opts) {
+  const { judul, docType = 'modul' } = opts || {};
+  const typeName = (DOC_TYPES[docType] || {}).nama || 'Dokumen Ajar';
+  const doc = await buildDocxDocument(opts);
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
