@@ -401,6 +401,49 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .md th { background: var(--ink); color: var(--paper); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
 .md img { max-width: 100%; border: var(--bd); }
 
+/* ---------- tema dokumen ---------- */
+/* Kertas Hangat adalah tampilan bawaan (gaya dasar .paper/.md di atas),
+   jadi tidak ada override. Dua tema lain menimpa seperlunya. */
+
+/* Resmi: dokumen formal siap diserahkan. Judul rata tengah, teks justify,
+   serif penuh, heading klasik. */
+.tema-resmi { font-family: "Times New Roman", Georgia, serif; }
+.tema-resmi .paper-head { border-bottom-width: 3px; }
+.tema-resmi .paper-head .doclabel { text-align: center; }
+.tema-resmi .paper-head h1 { text-align: center; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.tema-resmi .md { text-align: justify; font-size: 16px; line-height: 1.75; }
+.tema-resmi .md h2 {
+  background: none; color: #000; display: block; text-align: center;
+  border-bottom: 3px double var(--ink); padding: 0 0 8px;
+  font-size: 19px; text-transform: uppercase; letter-spacing: 1px;
+}
+.tema-resmi .md h3 { border-bottom: 1px solid var(--ink); }
+.tema-resmi .info-table th, .tema-resmi .md th {
+  background: #f0f0f0; color: #000; text-transform: none; letter-spacing: 0;
+}
+.tema-resmi .pengesahan { font-family: "Times New Roman", Georgia, serif; }
+
+/* Modern: bersih untuk dibaca di layar. Heading rata kiri; garis aksen bata
+   tipis menandai hierarki section (pengganti blok tinta tema hangat). */
+.tema-modern .paper-head { border-bottom: 2px solid var(--wash); }
+.tema-modern .paper-head h1 { font-weight: 800; letter-spacing: -.5px; text-transform: none; }
+.tema-modern .paper-head .doclabel { color: var(--red); }
+.tema-modern .md { color: #2b2b28; }
+.tema-modern .md h2 {
+  background: none; color: var(--ink); display: block;
+  border-left: 6px solid var(--red); padding: 2px 0 2px 14px;
+  text-transform: none; letter-spacing: 0; font-size: 21px;
+}
+.tema-modern .md h3 { border-bottom: 1px solid var(--wash); }
+.tema-modern .info-table th, .tema-modern .md th {
+  background: var(--wash); color: var(--ink); text-transform: none; letter-spacing: 0;
+}
+
+/* ---------- pemilih tema di toolbar DocView ---------- */
+.tema-pilih { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-basis: 100%; }
+.tema-pilih .tema-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.tema-pilih .btn { min-height: 44px; }
+
 /* ---------- pemilih gambar ---------- */
 .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-top: 16px; }
 .img-pick {
@@ -485,22 +528,22 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   body { background: #fff; background-image: none; }
   .topbar, .toolbar, .btn-row, .footer, .steps, .no-print { display: none !important; }
   .wrap { padding: 0; max-width: none; }
-  /* dokumen resmi: serif hitam di atas putih */
-  .paper {
-    box-shadow: none; border: none; padding: 0; margin: 0;
-    font-family: "Times New Roman", Georgia, serif;
-    font-size: 12pt; line-height: 1.5; color: #000; background: #fff;
-  }
+  /* dasar cetak (semua tema): hitam di atas putih, tanpa dekorasi layar */
+  .paper { box-shadow: none; border: none; padding: 0; margin: 0; color: #000; background: #fff; }
   .paper-head { border-bottom: 3px solid #000; padding-bottom: 16px; margin-bottom: 20px; }
   .paper-head .doclabel { color: #000; }
-  .paper-head h1 { font-family: inherit; color: #000; }
+  .paper-head h1 { color: #000; }
   .card { box-shadow: none; }
+  /* font mengikuti tema yang dipilih di layar (WYSIWYG) */
+  .tema-resmi .paper { font-family: "Times New Roman", Georgia, serif; font-size: 12pt; line-height: 1.5; }
+  .tema-modern .paper, .tema-hangat .paper { font-family: "Archivo", "Segoe UI", system-ui, sans-serif; font-size: 11pt; line-height: 1.6; }
   /* heading cetak: klasik, hemat tinta */
   .md h2 {
     background: none; color: #000; display: block;
-    border-bottom: 2px solid #000; padding: 0 0 6px;
-    font-family: inherit; font-size: 14pt;
+    border-bottom: 2px solid #000; border-left: none; padding: 0 0 6px;
+    font-family: inherit; font-size: 14pt; text-align: left;
   }
+  .tema-resmi .md h2 { text-align: center; border-bottom: 3px double #000; }
   .md h3, .md h4 { font-family: inherit; color: #000; border-color: #000; }
   .md h2, .md h3, .md h4 { break-after: avoid; page-break-after: avoid; }
   .md p, .md li { orphans: 3; widows: 3; color: #000; }
@@ -515,8 +558,9 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   .figure img { border-bottom: 1px solid #000; max-height: 19cm; object-fit: contain; }
   .figure .credit a { display: none; }
   .md img { border-color: #000; }
-  /* pengesahan: serif, dua kolom, tidak terbelah halaman */
-  .pengesahan { font-family: "Times New Roman", Georgia, serif; color: #000; border-top-color: #000; }
+  /* pengesahan: dua kolom, tidak terbelah halaman; serif hanya di tema resmi */
+  .pengesahan { color: #000; border-top-color: #000; }
+  .tema-resmi .pengesahan { font-family: "Times New Roman", Georgia, serif; }
   .sah-judul { color: #000; }
   .ttd-ruang { height: 3cm; }
 }
