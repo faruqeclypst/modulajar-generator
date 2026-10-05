@@ -22,7 +22,7 @@ export default function DocPaper({ doc }) {
     inlineUrls.add(url);
     const g = images.find((x) => x.thumbUrl === url) || {};
     const caption = cap || g.caption || g.title || 'Gambar referensi';
-    const credit = `Sumber: Wikimedia Commons${g.artist ? ' — ' + g.artist : ''} (${g.license || 'CC'})`;
+    const credit = `Sumber: Wikimedia Commons${g.artist ? ', ' + g.artist : ''} (${g.license || 'CC'})`;
     return `<figure class="figure" style="max-width:${dsize}px;margin-left:auto;margin-right:auto"><img src="${esc(url)}" alt="${esc(caption)}" loading="lazy"/>`
       + `<figcaption><b>${esc(caption)}</b><div class="credit">${esc(credit)}</div></figcaption></figure>`;
   });
@@ -37,7 +37,7 @@ export default function DocPaper({ doc }) {
           <table className="info-table">
             <tbody>
               {infoRows.map(([k, v], i) => (
-                <tr key={i}><th>{k}</th><td>{v || '—'}</td></tr>
+                <tr key={i}><th>{k}</th><td>{v || '-'}</td></tr>
               ))}
             </tbody>
           </table>
@@ -55,7 +55,7 @@ export default function DocPaper({ doc }) {
               <figcaption>
                 <b>Gambar {i + 1}. {g.caption || g.title}</b>
                 <div className="credit">
-                  Sumber: Wikimedia Commons{g.artist ? ' — ' + g.artist : ''} ({g.license || 'CC'})
+                  Sumber: Wikimedia Commons{g.artist ? ', ' + g.artist : ''} ({g.license || 'CC'})
                   {' '}<a href={g.pageUrl} target="_blank" rel="noreferrer">lihat lisensi</a>
                 </div>
               </figcaption>

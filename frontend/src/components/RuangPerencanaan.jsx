@@ -17,6 +17,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
   const [showBaru, setShowBaru] = useState(false);
   const [baru, setBaru] = useState({ jenjang: 'SMA/MA', fase: 'F (Kelas 11-12)', kelas: '', semester: 'Ganjil', mapel: '', tahunAjaran: '' });
   const [stepKey, setStepKey] = useState(null);
+  const [errBaru, setErrBaru] = useState('');
 
   async function refresh(id) {
     const list = await listPakets();
@@ -31,7 +32,8 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
   }, []);
 
   async function buatPaket() {
-    if (!baru.mapel) { alert('Pilih mata pelajaran dulu.'); return; }
+    if (!baru.mapel) { setErrBaru('Pilih mata pelajaran dulu.'); return; }
+    setErrBaru('');
     const id = await savePaket({ ...baru, docs: {} });
     setShowBaru(false);
     setPaketId(id);
@@ -54,7 +56,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
         <span className="kicker">Ruang Perencanaan</span>
         <h1 className="page">Alur Perangkat Ajar</h1>
         <p className="lead">
-          Susun perangkat <strong>berurutan</strong>: CP → ATP → Prota → Prosem — baru Modul Ajar.
+          Susun perangkat <strong>berurutan</strong>: CP, ATP, Prota, Prosem, baru Modul Ajar.
           Tiap dokumen menjadi <strong>acuan resmi</strong> dokumen berikutnya, bukan karangan AI.
         </p>
         <div className="btn-row" style={{ marginBottom: 20 }}>
@@ -80,11 +82,13 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
                 <select value={baru.semester} onChange={(e) => setBaru({ ...baru, semester: e.target.value })}>
                   {SEMESTER.map((s) => <option key={s}>{s}</option>)}
                 </select></div>
-              <div className="field"><label>Mata Pelajaran</label>
-                <select value={baru.mapel} onChange={(e) => setBaru({ ...baru, mapel: e.target.value })}>
-                  <option value="">— Pilih —</option>
+              <div className="field"><label>Mata Pelajaran <span className="req">*</span></label>
+                <select value={baru.mapel} onChange={(e) => { setBaru({ ...baru, mapel: e.target.value }); setErrBaru(''); }}>
+                  <option value="">Pilih</option>
                   {MAPEL[baru.jenjang].map((m) => <option key={m}>{m}</option>)}
-                </select></div>
+                </select>
+                {errBaru && <p className="err">{errBaru}</p>}
+              </div>
               <div className="field"><label>Tahun Ajaran</label>
                 <input placeholder="cth: 2025/2026" value={baru.tahunAjaran} onChange={(e) => setBaru({ ...baru, tahunAjaran: e.target.value })} /></div>
             </div>
@@ -138,7 +142,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
       <p className="lead">{paket.jenjang} · {paket.fase} · {paket.kelas} · Semester {paket.semester} · {paket.tahunAjaran}</p>
 
       <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ flex: 1, minWidth: 220 }}><strong>Kemajuan{' '}{prog}/4.</strong> Selesaikan berurutan — tiap dokumen menjadi acuan dokumen berikutnya.</span>
+        <span style={{ flex: 1, minWidth: 220 }}><strong>Kemajuan{' '}{prog}/4.</strong> Selesaikan berurutan. Tiap dokumen menjadi acuan dokumen berikutnya.</span>
         <div className="progress" style={{ flex: 1, minWidth: 140 }}><div className="progress-fill" style={{ width: (prog / 4 * 100) + '%' }} /></div>
       </div>
 
@@ -151,13 +155,13 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
             const needName = need ? DOC_TYPES[need].nama : '';
             return (
               <div className={'card step-card' + (done ? ' done' : '')} key={s.key}>
-                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                  <div className="step-num">{s.langkah}</div>
-                  <div style={{ flex: 1, minWidth: 220 }}>
-                    <h3 style={{ margin: '0 0 4px' }}>{s.nama}</h3>
-                    <p style={{ margin: 0, fontSize: 14 }}>{s.desc}</p>
-                    {locked && <div className="hint" style={{ color: '#a33' }}>Selesaikan <strong>{needName}</strong> dulu — {s.nama}{' '}diturunkan darinya.</div>}
-                    {done && <div className="hint" style={{ color: '#1a7a3a', fontWeight: 700 }}>Sudah disusun ✓</div>}
+                <div className="step-row">
+                  <div className="step-num" aria-hidden="true">{s.langkah}</div>
+                  <div className="step-body">
+                    <h3>{s.nama}</h3>
+                    <p>{s.desc}</p>
+                    {locked && <div className="hint" style={{ color: 'var(--red-dark)' }}>Selesaikan <strong>{needName}</strong> dulu. {s.nama} diturunkan darinya.</div>}
+                    {done && <div className="hint" style={{ color: 'var(--ok)', fontWeight: 700 }}>Sudah disusun ✓</div>}
                   </div>
                   <div className="btn-row" style={{ margin: 0 }}>
                     {done && <button className="btn btn-sm" onClick={() => onOpenDoc(docs[s.key])}>Lihat</button>}
@@ -179,7 +183,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
           </div>
           {docs.atp && (
             <div className="hint" style={{ marginTop: 8 }}>
-              Modul Ajar akan disusun dengan merujuk CP, ATP, Prota, dan Prosem paket ini — TP dan materi mengikuti acuan, bukan karangan AI.
+              Modul Ajar akan disusun dengan merujuk CP, ATP, Prota, dan Prosem paket ini. TP dan materi mengikuti acuan, bukan karangan AI.
             </div>
           )}
         </>
@@ -269,13 +273,13 @@ function StepWorkspace({ paket, stepKey, onClose, onOpenDoc }) {
               <div className="field">
                 <label>Teks CP Resmi (tempel di sini)</label>
                 <textarea rows={8} placeholder="Tempel teks Capaian Pembelajaran resmi untuk fase & mapel ini…" value={teks} onChange={(e) => setTeks(e.target.value)} />
-                <div className="hint">{teks.length} karakter {teks.length === 0 && '— boleh kosong, AI akan menyusun draf dari kerangka nasional (tetap perlu diverifikasi guru)'}</div>
+                <div className="hint">{teks.length} karakter {teks.length === 0 && '(boleh kosong. AI akan menyusun draf dari kerangka nasional, tetap perlu diverifikasi guru)'}</div>
               </div>
             </>
           ) : (
             <>
               <div className="alert alert-info">
-                <strong>Acuan:</strong> {sumberJudul || DOC_TYPES[need].nama}.{' '}{dt.nama}{' '}akan <strong>diturunkan langsung</strong> dari acuan ini — AI dilarang mengarang di luar acuan.
+                <strong>Acuan:</strong> {sumberJudul || DOC_TYPES[need].nama}.{' '}{dt.nama}{' '}akan <strong>diturunkan langsung</strong> dari acuan ini. AI dilarang mengarang di luar acuan.
               </div>
               {sumber && (
                 <details style={{ marginBottom: 14 }}>
@@ -309,7 +313,7 @@ function StepWorkspace({ paket, stepKey, onClose, onOpenDoc }) {
         <>
           <div className="toolbar no-print">
             <span className="kicker" style={{ margin: 0 }}>Editor Blok</span>
-            <span className="draft-note">Periksa hasil AI — edit langsung bila perlu</span>
+            <span className="draft-note">Periksa hasil AI. Edit langsung bila perlu</span>
           </div>
           <DocEditor
             initialMarkdown={markdown}

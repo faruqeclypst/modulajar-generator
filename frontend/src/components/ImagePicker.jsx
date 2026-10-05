@@ -61,16 +61,21 @@ export default function ImagePicker({ query, initial = [], onChange, max = 3 }) 
       {!loading && !error && results.length === 0 && (
         <div className="alert alert-info">Tidak ditemukan gambar yang cocok. Anda bisa melewati langkah ini.</div>
       )}
-      <div className="img-grid">
+      <div className="img-grid" role="group" aria-label="Hasil pencarian gambar">
         {results.map((img) => {
           const sel = selected.find((s) => s.thumbUrl === img.thumbUrl);
           return (
-            <div key={img.thumbUrl} className={'img-pick' + (sel ? ' selected' : '')} onClick={() => toggle(img)}>
-              <div className="check">{sel ? '✓' : ''}</div>
+            <button
+              key={img.thumbUrl} type="button"
+              className={'img-pick' + (sel ? ' selected' : '')}
+              aria-pressed={!!sel}
+              onClick={() => toggle(img)}
+            >
+              <span className="check" aria-hidden="true">{sel ? '✓' : ''}</span>
               <img src={img.thumbUrl} alt={img.title} loading="lazy" />
-              <div className="cap">{img.title}</div>
-              <div className="src">Wikimedia Commons · {img.license || 'CC'}</div>
-            </div>
+              <span className="cap">{img.title}</span>
+              <span className="src">Wikimedia Commons · {img.license || 'CC'}</span>
+            </button>
           );
         })}
       </div>

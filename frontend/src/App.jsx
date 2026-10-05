@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import './styles.css';
 import Wizard, { getDraft } from './components/Wizard';
 import DocView from './components/DocView';
 import RuangPerencanaan from './components/RuangPerencanaan';
 import GeneratorPaket from './components/GeneratorPaket';
+import Topbar from './components/Topbar';
+import Pengaturan from './components/Pengaturan';
 import { DOC_TYPES } from './lib/docs';
 import { listModuls, getModul, listPakets, paketProgress } from './lib/db';
 import { getSupabase, getSession } from './lib/supabase';
@@ -14,31 +16,17 @@ function fmtDate(ts) {
   return new Date(ts).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// Reveal on scroll
-function Reveal({ children, delay = 0 }) {
-  const ref = useRef(null);
-  const [vis, setVis] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ob = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVis(true); ob.disconnect(); } }, { threshold: 0.15 });
-    ob.observe(el);
-    return () => ob.disconnect();
-  }, []);
-  return <div ref={ref} className={'reveal' + (vis ? ' on' : '')} style={{ transitionDelay: delay + 'ms' }}>{children}</div>;
-}
-
 function Landing({ onStart }) {
   return (
     <div className="wrap">
       <section className="hero-land">
-        <div className="float-sq s1" /><div className="float-sq s2" /><div className="float-sq s3" />
-        <span className="kicker red">Untuk Guru Indonesia</span>
+        <span className="kicker">Untuk Guru Indonesia</span>
         <h1>Perangkat Ajar<br />Lengkap dalam<br /><span className="accent">Hitungan Menit.</span></h1>
         <p>
-          Modul Ajar, ATP, Prota, Prosem, LKPD, Bank Soal, KKTP, sampai CP —
-          disusun AI mengikuti alur Kurikulum Merdeka yang benar (CP → ATP → Prota → Prosem → Modul),
-          bisa diedit per blok, dilengkapi gambar berlisensi. Login dengan Google — datamu tersimpan aman dan bisa dibuka dari perangkat mana pun.
+          Modul Ajar, ATP, Prota, Prosem, LKPD, Bank Soal, KKTP, sampai CP.
+          Disusun mengikuti alur Kurikulum Merdeka yang benar
+          (CP, ATP, Prota, Prosem, baru Modul), bisa diedit per blok,
+          dilengkapi gambar berlisensi.
         </p>
         <div className="btn-row">
           <button className="btn btn-primary" onClick={onStart}>Mulai Membuat</button>
@@ -48,58 +36,65 @@ function Landing({ onStart }) {
 
       <div className="marquee" aria-hidden="true">
         <div className="marquee-track">
-          {Array(2).fill('MODUL AJAR • ATP • CP • PROTA • PROSEM • LKPD • BANK SOAL • KKTP • ').map((t, i) => <span key={i}>{t}</span>)}
+          {Array(2).fill('MODUL AJAR · ATP · CP · PROTA · PROSEM · LKPD · BANK SOAL · KKTP · ').map((t, i) => <span key={i}>{t}</span>)}
         </div>
       </div>
 
       <section id="fitur" style={{ marginTop: 40 }}>
-        <Reveal><span className="kicker">Fitur</span></Reveal>
-        <Reveal><h2 className="sec-title">Satu aplikasi,<br />delapan perangkat.</h2></Reveal>
+        <span className="kicker">Fitur</span>
+        <h2 className="sec-title">Satu aplikasi,<br />delapan perangkat.</h2>
         <div className="doc-grid">
-          {Object.entries(DOC_TYPES).map(([key, d], i) => (
-            <Reveal key={key} delay={i * 60}>
-              <div className="card doc-card-land" onClick={onStart} role="button" tabIndex={0}>
-                <span className="chip red">{d.tag}</span>
-                <h3>{d.nama}</h3>
-                <p>{d.desc}</p>
-              </div>
-            </Reveal>
+          {Object.entries(DOC_TYPES).map(([key, d]) => (
+            <div className="card doc-card-land" key={key}>
+              <span className="chip red">{d.tag}</span>
+              <h3>{d.nama}</h3>
+              <p>{d.desc}</p>
+            </div>
           ))}
         </div>
       </section>
 
       <section style={{ marginTop: 56 }}>
-        <Reveal><span className="kicker">Cara Kerja</span></Reveal>
-        <Reveal><h2 className="sec-title">Dari ide ke dokumen<br />siap cetak.</h2></Reveal>
+        <span className="kicker">Cara Kerja</span>
+        <h2 className="sec-title">Dari ide ke dokumen<br />siap cetak.</h2>
         <div className="steps-land">
           {[
-            ['01', 'Susun perencanaan', 'CP → ATP → Prota → Prosem, berurutan di Ruang Perencanaan. Tiap dokumen jadi acuan berikutnya.'],
-            ['02', 'Pilih dokumen', 'Modul, LKPD, Bank Soal — dengan acuan perencanaan yang sudah disusun.'],
-            ['03', 'Generate AI', 'AI menyusun dari acuanmu — TP dan materi merujuk dokumen perencanaan, bukan karangan.'],
-            ['04', 'Edit & ekspor', 'Edit per blok ala Gutenberg, tulis ulang dengan AI, unduh Word.'],
-          ].map(([n, t, d], i) => (
-            <Reveal key={n} delay={i * 80}>
-              <div className="card step-land"><b>{n}</b><h3>{t}</h3><p>{d}</p></div>
-            </Reveal>
+            ['01', 'Susun perencanaan', 'CP, ATP, Prota, Prosem berurutan di Ruang Perencanaan. Tiap dokumen jadi acuan berikutnya.'],
+            ['02', 'Pilih dokumen', 'Modul, LKPD, Bank Soal, dengan acuan perencanaan yang sudah disusun.'],
+            ['03', 'Generate', 'AI menyusun dari acuanmu. TP dan materi merujuk dokumen perencanaan, bukan karangan.'],
+            ['04', 'Edit dan ekspor', 'Edit per blok, tulis ulang dengan AI, unduh sebagai Word.'],
+          ].map(([n, t, d]) => (
+            <div className="card step-land" key={n}><b>{n}</b><h3>{t}</h3><p>{d}</p></div>
           ))}
         </div>
       </section>
 
-      <Reveal>
-        <section className="cta-band">
-          <h2>Siap menyusun perangkat ajarmu?</h2>
-          <p>Gratis. Login dengan Google, langsung jalan di browser.</p>
-          <button className="btn btn-primary" onClick={onStart}>Buat Dokumen Sekarang</button>
-        </section>
-      </Reveal>
+      <section className="cta-band">
+        <h2>Siap menyusun perangkat ajarmu?</h2>
+        <p>Masuk dengan Google, langsung jalan di browser. Tanpa instal apa pun.</p>
+        <button className="btn btn-primary" onClick={onStart}>Buat Dokumen Sekarang</button>
+      </section>
     </div>
   );
 }
 
-function LayarLogin({ onLogin, err }) {
+function GoogleG() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z" />
+    </svg>
+  );
+}
+
+function LayarLogin({ err }) {
   const [busy, setBusy] = useState(false);
+  const [gagal, setGagal] = useState(err || '');
   async function masuk() {
     setBusy(true);
+    setGagal('');
     try {
       const sb = await getSupabase();
       const { error } = await sb.auth.signInWithOAuth({
@@ -108,42 +103,51 @@ function LayarLogin({ onLogin, err }) {
       });
       if (error) throw error;
     } catch (e) {
-      alert('Gagal membuka login Google: ' + (e.message || e));
+      setGagal('Tidak bisa membuka halaman login Google (' + (e.message || 'kesalahan tidak dikenal') + '). Periksa koneksi internet, lalu coba lagi.');
       setBusy(false);
     }
   }
   return (
-    <div className="wrap">
-      <section className="hero-land" style={{ textAlign: 'center' }}>
-        <span className="kicker red">Untuk Guru Indonesia</span>
-        <h1>ModulAjar<br /><span className="accent">Perangkat Ajar AI.</span></h1>
-        <p>Masuk dengan akun Google untuk mulai menyusun CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Bank Soal, dan KKTP.</p>
-        {err && <div className="alert" style={{ textAlign: 'left' }}>{err}</div>}
-        <div className="btn-row" style={{ justifyContent: 'center' }}>
-          <button className="btn btn-primary" onClick={masuk} disabled={busy}>
-            {busy ? 'Membuka Google...' : 'Login dengan Google'}
-          </button>
-        </div>
-      </section>
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="login-logo" aria-hidden="true">M</div>
+        <span className="kicker">Untuk Guru Indonesia</span>
+        <h1>Perangkat ajar lengkap dalam hitungan menit</h1>
+        <ul className="login-points">
+          <li><span className="tick" aria-hidden="true">✓</span><span>Susun CP sampai KKTP mengikuti alur Kurikulum Merdeka yang runtut.</span></li>
+          <li><span className="tick" aria-hidden="true">✓</span><span>Edit tiap bagian per blok, lalu unduh sebagai dokumen Word.</span></li>
+          <li><span className="tick" aria-hidden="true">✓</span><span>Paket besar dikerjakan server. Browser boleh ditutup, pekerjaan tetap jalan.</span></li>
+        </ul>
+        {gagal && (
+          <div className="alert alert-error" role="alert" style={{ textAlign: 'left' }}>
+            <b>Gagal masuk.</b> {gagal}
+          </div>
+        )}
+        <button className="btn btn-google" onClick={masuk} disabled={busy}>
+          <GoogleG /> {busy ? 'Membuka Google…' : 'Masuk dengan Google'}
+        </button>
+        <p className="login-note">Datamu tersimpan di akunmu dan bisa dibuka dari perangkat mana pun.</p>
+      </div>
     </div>
   );
 }
 
 function LayarTunggu({ pesan }) {
   return (
-    <div className="wrap">
-      <section className="hero-land" style={{ textAlign: 'center' }}>
-        <span className="kicker">ModulAjar</span>
-        <p>{pesan || 'Memuat...'}</p>
-      </section>
+    <div className="wrap narrow" style={{ textAlign: 'center', paddingTop: 80 }}>
+      <div className="loader-wrap">
+        <div className="spinner" role="status" aria-label="Memuat" />
+        <p>{pesan || 'Memuat…'}</p>
+      </div>
     </div>
   );
 }
 
 export default function App() {
   const [auth, setAuth] = useState('loading'); // loading | login | app
+  const [user, setUser] = useState(null);
   const [authErr, setAuthErr] = useState('');
-  const [view, setView] = useState('landing'); // landing | app | wizard | detail | ruang | paket
+  const [view, setView] = useState('landing'); // landing | app | wizard | detail | ruang | paket | pengaturan
   const [moduls, setModuls] = useState([]);
   const [pakets, setPakets] = useState([]);
   const [active, setActive] = useState(null);
@@ -152,30 +156,37 @@ export default function App() {
   const [wizardPaket, setWizardPaket] = useState(null);
   const [wizardTurunan, setWizardTurunan] = useState(null); // { docType, modulId }
 
+  // Terapkan preferensi ukuran teks sesegera mungkin
+  useEffect(() => {
+    if (localStorage.getItem('ma-font-besar') === '1') {
+      document.documentElement.classList.add('ma-font-besar');
+    }
+  }, []);
+
   async function refresh() {
     const all = await listModuls();
-    // Normalisasi: dokumen lama (sebelum kolom docType ada) semuanya Modul Ajar
-    for (const m of all) if (!m.docType) m.docType = 'modul';
+    for (const m of all) if (!m.docType) m.docType = 'modul'; // normalisasi dokumen lama
     setModuls(all);
     setPakets(await listPakets());
     setDraft(await getDraft());
   }
+
   useEffect(() => {
     let stop = false;
+    let stopSub = null;
     (async () => {
       try {
         const sb = await getSupabase();
         const sess = await getSession();
-        if (!stop) setAuth(sess ? 'app' : 'login');
+        if (!stop) { setUser(sess?.user || null); setAuth(sess ? 'app' : 'login'); }
         const { data: sub } = sb.auth.onAuthStateChange((_ev, sess2) => {
-          if (!stop) setAuth(sess2 ? 'app' : 'login');
+          if (!stop) { setUser(sess2?.user || null); setAuth(sess2 ? 'app' : 'login'); }
         });
         stopSub = () => sub.subscription.unsubscribe();
       } catch (e) {
         if (!stop) { setAuthErr(e.message || String(e)); setAuth('login'); }
       }
     })();
-    let stopSub = null;
     return () => { stop = true; if (stopSub) stopSub(); };
   }, []);
   useEffect(() => { if (auth === 'app') refresh(); }, [auth]);
@@ -185,36 +196,31 @@ export default function App() {
   function startTurunan(docType, modulId) { setWizardTurunan({ docType, modulId }); setWizardPaket(null); setWizardKey((k) => k + 1); setView('wizard'); }
   async function openDoc(id) {
     const d = await getModul(id);
-    if (d && !d.docType) d.docType = 'modul'; // normalisasi dokumen lama
+    if (d && !d.docType) d.docType = 'modul';
     setActive(d); setView('detail');
   }
   const goApp = () => { setView('app'); refresh(); };
   const goRuang = () => setView('ruang');
 
-  if (auth === 'loading') return <LayarTunggu pesan="Menyiapkan aplikasi..." />;
+  async function signOut() {
+    const sb = await getSupabase();
+    await sb.auth.signOut();
+    setUser(null);
+    setView('landing');
+  }
+
+  if (auth === 'loading') return <LayarTunggu pesan="Menyiapkan aplikasi…" />;
   if (auth === 'login') return <LayarLogin err={authErr} />;
 
   return (
     <>
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="logo" onClick={() => setView('landing')}>
-            <div className="logo-mark">M</div>
-            <div><b>ModulAjar</b><small>Perangkat Ajar AI</small></div>
-          </div>
-          <div className="spacer" />
-          {view === 'landing' ? (
-            <button className="btn btn-primary btn-sm" onClick={goApp}>Buka Aplikasi</button>
-          ) : (
-            <>
-              <button className="btn btn-sm" style={{ background: '#fff' }} onClick={() => setView('paket')}>Generator Paket</button>
-              <button className="btn btn-sm" style={{ background: '#fff' }} onClick={async () => { const sb = await getSupabase(); await sb.auth.signOut(); setView('landing'); }}>Keluar</button>
-              {view === 'app' && <button className="btn btn-primary btn-sm" onClick={() => startNew()}>+ Buat Baru</button>}
-              {view !== 'app' && <button className="btn btn-sm" style={{ background: '#fff' }} onClick={goApp}>Dokumen Saya</button>}
-            </>
-          )}
-        </div>
-      </header>
+      <Topbar
+        view={view}
+        onNav={(v) => { setView(v); if (v === 'app') refresh(); }}
+        user={user}
+        onOpenSettings={() => setView('pengaturan')}
+        onSignOut={signOut}
+      />
 
       {view === 'landing' && <Landing onStart={goApp} />}
 
@@ -248,18 +254,22 @@ export default function App() {
         />
       )}
 
+      {view === 'pengaturan' && (
+        <Pengaturan user={user} waLink={WA_LINK} onRefresh={refresh} onSignOut={signOut} />
+      )}
+
       {view === 'app' && (
         <div className="wrap">
           <span className="kicker">Beranda</span>
           <h1 className="page">Perangkat Ajarmu</h1>
-          <p className="lead">Satu alur runtut: Perencanaan → Modul Ajar → LKPD & Asesmen.</p>
+          <p className="lead">Satu alur runtut: Perencanaan, Modul Ajar, lalu LKPD dan Asesmen.</p>
 
           <div className="card flow-hero">
-            <div className="flow-num">01</div>
+            <div className="flow-num" aria-hidden="true">01</div>
             <div style={{ flex: 1, minWidth: 240 }}>
               <h3 style={{ margin: '0 0 4px' }}>Ruang Perencanaan</h3>
               <p style={{ margin: '0 0 12px', fontSize: 14 }}>
-                Susun CP → ATP → Prota → Prosem. Dari paket yang jadi, buat Modul Ajar —
+                Susun CP, ATP, Prota, Prosem. Dari paket yang jadi, buat Modul Ajar,
                 lalu LKPD, Bank Soal, dan KKTP langsung dari modulnya. Semua saling merujuk.
               </p>
               {pakets.length > 0 && (
@@ -267,7 +277,7 @@ export default function App() {
                   {pakets.slice(0, 4).map((p) => {
                     const prog = paketProgress(p);
                     return (
-                      <span key={p.id} className="chip" style={prog === 5 ? { background: 'var(--ink)', color: '#fff' } : {}}>
+                      <span key={p.id} className={'chip' + (prog === 5 ? ' fill' : '')}>
                         {p.mapel} · {prog}/5
                       </span>
                     );
@@ -288,10 +298,10 @@ export default function App() {
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '28px 0 4px' }}>
-            <div className="flow-num sm">02</div>
-            <h2 style={{ margin: 0 }}>Dokumen Saya</h2>
+            <div className="flow-num sm" aria-hidden="true">02</div>
+            <h2 className="sec" style={{ margin: 0 }}>Dokumen Saya</h2>
           </div>
-          <p className="hint" style={{ marginTop: 0 }}>Tersimpan aman di akunmu — bisa dibuka dari perangkat mana pun.</p>
+          <p className="hint" style={{ marginTop: 0 }}>Tersimpan di akunmu, bisa dibuka dari perangkat mana pun.</p>
 
           {moduls.length === 0 ? (
             <div className="empty">
@@ -311,7 +321,7 @@ export default function App() {
                       <span className="chip fill">{m.jenjang}</span>
                       {m.mapel && <span className="chip">{m.mapel}</span>}
                     </div>
-                    {m.topik && <div style={{ fontSize: 13.5, color: '#3d3d3a' }}>{m.topik}</div>}
+                    {m.topik && <div style={{ fontSize: 13.5, color: 'var(--slate)' }}>{m.topik}</div>}
                     {(m.images?.length > 0) && (
                       <div className="thumbstrip">
                         {m.images.slice(0, 3).map((g, i) => (
@@ -332,7 +342,7 @@ export default function App() {
       )}
 
       <footer className="footer">
-        <div>ModulAjar v1 oleh Alfaruq Asri, S.Pd.</div>
+        <div>ModulAjar oleh Alfaruq Asri, S.Pd.</div>
         <a className="btn btn-sm btn-primary" style={{ marginTop: 10 }} href={WA_LINK} target="_blank" rel="noreferrer">
           Butuh Bantuan? Chat WA
         </a>

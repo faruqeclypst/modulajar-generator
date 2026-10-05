@@ -260,13 +260,17 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           <span className="kicker">Langkah 01</span>
           <h1 className="page">Pilih Dokumen</h1>
           <p className="lead">Perangkat ajar apa yang ingin disusun hari ini?</p>
-          <div className="doc-grid">
+          <div className="doc-grid" role="radiogroup" aria-label="Pilih jenis dokumen">
             {Object.entries(DOC_TYPES).map(([key, d]) => (
-              <div key={key} className={'doc-card' + (form.docType === key ? ' selected' : '')} onClick={() => set('docType', key)}>
+              <button
+                key={key} type="button" role="radio" aria-checked={form.docType === key}
+                className={'doc-card' + (form.docType === key ? ' selected' : '')}
+                onClick={() => set('docType', key)}
+              >
                 <span className="chip red">{d.tag}</span>
                 <h3>{d.nama}</h3>
                 <p>{d.desc}</p>
-              </div>
+              </button>
             ))}
           </div>
           <h3 style={{ marginTop: 24, fontSize: 15, textTransform: 'uppercase', letterSpacing: 1 }}>Identitas Guru</h3>
@@ -297,12 +301,12 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           <h1 className="page">{dt.nama}</h1>
           {paketLabel && !modulLabel && (
             <div className="alert alert-info" style={{ fontWeight: 700 }}>
-              Membuat dari paket: {paketLabel} — TP & materi akan merujuk dokumen perencanaan paket ini.
+              Membuat dari paket: {paketLabel}. TP dan materi akan merujuk dokumen perencanaan paket ini.
             </div>
           )}
           {modulLabel && (
             <div className="alert alert-info" style={{ fontWeight: 700 }}>
-              Membuat {dt.nama} dari modul: {modulLabel} — isi otomatis merujuk modul ini.
+              Membuat {dt.nama} dari modul: {modulLabel}. Isi otomatis merujuk modul ini.
             </div>
           )}
           <p className="lead">Lengkapi informasi, atau minta AI memberi rekomendasi awal.</p>
@@ -376,7 +380,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
             {has('mapel') && (
               <div className="field"><label>Mata Pelajaran <span className="req">*</span></label>
                 <select value={form.mapel} onChange={(e) => set('mapel', e.target.value)}>
-                  <option value="">— Pilih —</option>
+                  <option value="">Pilih</option>
                   {MAPEL[form.jenjang].map((m) => <option key={m}>{m}</option>)}
                 </select></div>
             )}
@@ -389,12 +393,12 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
             <div className="card" style={{ margin: '0 0 16px', background: '#fbf9f4' }}>
               <h3 style={{ margin: '0 0 6px' }}>Pilih Materi dari Prosem</h3>
               <p className="hint" style={{ margin: '0 0 12px' }}>
-                Tidak perlu ketik manual — pilih minggu, materi & alokasi waktu terisi otomatis dari Prosem paket ini.
+                Tidak perlu ketik manual. Pilih minggu, materi dan alokasi waktu terisi otomatis dari Prosem paket ini.
               </p>
               <div className="field" style={{ margin: 0 }}>
                 <label>Minggu / Materi</label>
                 <select value={weekIx} onChange={(e) => pilihMinggu(e.target.value)}>
-                  <option value="">— Pilih minggu —</option>
+                  <option value="">Pilih minggu</option>
                   {prosemWeeks.map((w, i) => (
                     <option key={i} value={i}>
                       Minggu {w.minggu || (i + 1)}: {w.materi.slice(0, 60)}{w.materi.length > 60 ? '…' : ''}{w.alokasi ? ` (${w.alokasi})` : ''}
@@ -450,9 +454,9 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           </div>
           {(form.docType === 'lkpd' || form.docType === 'modul') && (
             <div className="alert alert-info">
-              Butuh inspirasi? Cari LKPD/worksheet &amp; materi sejenis di{' '}
+              Butuh inspirasi? Cari LKPD/worksheet dan materi sejenis di{' '}
               <a href="https://wayground.com/" target="_blank" rel="noreferrer"><strong>Wayground</strong></a>
-              {' '}(gratis, jutaan buatan guru) — lalu tempel poin-poin pentingnya sebagai materi sumber di atas.
+              {' '}(gratis, jutaan buatan guru). Lalu tempel poin-poin pentingnya sebagai materi sumber di atas.
             </div>
           )}
           <div className="btn-row">
@@ -483,7 +487,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
               <div className="field">
                 <label>Paket Perencanaan</label>
                 <select value={paketId} onChange={(e) => setPaketId(e.target.value)}>
-                  <option value="">— Tanpa acuan —</option>
+                  <option value="">Tanpa acuan</option>
                   {pakets.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.mapel} · {p.kelas || p.fase} · Sem {p.semester} · {p.tahunAjaran}
@@ -495,7 +499,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
                 <div className="meta" style={{ marginBottom: 4 }}>
                   {['cp', 'atp', 'prota', 'prosem'].map((k) => (
                     <span key={k} className="chip" style={paketDocs[k] ? { background: '#1a1a1a', color: '#fff' } : { opacity: 0.45 }}>
-                      {DOC_TYPES[k].nama}{paketDocs[k] ? ' ✓' : ' —'}
+                      {DOC_TYPES[k].nama}{paketDocs[k] ? ' ✓' : ''}
                     </span>
                   ))}
                 </div>
@@ -504,7 +508,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
                 <div className="field" style={{ marginTop: 10 }}>
                   <label>Pilih Materi dari Prosem (otomatis isi topik & alokasi)</label>
                   <select value={weekIx} onChange={(e) => pilihMinggu(e.target.value)}>
-                    <option value="">— Pilih minggu —</option>
+                    <option value="">Pilih minggu</option>
                     {prosemWeeks.map((w, i) => (
                       <option key={i} value={i}>
                         Minggu {w.minggu || (i + 1)}: {w.materi.slice(0, 60)}{w.materi.length > 60 ? '…' : ''}{w.alokasi ? ` (${w.alokasi})` : ''}
@@ -527,7 +531,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
                     </div>
                   )}
                   <select value={modulAcuanId} onChange={(e) => setModulAcuanId(e.target.value)}>
-                    <option value="">— Tidak ada —</option>
+                    <option value="">Tidak ada</option>
                     {modulList.map((m) => <option key={m.id} value={m.id}>{m.judul}</option>)}
                   </select>
                 </div>

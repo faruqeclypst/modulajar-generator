@@ -168,7 +168,7 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
             <figcaption>
               <AutoTA className="blk-edit" value={b.caption || ''} placeholder="Keterangan gambar…"
                 onChange={(v) => update(b.id, { caption: v })} />
-              <div className="credit">Sumber: Wikimedia Commons{b.artist ? ' — ' + b.artist : ''} ({b.license || 'CC'})</div>
+              <div className="credit">Sumber: Wikimedia Commons{b.artist ? ', ' + b.artist : ''} ({b.license || 'CC'})</div>
               <div className="fig-size">
                 <span>Ukuran:</span>
                 {SIZES.map(([w, label]) => (

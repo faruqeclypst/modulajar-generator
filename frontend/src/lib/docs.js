@@ -60,7 +60,7 @@ export const DOC_TYPES = {
 export const ALUR_PERENCANAAN = [
   { key: 'cp', langkah: '01', nama: 'Capaian Pembelajaran', desc: 'Tempel teks CP resmi, jadikan fondasi seluruh perangkat.' },
   { key: 'atp', langkah: '02', nama: 'ATP', desc: 'Alur Tujuan Pembelajaran diturunkan langsung dari CP.' },
-  { key: 'minggu_efektif', langkah: '03', nama: 'Minggu Efektif', desc: 'Hitung minggu efektif semester ini — acuan alokasi Prota, Prosem, modul.' },
+  { key: 'minggu_efektif', langkah: '03', nama: 'Minggu Efektif', desc: 'Hitung minggu efektif semester ini sebagai acuan alokasi Prota, Prosem, dan modul.' },
   { key: 'prota', langkah: '04', nama: 'Program Tahunan', desc: 'Distribusi materi setahun mengikuti ATP dan minggu efektif.' },
   { key: 'prosem', langkah: '05', nama: 'Program Semester', desc: 'Rincian mingguan mengikuti Prota dan minggu efektif.' },
 ];

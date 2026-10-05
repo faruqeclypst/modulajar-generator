@@ -142,7 +142,7 @@ function infoTable(rows) {
             shading: { type: ShadingType.CLEAR, fill: '1B1B1A' },
             children: [new Paragraph({ children: [new TextRun({ text: k, bold: true, font: FONT, size: 22, color: 'FFFFFF' })] })],
           }),
-          new TableCell({ children: [new Paragraph({ children: inlineRuns(v || '—', 22) })] }),
+          new TableCell({ children: [new Paragraph({ children: inlineRuns(v || '-', 22) })] }),
         ],
       })
     ),
@@ -207,7 +207,7 @@ export async function exportDocx({ judul, docType = 'modul', markdown, images = 
         width: g.width, height: g.height,
         maxW: dsize,
         caption: g.caption || g.title || 'Gambar referensi',
-        credit: `Sumber: Wikimedia Commons${g.artist ? ' — ' + g.artist : ''} (${g.license || 'CC'})`,
+        credit: `Sumber: Wikimedia Commons${g.artist ? ', ' + g.artist : ''} (${g.license || 'CC'})`,
       };
     }
   }
@@ -235,7 +235,7 @@ export async function exportDocx({ judul, docType = 'modul', markdown, images = 
       }
       children.push(
         new Paragraph({ alignment: AlignmentType.CENTER, keepLines: true, spacing: { after: 60 }, children: [new TextRun({ text: `Gambar ${n}. ${g.caption || g.title}`, italic: true, font: FONT, size: 20 })] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, keepLines: true, spacing: { after: 240 }, children: [new TextRun({ text: `Sumber: Wikimedia Commons${g.artist ? ' — ' + g.artist : ''} (${g.license || 'CC'})`, font: FONT, size: 18, color: '666666' })] })
+        new Paragraph({ alignment: AlignmentType.CENTER, keepLines: true, spacing: { after: 240 }, children: [new TextRun({ text: `Sumber: Wikimedia Commons${g.artist ? ', ' + g.artist : ''} (${g.license || 'CC'})`, font: FONT, size: 18, color: '666666' })] })
       );
     }
   }

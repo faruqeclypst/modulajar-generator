@@ -131,7 +131,7 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
           <h3 style={{ margin: '4px 0 6px' }}>Dibuat dari modul ini</h3>
           {turunan.length === 0 ? (
             <p className="hint" style={{ margin: '0 0 10px' }}>
-              Belum ada. Buat LKPD, Bank Soal, atau KKTP — otomatis merujuk modul ini.
+              Belum ada. Buat LKPD, Bank Soal, atau KKTP yang otomatis merujuk modul ini.
             </p>
           ) : (
             <div className="meta" style={{ marginBottom: 10 }}>

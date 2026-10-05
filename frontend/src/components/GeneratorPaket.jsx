@@ -11,11 +11,20 @@ const RANTAI_LABEL = {
   perencanaan: ['CP', 'ATP', 'Minggu Efektif', 'Prota', 'Prosem', 'KKTP'],
   pelaksanaan: ['Modul 1..N', 'LKPD 1..N', 'Paket Soal'],
 };
-const MODE_INFO = {
-  lengkap: { nama: 'Paket Lengkap', meta: 'Perencanaan + N modul + N LKPD + soal', desc: 'Dari CP sampai KKTP, lalu Modul dan LKPD per topik. Berhenti sejenak setelah perencanaan agar bisa ditinjau.' },
+const MODE_INFO = {  lengkap: { nama: 'Paket Lengkap', meta: 'Perencanaan + N modul + N LKPD + soal', desc: 'Dari CP sampai KKTP, lalu Modul dan LKPD per topik. Berhenti sejenak setelah perencanaan agar bisa ditinjau.' },
   perencanaan: { nama: 'Paket Perencanaan', meta: '6 dokumen', desc: 'CP, ATP, Minggu Efektif, Prota, Prosem, KKTP. Pas untuk awal semester.' },
-  pelaksanaan: { nama: 'Paket Pelaksanaan', meta: 'N modul + N LKPD + soal', desc: 'Modul Ajar, LKPD, dan Paket Soal per topik — dengan ATP/Prosem yang ditempel sebagai acuan.' },
+  pelaksanaan: { nama: 'Paket Pelaksanaan', meta: 'N modul + N LKPD + soal', desc: 'Modul Ajar, LKPD, dan Paket Soal per topik, dengan ATP/Prosem yang ditempel sebagai acuan.' },
 };
+
+// Label status job dalam Bahasa Indonesia
+const STATUS_JOB = {
+  antri: 'Menunggu', berjalan: 'Berjalan', menunggu_review: 'Menunggu review',
+  selesai: 'Selesai', gagal: 'Gagal', dibatalkan: 'Dibatalkan',
+};
+const statusJob = (s) => STATUS_JOB[s] || String(s || '').replace('_', ' ');
+
+// Label status tiap langkah job
+const STATUS_LANGKAH = { ok: 'Selesai', jalan: 'Menyusun', antri: 'Menunggu', gagal: 'Gagal' };
 
 const emptyForm = {
   nama: '', sekolah: '', tahunAjaran: '',
@@ -162,13 +171,14 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
   const fmtWaktu = (s) => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
   const langkah = job?.progress?.langkah || [];
   const hasil = job?.hasil || [];
+  const selesaiCount = langkah.filter((s) => s.status === 'ok').length;
 
   return (
     <div className="wrap">
       <span className="kicker">Generator Paket</span>
       <h1 className="page">Paket Semester, Satu Klik</h1>
       <p className="lead">
-        CP, ATP, Minggu Efektif, Prota, Prosem, KKTP — lalu Modul Ajar dan LKPD
+        CP, ATP, Minggu Efektif, Prota, Prosem, KKTP, lalu Modul Ajar dan LKPD
         untuk tiap topik. Dikerjakan server: browser boleh ditutup, paket tetap jalan.
       </p>
 
@@ -178,7 +188,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
           <div className="btn-row">
             {jobAktif.map((j) => (
               <button key={j.id} className="btn btn-sm btn-primary" onClick={() => pantau(j.id)}>
-                Pantau ({MODE_INFO[j.mode]?.nama || j.mode} · {j.status.replace('_', ' ')})
+                Pantau ({MODE_INFO[j.mode]?.nama || j.mode} · {statusJob(j.status)})
               </button>
             ))}
           </div>
@@ -188,20 +198,16 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
       {tahap === 'form' && (
         <>
           <h2 style={{ marginTop: 28 }}>Pilih paket</h2>
-          <div className="grid2" role="radiogroup" aria-label="Pilih paket dokumen">
+          <div className="mode-grid" role="radiogroup" aria-label="Pilih paket dokumen">
             {Object.entries(MODE_INFO).map(([k, m]) => (
               <button
                 key={k} type="button" role="radio" aria-checked={mode === k}
-                className="card" onClick={() => setMode(k)}
-                style={{
-                  textAlign: 'left', cursor: 'pointer',
-                  borderColor: mode === k ? 'var(--red)' : undefined,
-                  boxShadow: mode === k ? '3px 3px 0 var(--red)' : undefined,
-                }}
+                className={'card mode-card' + (mode === k ? ' selected' : '')}
+                onClick={() => setMode(k)}
               >
-                <b style={{ display: 'block', fontSize: 16 }}>{m.nama}</b>
-                <span className="chip red" style={{ margin: '6px 0' }}>{m.meta}</span>
-                <p style={{ margin: '6px 0 0', fontSize: 13.5, color: 'var(--muted, #6f6a5e)' }}>{m.desc}</p>
+                <b>{m.nama}</b>
+                <span className="chip red">{m.meta}</span>
+                <p>{m.desc}</p>
               </button>
             ))}
           </div>
@@ -214,7 +220,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
           {mode !== 'pelaksanaan' ? (
             <div className="alert alert-info" style={{ marginTop: 14 }}>
               <b>Belum punya CP / ATP / Prota / Prosem? Tidak masalah.</b> Server
-              menyusunnya berurutan — kamu cukup isi data dasar di bawah. Teks CP resmi
+              menyusunnya berurutan. Kamu cukup isi data dasar di bawah. Teks CP resmi
               boleh ditempel bila ada; bila tidak, AI menyusun drafnya dari info jenjang, fase, dan mapel.
             </div>
           ) : (
@@ -256,7 +262,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
           </div>
 
           {mode !== 'perencanaan' && (
-            <div className="field"><label>Daftar Topik <span className="hint">(satu baris satu topik — tiap topik jadi satu Modul + satu LKPD)</span></label>
+            <div className="field"><label>Daftar Topik <span className="hint">(satu baris satu topik. Tiap topik jadi satu Modul + satu LKPD)</span></label>
               <textarea value={form.topiks} onChange={(e) => set('topiks', e.target.value)}
                 placeholder={"cth:\nSistem pernapasan manusia\nSistem peredaran darah"} rows={4} />
               {errForm.topiks && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.topiks}</p>}</div>
@@ -297,7 +303,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
                 <textarea value={form.cpResmi} onChange={(e) => set('cpResmi', e.target.value)}
                   placeholder="Tempel CP resmi Kemendikdasmen bila ada" rows={3} />
                 <UnggahDokumen onTeks={(t, n) => gabung('cpResmi', t, n)} /></div>
-              <div className="field"><label>Dokumen Minggu Efektif <span className="hint">(opsional — unggah bila sekolah sudah punya)</span></label>
+              <div className="field"><label>Dokumen Minggu Efektif <span className="hint">(opsional. Unggah bila sekolah sudah punya)</span></label>
                 <textarea value={form.mingguEfektif} onChange={(e) => set('mingguEfektif', e.target.value)}
                   placeholder="Tempel dokumen minggu efektif sekolah, atau unggah file-nya" rows={3} />
                 <UnggahDokumen onTeks={(t, n) => gabung('mingguEfektif', t, n)} /></div>
@@ -310,19 +316,23 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
             <button className="btn btn-primary" onClick={mulai}>Buat {MODE_INFO[mode].nama}</button>
             <button className="btn" onClick={onBack}>Kembali</button>
           </div>
-          <p className="hint">Dikerjakan server — halaman ini boleh ditutup, pantau lagi nanti dari sini.</p>
+          <p className="hint">Dikerjakan server. Halaman ini boleh ditutup, pantau lagi nanti dari sini.</p>
         </>
       )}
 
       {tahap === 'jalan' && job && (
         <>
-          <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <b>Menyusun {MODE_INFO[job.mode]?.nama || 'paket'}... <span className="chip">{job.status.replace('_', ' ')}</span></b>
-            <span className="chip">{fmtWaktu(detik)}</span>
+          <div className="card job-head">
+            <div>
+              <span className="kicker" style={{ marginBottom: 10 }}>Paket berjalan</span>
+              <h2>Menyusun {MODE_INFO[job.mode]?.nama || 'paket'}</h2>
+              <span className="chip red">{statusJob(job.status)}</span>
+            </div>
+            <span className="job-timer" aria-label="Waktu berjalan">{fmtWaktu(detik)}</span>
           </div>
-          {errJalan && <div className="alert" style={{ marginTop: 12 }}>{errJalan}</div>}
+          {errJalan && <div className="alert alert-error">{errJalan}</div>}
           {job.status === 'menunggu_review' && (
-            <div className="alert alert-info" style={{ marginTop: 14 }}>
+            <div className="alert alert-info">
               <b>Dokumen perencanaan selesai.</b> Tinjau dulu (buka dan edit bila perlu),
               lalu lanjutkan ke pembuatan modul.
               <div className="btn-row">
@@ -330,33 +340,30 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
               </div>
             </div>
           )}
-          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {langkah.map((s, i) => (
-              <div key={s.key + i} className="card" style={{
-                padding: '12px 16px',
-                opacity: s.status === 'antri' ? 0.55 : 1,
-                borderColor: s.status === 'jalan' ? 'var(--red)' : undefined,
-              }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <span style={{
-                    width: 30, height: 30, borderRadius: '50%', flex: 'none',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 800, fontSize: 14, color: '#fff',
-                    background: s.status === 'ok' ? 'var(--ok, #2e7d32)' : s.status === 'gagal' ? 'var(--red)' : s.status === 'jalan' ? 'var(--red)' : '#a8a59c',
-                  }}>
-                    {s.status === 'ok' ? '✓' : s.status === 'gagal' ? '!' : i + 1}
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <b>{s.label}</b>
-                    {s.status === 'jalan' && <p className="hint" style={{ margin: 0, color: 'var(--red)' }}>Menyusun...</p>}
-                  </div>
-                  {s.dokumenId && (
-                    <button className="btn btn-sm" onClick={() => onOpenDoc(s.dokumenId)}>Buka</button>
-                  )}
-                </div>
+          {langkah.length > 0 && (
+            <>
+              <div className="progress" role="progressbar" aria-valuenow={selesaiCount} aria-valuemin={0} aria-valuemax={langkah.length} aria-label="Kemajuan paket">
+                <div className="progress-fill" style={{ width: (langkah.length ? (selesaiCount / langkah.length) * 100 : 0) + '%' }} />
               </div>
-            ))}
-          </div>
+              <p className="progress-label">Langkah {selesaiCount} dari {langkah.length}</p>
+              <ol className="job-steps">
+                {langkah.map((s, i) => (
+                  <li key={s.key + i} className={'job-step is-' + s.status}>
+                    <span className="job-dot" aria-hidden="true">
+                      {s.status === 'ok' ? '✓' : s.status === 'gagal' ? '!' : i + 1}
+                    </span>
+                    <div className="job-step-body">
+                      <b>{s.label}</b>
+                      <span className="job-status">{STATUS_LANGKAH[s.status] || s.status}</span>
+                    </div>
+                    {s.dokumenId && (
+                      <button className="btn btn-sm" onClick={() => onOpenDoc(s.dokumenId)}>Buka</button>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
           {job.status === 'gagal' && (
             <div className="alert" style={{ marginTop: 16 }}>
               <b>Job gagal:</b> {job.error || 'Terjadi kendala.'}
@@ -371,15 +378,15 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
               <button className="btn" onClick={batalkan}>Batalkan</button>
             </div>
           )}
-          <p className="hint">Aman menutup halaman ini — pantau lagi dari Generator Paket.</p>
+          <p className="hint">Aman menutup halaman ini. Pantau lagi dari Generator Paket.</p>
         </>
       )}
 
       {tahap === 'selesai' && job && (
         <>
           <div className="alert alert-info">
-            <b>Paket selesai disusun</b>. Semua dokumen tersimpan di Dokumen Saya —
-            klik untuk membuka dan mengeditnya.
+            <b>Paket selesai disusun</b>. Semua dokumen tersimpan di Dokumen Saya.
+            Klik untuk membuka dan mengeditnya.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
             {hasil.map((h) => (
