@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import Paywall from './Paywall';
-<<<<<<< HEAD
 import { getAiConfig, saveAiConfig, deleteAiConfig, getReferal } from '../lib/api';
 
 // Kunci AI sendiri (BYOK): simpan base URL + API key milik user.
@@ -190,9 +189,7 @@ function BagikanBonus() {
     </section>
   );
 }
-=======
 import { getProfile, saveProfile } from '../lib/api';
->>>>>>> origin/w1-proyek
 
 // Halaman Pengaturan: hanya kontrol nyata, semuanya berfungsi.
 export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }) {

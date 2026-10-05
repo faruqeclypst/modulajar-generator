@@ -246,19 +246,14 @@ Aturan:
      localStorage, langsung diterapkan.
   6. **Data**: info "Dokumen tersimpan di akunmu (Supabase)" + tombol
      "Muat ulang data".
-<<<<<<< HEAD
   7. **Bantuan**: tombol "Chat WhatsApp" (link WA yang sudah ada).
-  8. **Keluar**: tombol bahaya "Keluar dari aplikasi" dengan konfirmasi.
+  8. **Data Kepegawaian**: NIP Guru, Nama Kepala Sekolah, NIP Kepala Sekolah
+     (semuanya opsional). Disimpan di profil perangkat, dipakai di Lembar
+     Pengesahan dokumen.
+  9. **Keluar**: tombol bahaya "Keluar dari aplikasi" dengan konfirmasi.
 - Landing menangkap `?ref=KODE` ke localStorage `ma-ref`; setelah login
   pertama, `POST /api/referal/klaim` dipanggil sekali otomatis lalu `ma-ref`
   dihapus. Gagal klaim ditangani diam-diam.
-=======
-  4. **Bantuan**: tombol "Chat WhatsApp" (link WA yang sudah ada).
-  5. **Data Kepegawaian**: NIP Guru, Nama Kepala Sekolah, NIP Kepala Sekolah
-     (semuanya opsional). Disimpan di profil perangkat, dipakai di Lembar
-     Pengesahan dokumen.
-  6. **Keluar**: tombol bahaya "Keluar dari aplikasi" dengan konfirmasi.
->>>>>>> origin/w1-proyek
 - Tidak ada pengaturan palsu. Setiap kontrol harus benar-benar bekerja.
 
 ### Status: kosong, memuat, error

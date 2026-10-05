@@ -150,11 +150,7 @@ function LayarTunggu({ pesan }) {
 }
 
 // Posisi halaman tersimpan agar refresh tidak melempar ke halaman utama.
-<<<<<<< HEAD
-// Format: {view, docId} (docId hanya untuk view 'detail').
-=======
 // Format: {view, docId, projectId} (docId untuk view 'detail', projectId untuk 'proyek').
->>>>>>> origin/w1-proyek
 const VIEW_KEY = 'ma-view';
 const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek'];
 function bacaViewTersimpan() {
@@ -236,7 +232,6 @@ export default function App() {
     }
   }, [auth]);
 
-<<<<<<< HEAD
   // Klaim referal sekali setelah login pertama (kode dari ?ref= di landing).
   // Gagal klaim ditangani diam-diam agar tidak mengganggu login.
   useEffect(() => {
@@ -250,10 +245,7 @@ export default function App() {
     })();
   }, [auth]);
 
-  // Restore dokumen tersimpan setelah login (hanya setelah auth==='app')
-=======
   // Restore posisi tersimpan setelah login (hanya setelah auth==='app')
->>>>>>> origin/w1-proyek
   useEffect(() => {
     if (auth !== 'app') return;
     const d = bacaViewTersimpan();
