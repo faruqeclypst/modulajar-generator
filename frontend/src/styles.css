@@ -857,7 +857,8 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   font-size: 14px; font-weight: 600; border-left: 3px solid transparent;
 }
 .docs-nav a:hover { color: var(--ink); background: var(--wash); border-left-color: var(--red); }
-.docs-body { min-width: 0; }
+.docs-body { min-width: 0; overflow-wrap: break-word; }
+.docs-toc-m { display: none; }
 .docs-sec { margin-bottom: 40px; scroll-margin-top: 76px; }
 .docs-sec h2 { font-size: 24px; font-weight: 800; margin: 0 0 12px; letter-spacing: -.5px; }
 .docs-sec p, .docs-sec li { font-size: 15px; color: var(--slate); }
@@ -874,15 +875,38 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .fb-done { display: flex; gap: 14px; align-items: flex-start; max-width: 640px; }
 .fb-done p { margin: 4px 0 0; color: var(--slate); font-size: 14.5px; }
 
+/* Navigasi lipat-buka khusus layar kecil (disembunyikan di desktop) */
+.docs-toc-m {
+  border: var(--bd); background: var(--paper-2); box-shadow: var(--sh);
+  margin: 4px 0 20px;
+}
+.docs-toc-m summary {
+  padding: 14px 16px; min-height: 48px; font-weight: 800; font-size: 14px;
+  text-transform: uppercase; letter-spacing: 1px; cursor: pointer; list-style: none;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.docs-toc-m summary::-webkit-details-marker { display: none; }
+.docs-toc-m summary::after { content: "+"; font-size: 20px; color: var(--red); }
+.docs-toc-m[open] summary::after { content: "\2013"; }
+.docs-toc-m ul { list-style: none; margin: 0; padding: 4px 8px 12px; display: grid; }
+.docs-toc-m a {
+  display: block; padding: 12px 10px; min-height: 44px; color: var(--slate);
+  text-decoration: none; font-size: 15px; font-weight: 600;
+  border-top: 1px solid var(--wash);
+}
+.docs-toc-m a:active { color: var(--red); }
+
 @media (max-width: 760px) {
-  .docs-layout { grid-template-columns: 1fr; }
-  .docs-nav { position: static; }
-  .docs-nav ul { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
-  .docs-nav li { flex: none; }
-  .docs-nav a { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; }
-  .docs-nav a:hover { border-bottom-color: var(--red); }
+  /* State mobile docs: tumpuk tunggal, jarak dan tipe mengecil */
+  .docs-layout { grid-template-columns: 1fr; gap: 20px; }
+  .docs-nav { display: none; }
+  .docs-toc-m { display: block; }
+  .docs-sec { margin-bottom: 32px; scroll-margin-top: 68px; }
+  .docs-sec h2 { font-size: 20px; }
+  .docs-sec p, .docs-sec li { font-size: 14.5px; line-height: 1.7; }
   .land-price-num { font-size: 56px; }
-  .land-faq-item p { padding-left: 20px; }
+  .land-faq-item summary { font-size: 14.5px; }
+  .land-faq-item p { padding: 0 16px 16px 20px; font-size: 14px; }
 }
 
 /* ---------- stempel selesai: penanda generate rampung ----------

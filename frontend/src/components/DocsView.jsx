@@ -37,6 +37,20 @@ export default function DocsView({ onBack }) {
         Panduan ringkas untuk guru. Kalau ada yang belum jelas setelah membaca,
         kirim masukan lewat formulir di bawah halaman ini.
       </p>
+      <details className="docs-toc-m">
+        <summary>Daftar Isi Panduan</summary>
+        <nav aria-label="Daftar isi panduan">
+          <ul>
+            {DAFTAR_ISI.map(([id, label]) => (
+              <li key={id}>
+                <a href={'#' + id} onClick={(e) => { const d = e.target.closest('details'); if (d) d.removeAttribute('open'); }}>
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </details>
       <div className="docs-layout">
         <nav className="docs-nav" aria-label="Daftar isi panduan">
           <b>Daftar Isi</b>
