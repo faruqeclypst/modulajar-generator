@@ -541,3 +541,131 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .dok-acuan-ul li.aktif { background: var(--wash); }
 .dok-acuan-ul input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: var(--red); }
 .dok-acuan-ul label { font-size: 14.5px; line-height: 1.45; cursor: pointer; }
+
+/* situs: landing baru, docs, formulir masukan (Agen 10, w10-situs) */
+/* Keputusan (R-31): rantai dokumen vertikal karena alur CP->modul->soal adalah
+   cerita produknya; satu kartu harga jujur karena memang hanya ada satu skema;
+   sidebar docs untuk pencarian jawaban cepat ala guru. */
+
+/* ---------- landing: hero ---------- */
+.kicker-light { background: var(--paper); color: var(--ink); }
+.btn-ghost-light {
+  background: transparent; color: var(--paper); border: 2px solid var(--paper);
+  box-shadow: none;
+}
+.btn-ghost-light:hover { background: rgba(251, 246, 238, .12); box-shadow: none; transform: none; }
+.hero-note { color: var(--paper); opacity: .85; font-size: 13.5px; margin: 14px 0 0; position: relative; z-index: 2; }
+
+/* ---------- landing: rantai dokumen ---------- */
+.land-chain { list-style: none; margin: 8px 0 0; padding: 0; }
+.land-chain-group {
+  border: var(--bd); background: var(--paper-2); box-shadow: var(--sh);
+  padding: clamp(18px, 3vw, 28px); margin: 0 0 18px;
+}
+.land-chain-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.land-chain-num {
+  font-weight: 900; font-size: 15px; letter-spacing: 2px; text-transform: uppercase;
+  background: var(--red); color: #fff; padding: 5px 12px;
+}
+.land-chain-head p { margin: 0; color: var(--slate); font-size: 14.5px; flex: 1; min-width: 220px; }
+.land-chain-docs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.land-chain-docs li {
+  border: 2px solid var(--wash); background: var(--paper); padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.land-chain-docs b { font-size: 15px; }
+.land-chain-docs span:last-child { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+/* ---------- landing: cara kerja ---------- */
+.land-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 14px; }
+.land-step { display: flex; gap: 18px; align-items: flex-start; margin: 0; }
+.land-step > b { font-size: 40px; font-weight: 900; color: var(--red); line-height: 1; flex: none; }
+.land-step h3 { margin: 2px 0 6px; font-size: 18px; }
+.land-step p { margin: 0; font-size: 14px; color: var(--slate); }
+
+/* ---------- landing: harga ---------- */
+.land-price { padding: clamp(22px, 4vw, 36px); }
+.land-price-main { display: flex; gap: 20px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+.land-price-num { font-size: 72px; font-weight: 900; color: var(--red); line-height: 1; }
+.land-price-main b { font-size: 17px; }
+.land-price-main p { margin: 6px 0 0; color: var(--slate); font-size: 14.5px; max-width: 52ch; }
+.land-price-list { list-style: none; margin: 0; padding: 18px 0 0; border-top: 2px solid var(--wash); display: grid; gap: 10px; }
+.land-price-list li { font-size: 14.5px; color: var(--slate); padding-left: 26px; position: relative; }
+.land-price-list li::before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 900; }
+
+/* ---------- landing: faq ---------- */
+.land-faq { display: grid; gap: 12px; }
+.land-faq-item { margin: 0; padding: 0; }
+.land-faq-item summary {
+  cursor: pointer; font-weight: 800; font-size: 16px; padding: 16px 20px;
+  list-style: none; display: flex; align-items: center; gap: 10px; min-height: 44px;
+}
+.land-faq-item summary::-webkit-details-marker { display: none; }
+.land-faq-item summary::before {
+  content: "+"; flex: none; width: 28px; height: 28px; border: var(--bd);
+  display: inline-grid; place-items: center; font-size: 18px; color: var(--red);
+}
+.land-faq-item[open] summary::before { content: "–"; }
+.land-faq-item p { margin: 0; padding: 0 20px 18px 58px; color: var(--slate); font-size: 14.5px; }
+
+/* ---------- landing: footer ---------- */
+.land-footer {
+  border-top: var(--bd); margin-top: 64px; padding: 28px 0 10px;
+  display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;
+}
+.land-footer-brand { display: flex; align-items: center; gap: 12px; }
+.land-footer-brand > div { display: flex; flex-direction: column; }
+.land-footer-brand span:last-child { font-size: 13px; color: var(--muted); }
+.logo-box {
+  width: 40px; height: 40px; background: var(--red); color: #fff; font-weight: 900;
+  font-size: 22px; display: inline-grid; place-items: center; border: var(--bd);
+  box-shadow: var(--sh-btn);
+}
+.land-footer nav { display: flex; gap: 18px; flex-wrap: wrap; }
+.land-footer nav a, .linklike {
+  color: var(--ink); font-weight: 700; font-size: 14.5px; text-decoration: none;
+  background: none; border: none; padding: 6px 2px; font-family: inherit; cursor: pointer;
+}
+.land-footer nav a:hover, .linklike:hover { color: var(--red); text-decoration: underline; }
+.land-copy { width: 100%; font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+
+/* ---------- docs ---------- */
+.docs-layout { display: grid; grid-template-columns: 230px 1fr; gap: 32px; align-items: start; margin-top: 8px; }
+.docs-nav {
+  position: sticky; top: 76px; border: var(--bd); background: var(--paper-2);
+  box-shadow: var(--sh); padding: 16px;
+}
+.docs-nav b { display: block; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+.docs-nav ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.docs-nav a {
+  display: block; padding: 8px 10px; color: var(--slate); text-decoration: none;
+  font-size: 14px; font-weight: 600; border-left: 3px solid transparent;
+}
+.docs-nav a:hover { color: var(--ink); background: var(--wash); border-left-color: var(--red); }
+.docs-body { min-width: 0; }
+.docs-sec { margin-bottom: 40px; scroll-margin-top: 76px; }
+.docs-sec h2 { font-size: 24px; font-weight: 800; margin: 0 0 12px; letter-spacing: -.5px; }
+.docs-sec p, .docs-sec li { font-size: 15px; color: var(--slate); }
+.docs-sec p { margin: 0 0 12px; max-width: 68ch; }
+.docs-sec ol, .docs-sec ul { margin: 0 0 12px; padding-left: 22px; display: grid; gap: 6px; }
+.docs-sec b { color: var(--ink); }
+
+/* ---------- formulir masukan ---------- */
+.fb-form { max-width: 640px; }
+.tick {
+  flex: none; width: 28px; height: 28px; border-radius: 999px; background: var(--ok);
+  color: #fff; display: inline-grid; place-items: center; font-weight: 900; font-size: 15px;
+}
+.fb-done { display: flex; gap: 14px; align-items: flex-start; max-width: 640px; }
+.fb-done p { margin: 4px 0 0; color: var(--slate); font-size: 14.5px; }
+
+@media (max-width: 760px) {
+  .docs-layout { grid-template-columns: 1fr; }
+  .docs-nav { position: static; }
+  .docs-nav ul { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
+  .docs-nav li { flex: none; }
+  .docs-nav a { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; }
+  .docs-nav a:hover { border-bottom-color: var(--red); }
+  .land-price-num { font-size: 56px; }
+  .land-faq-item p { padding-left: 20px; }
+}
