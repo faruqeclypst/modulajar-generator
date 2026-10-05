@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { JENJANG, FASE, MAPEL, MODEL } from '../lib/referensi';
 import { DOC_TYPES, SEMESTER } from '../lib/docs';
 import { generateDoc, rekomendasiAI, extractTitle, getProfile, saveProfile } from '../lib/api';
-import { saveModul, savePaket } from '../lib/db';
+import { saveModul, savePaket, getModul } from '../lib/db';
 import UnggahDokumen from './UnggahDokumen';
 
 // Urutan rantai: tiap dokumen menjadi acuan otomatis bagi dokumen berikutnya
@@ -27,6 +27,9 @@ const MODE_INFO = {
   pelaksanaan: { nama: 'Paket Pelaksanaan', meta: '4 dokumen · sekitar 3 menit', desc: 'Modul Ajar, LKPD, Paket Soal, KKTP per topik.' },
 };
 const ID_PERENCANAAN = ['cp', 'atp', 'prota', 'prosem'];
+
+// Hasil paket terakhir disimpan agar tahan refresh halaman
+const KUNCI_RUN = 'modulajar.paketTerakhir';
 
 const emptyForm = {
   nama: '', sekolah: '', tahunAjaran: '',
@@ -60,7 +63,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
   const [hasilIds, setHasilIds] = useState([]);
   const [errForm, setErrForm] = useState({});
   const ctxRef = useRef({});
-  const hasilRef = useRef([]);
+  const [runTersimpan, setRunTersimpan] = useState(null);
   const rekomRef = useRef(null);
   const batalRef = useRef(false);
   const timerRef = useRef(null);
@@ -72,6 +75,15 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.jenjang]);
   useEffect(() => () => { clearInterval(timerRef.current); }, []);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(KUNCI_RUN);
+      if (raw) {
+        const r = JSON.parse(raw);
+        if (r && Array.isArray(r.hasil) && r.hasil.length) setRunTersimpan(r);
+      }
+    } catch { /* abaikan */ }
+  }, []);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -104,6 +116,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
     setSubStatus('');
     setSteps(ids.map((id, i) => ({ id, status: i < dari ? 'ok' : 'antri' })));
     const t0 = Date.now() - (dari > 0 ? detik * 1000 : 0);
+    const semua = dari > 0 ? [...hasilIds] : [];
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => setDetik(Math.floor((Date.now() - t0) / 1000)), 1000);
     let pos = dari;
@@ -133,19 +146,21 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
         );
         if (batalRef.current) return;
         ctxRef.current[id] = md;
+        const judul = extractTitle(md);
         const docId = await saveModul({
-          docType: id, judul: extractTitle(md),
+          docType: id, judul,
           jenjang: info0.jenjang, fase: info0.fase, kelas: info0.kelas, semester: info0.semester,
           mapel: info0.mapel, topik: info0.topik, alokasi: info.alokasi, model: info.model,
           nama: info0.nama, sekolah: info0.sekolah, tahunAjaran: info0.tahunAjaran,
           markdown: md, images: [],
         });
-        setHasilIds((prev) => [...prev, { id, docId, judul: extractTitle(md) }]);
+        semua.push({ id, docId, judul });
+        setHasilIds([...semua]);
         setSteps((prev) => prev.map((s, j) => (j === pos ? { ...s, status: 'ok' } : s)));
       }
       // Catat paket perencanaan agar muncul di Ruang Perencanaan
       const peta = {};
-      for (const h of hasilRef.current) if (ID_PERENCANAAN.includes(h.id)) peta[h.id] = h.docId;
+      for (const h of semua) if (ID_PERENCANAAN.includes(h.id)) peta[h.id] = h.docId;
       if (Object.keys(peta).length === ID_PERENCANAAN.length) {
         await savePaket({
           mapel: info0.mapel, kelas: info0.kelas, semester: info0.semester,
@@ -155,6 +170,13 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
       }
       saveProfile({ nama: info0.nama, sekolah: info0.sekolah, tahunAjaran: info0.tahunAjaran, jenjang: info0.jenjang });
       clearInterval(timerRef.current);
+      const totalDetik = Math.floor((Date.now() - t0) / 1000);
+      setDetik(totalDetik);
+      try {
+        localStorage.setItem(KUNCI_RUN, JSON.stringify({
+          mode, hasil: semua, detik: totalDetik, selesaiPada: Date.now(),
+        }));
+      } catch { /* abaikan */ }
       setTahap('selesai');
       onChanged && onChanged();
     } catch (e) {
@@ -165,13 +187,34 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
     }
   }
 
-  useEffect(() => { hasilRef.current = hasilIds; }, [hasilIds]);
-
   function mulai() {
     if (!validasi()) return;
     ctxRef.current = {}; rekomRef.current = null;
-    setHasilIds([]); setDetik(0);
+    setHasilIds([]); setDetik(0); setRunTersimpan(null);
+    try { localStorage.removeItem(KUNCI_RUN); } catch { /* abaikan */ }
     jalankan(0);
+    window.scrollTo(0, 0);
+  }
+
+  // Kembalikan tampilan hasil setelah refresh: pastikan dokumen masih ada
+  async function pulihkanHasil() {
+    if (!runTersimpan) return;
+    const ok = [];
+    for (const h of runTersimpan.hasil) {
+      try {
+        const d = await getModul(h.docId);
+        if (d) ok.push({ id: h.id, docId: h.docId, judul: d.judul || h.judul });
+      } catch { /* lewati */ }
+    }
+    if (!ok.length) {
+      setRunTersimpan(null);
+      try { localStorage.removeItem(KUNCI_RUN); } catch { /* abaikan */ }
+      return;
+    }
+    setMode(runTersimpan.mode || 'lengkap');
+    setHasilIds(ok);
+    setDetik(runTersimpan.detik || 0);
+    setTahap('selesai');
     window.scrollTo(0, 0);
   }
 
@@ -193,6 +236,16 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
         CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Paket Soal, dan KKTP disusun berurutan.
         Setiap dokumen otomatis menjadi acuan untuk dokumen berikutnya.
       </p>
+
+      {tahap === 'form' && runTersimpan && (
+        <div className="alert alert-info">
+          <b>Hasil paket terakhir masih tersimpan</b> ({runTersimpan.hasil.length} dokumen,
+          selesai {new Date(runTersimpan.selesaiPada).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}).
+          <div className="btn-row">
+            <button className="btn btn-primary" onClick={pulihkanHasil}>Lihat hasil</button>
+          </div>
+        </div>
+      )}
 
       {tahap === 'form' && (
         <>
