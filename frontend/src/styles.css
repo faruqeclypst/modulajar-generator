@@ -130,6 +130,7 @@ img { max-width: 100%; }
 /* Layar sangat kecil: padatkan topbar agar tidak overflow horizontal */
 @media (max-width: 560px) {
   .topbar-inner { padding: 8px 12px; gap: 8px; }
+  .topbar-acts { border-left: none; padding-left: 0; gap: 8px; }
   .logo-teks { display: none; }
   .logo { gap: 0; }
   .chip-nama { display: none; }
@@ -597,7 +598,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 /* ---------- kredit & paywall ---------- */
 /* pil kredit di topbar: kecil, gaya chip, klik membuka Pengaturan */
 .kuota-pil {
-  display: inline-flex; align-items: center; background: var(--paper-2); color: var(--ink);
+  display: inline-flex; align-items: center; gap: 8px; background: var(--paper-2); color: var(--ink);
   border: 2px solid var(--paper); border-radius: 999px; font: inherit;
   font-weight: 800; font-size: 13px; padding: 8px 14px; min-height: 44px; cursor: pointer;
   white-space: nowrap;

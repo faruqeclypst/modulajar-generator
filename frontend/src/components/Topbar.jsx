@@ -9,6 +9,9 @@ const NAV = [
   ['paket', 'Generator Paket'],
 ];
 
+// View yang ikut menyalakan item nav (konteks orientasi, bukan sekadar URL).
+const NAV_AKTIF = { app: ['app', 'proyek'], ruang: ['ruang'], paket: ['paket'] };
+
 function namaDepan(user) {
   const meta = user?.user_metadata || {};
   const nama = meta.full_name || meta.name || '';
@@ -72,17 +75,20 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
     };
   }
 
-  const navButtons = (mobile) => NAV.map(([v, label]) => (
-    <button
-      key={v}
-      type="button"
-      className={'nav-item' + (view === v ? ' active' : '')}
-      aria-current={view === v ? 'page' : undefined}
-      onClick={() => { onNav(v); if (mobile) setMobileOpen(false); }}
-    >
-      {label}
-    </button>
-  ));
+  const navButtons = (mobile) => NAV.map(([v, label]) => {
+    const aktif = (NAV_AKTIF[v] || [v]).includes(view);
+    return (
+      <button
+        key={v}
+        type="button"
+        className={'nav-item' + (aktif ? ' active' : '')}
+        aria-current={aktif ? 'page' : undefined}
+        onClick={() => { onNav(v); if (mobile) setMobileOpen(false); }}
+      >
+        {label}
+      </button>
+    );
+  });
 
   const foto = avatarUrl(user);
   const diLanding = view === 'landing';
@@ -113,21 +119,24 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
             className="menu-toggle"
             aria-expanded={mobileOpen}
             aria-controls="mobile-nav-panel"
+            aria-label={mobileOpen ? 'Tutup navigasi' : 'Buka navigasi'}
             onClick={() => setMobileOpen((o) => !o)}
           >
             {mobileOpen ? 'Tutup' : 'Menu'}
           </button>
         )}
 
+        <div className="topbar-acts">
         {kuota && (
           <button
             type="button"
             className={'kuota-pil' + (kuota.admin ? ' admin' : '')}
             onClick={onOpenSettings}
-            title={kuota.admin ? 'Akun admin: tanpa batas kredit' : `Sisa ${kuota.sisa} dari ${kuota.batas} kredit hari ini`}
+            title={kuota.admin ? 'Akun admin: tanpa batas kredit' : `Sisa ${kuota.sisa} dari ${kuota.batas} kredit hari ini. Klik untuk buka Pengaturan.`}
             aria-label={kuota.admin ? 'Akun admin, tanpa batas kredit. Buka pengaturan.' : `Sisa kredit ${kuota.sisa} dari ${kuota.batas}. Buka pengaturan.`}
           >
-            {kuota.admin ? 'Admin' : `Kredit ${kuota.sisa}/${kuota.batas}`}
+            <span className="kuota-dot" aria-hidden="true" />
+            {kuota.admin ? 'Admin' : `${kuota.sisa} Kredit`}
           </button>
         )}
 
@@ -171,6 +180,7 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
             </div>
           )}
         </div>
+        </div>
       </div>
 
       <nav
@@ -181,22 +191,6 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
         {mobileOpen && (
           <>
             {navButtons(true)}
-            <button type="button" className="nav-item" onClick={() => { setMobileOpen(false); onOpenSettings(); }}>
-              Pengaturan
-            </button>
-            {onOpenDocs && (
-              <button type="button" className="nav-item" onClick={() => { setMobileOpen(false); onOpenDocs(); }}>
-                Panduan
-              </button>
-            )}
-            {isAdmin && (
-              <button type="button" className="nav-item" onClick={() => { setMobileOpen(false); onNav('admin'); }}>
-                Dashboard Admin
-              </button>
-            )}
-            <button type="button" className="nav-item" onClick={() => { setMobileOpen(false); onSignOut(); }}>
-              Keluar
-            </button>
           </>
         )}
       </nav>

@@ -204,17 +204,28 @@ Aturan:
 
 ### Topbar & Menu Pengguna
 
-- Topbar: latar ink, sticky, tanpa wrap. Kiri: logo (kotak bata berisi "M", nama
-  "ModulAjar" + sub "Perangkat Ajar AI"; di layar sangat kecil hanya kotak "M").
-  Kanan: pil kredit + chip pengguna (foto profil Google bila ada, fallback
-  avatar inisial + nama depan) yang membuka menu: **Pengaturan**, **Keluar**.
-- View landing: hanya logo + tombol "Buka Aplikasi" + pil kredit + chip pengguna
-  (tanpa nav aplikasi). View aplikasi: nav (Dokumen Saya, Ruang Perencanaan,
-  Generator Paket) + pil kredit + chip pengguna (tanpa tombol "Buka Aplikasi").
+- Topbar: latar ink, sticky, tanpa wrap. Tiga zona: **logo** (kiri), **navigasi**
+  (tengah), **area akun** (kanan, dipisah divider tipis di desktop).
+- Logo: kotak bata berisi "M", nama "ModulAjar" + sub "Perangkat Ajar AI";
+  di layar sangat kecil hanya kotak "M".
+- Navigasi: Proyek Saya, Ruang Perencanaan, Generator Paket. Item yang aktif
+  mengikuti konteks, bukan sekadar URL: view detail proyek ikut menyalakan
+  "Proyek Saya". View non-navigasi (wizard, pengaturan, docs, admin) tidak
+  menyalakan item mana pun; orientasi dibantu judul halaman masing-masing.
+- Pil kredit: status ringkas ("20 Kredit" + titik hijau; "Admin" untuk akun
+  admin) yang juga tombol menuju Pengaturan. Bukan sekadar badge.
+- Chip pengguna: foto profil Google bila ada, fallback avatar inisial + nama
+  depan. Membuka satu-satunya menu akun: **Pengaturan**, **Panduan**,
+  **Dashboard Admin** (khusus admin), lalu **Keluar**. Menu tajam (radius 0)
+  mengikuti bahasa visual kertas; tidak ada radius membulat di topbar.
+- Satu menu akun, tidak dua: panel mobile hanya berisi 3 item navigasi.
+  Pengaturan/Panduan/Keluar hanya ada di menu avatar, agar tidak ada duplikat
+  yang membingungkan.
 - Item nav tidak pernah wrap dua baris (`white-space: nowrap`).
-- Di bawah 980px, navigasi menciut menjadi tombol "Menu" yang membuka daftar
-  vertikal yang sama. Batas 980px (bukan 760px) agar tidak berdesakan di
-  laptop kecil / zoom besar. Tidak ada link mati.
+- Di bawah 980px, navigasi menciut menjadi tombol "Menu" (dengan aria-label
+  "Buka/Tutup navigasi") yang membuka daftar vertikal 3 item. Batas 980px
+  (bukan 760px) agar tidak berdesakan di laptop kecil / zoom besar.
+  Tidak ada link mati.
 
 ### Layar Login
 
