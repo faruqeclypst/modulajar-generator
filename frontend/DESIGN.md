@@ -15,7 +15,7 @@ colors:
   red: "#B5362A"
   red-dark: "#8F2A20"
   ok: "#2E7D32"
-  warn: "#9A6B1A"
+  warn: "#8A5E10"
   focus: "#B5362A"
 
 typography:
