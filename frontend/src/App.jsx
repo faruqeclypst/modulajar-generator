@@ -9,6 +9,7 @@ import Pengaturan from './components/Pengaturan';
 import { DOC_TYPES } from './lib/docs';
 import { listModuls, getModul, listPakets, paketProgress } from './lib/db';
 import { getSupabase, getSession } from './lib/supabase';
+import { fetchKuota } from './lib/kuota';
 
 const WA_LINK = 'https://wa.me/6285359907696?text=Halo%2C%20saya%20butuh%20bantuan%20ModulAjar';
 
@@ -155,6 +156,7 @@ export default function App() {
   const [wizardKey, setWizardKey] = useState(0);
   const [wizardPaket, setWizardPaket] = useState(null);
   const [wizardTurunan, setWizardTurunan] = useState(null); // { docType, modulId }
+  const [kuota, setKuota] = useState(null); // { admin, batas, dipakai, sisa, tanggal } | null
 
   // Terapkan preferensi ukuran teks sesegera mungkin
   useEffect(() => {
@@ -163,12 +165,17 @@ export default function App() {
     }
   }, []);
 
+  async function muatKuota() {
+    setKuota(await fetchKuota());
+  }
+
   async function refresh() {
     const all = await listModuls();
     for (const m of all) if (!m.docType) m.docType = 'modul'; // normalisasi dokumen lama
     setModuls(all);
     setPakets(await listPakets());
     setDraft(await getDraft());
+    muatKuota();
   }
 
   useEffect(() => {
@@ -218,6 +225,7 @@ export default function App() {
         view={view}
         onNav={(v) => { setView(v); if (v === 'app') refresh(); }}
         user={user}
+        kuota={kuota}
         onOpenSettings={() => setView('pengaturan')}
         onSignOut={signOut}
       />
@@ -231,17 +239,19 @@ export default function App() {
           preselectPaketId={wizardPaket}
           preselectDocType={wizardTurunan?.docType}
           preselectModulId={wizardTurunan?.modulId}
+          waLink={WA_LINK}
+          onKuotaChanged={muatKuota}
           onCancel={goApp}
           onDone={(id) => { openDoc(id); refresh(); }}
         />
       )}
 
       {view === 'ruang' && (
-        <RuangPerencanaan onBack={goApp} onOpenDoc={openDoc} onBuatModul={(pid) => startNew(pid)} />
+        <RuangPerencanaan onBack={goApp} onOpenDoc={openDoc} onBuatModul={(pid) => startNew(pid)} waLink={WA_LINK} onKuotaChanged={muatKuota} />
       )}
 
       {view === 'paket' && (
-        <GeneratorPaket onBack={goApp} onOpenDoc={openDoc} onChanged={refresh} />
+        <GeneratorPaket onBack={goApp} onOpenDoc={openDoc} onChanged={refresh} waLink={WA_LINK} onKuotaChanged={muatKuota} />
       )}
 
       {view === 'detail' && active && (
@@ -255,7 +265,7 @@ export default function App() {
       )}
 
       {view === 'pengaturan' && (
-        <Pengaturan user={user} waLink={WA_LINK} onRefresh={refresh} onSignOut={signOut} />
+        <Pengaturan user={user} kuota={kuota} waLink={WA_LINK} onRefresh={refresh} onSignOut={signOut} />
       )}
 
       {view === 'app' && (

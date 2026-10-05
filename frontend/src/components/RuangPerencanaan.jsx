@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { JENJANG, FASE, MAPEL } from '../lib/referensi';
 import { DOC_TYPES, ALUR_PERENCANAAN, SEMESTER } from '../lib/docs';
-import { generateDoc, extractTitle, getProfile } from '../lib/api';
+import { generateDocStream, extractTitle, getProfile } from '../lib/api';
 import { saveModul, updateModul, getModul, savePaket, updatePaket, deletePaket, listPakets, getPaket, paketProgress } from '../lib/db';
 import DocEditor from './DocEditor';
-
-const GEN_STAGE = ['Menyiapkan kerangka...', 'Merumuskan dari acuan...', 'Menyusun dokumen...', 'Merapikan hasil...'];
+import ProsesLive from './ProsesLive';
+import Paywall from './Paywall';
 
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
 const BUTUH = { cp: null, atp: 'cp', minggu_efektif: 'atp', prota: 'minggu_efektif', prosem: 'prota' };
 
-export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
+export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, waLink, onKuotaChanged }) {
   const [pakets, setPakets] = useState([]);
   const [paketId, setPaketId] = useState(null);
   const [paket, setPaket] = useState(null);
@@ -193,6 +193,8 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
         <StepWorkspace
           paket={paket}
           stepKey={stepKey}
+          waLink={waLink}
+          onKuotaChanged={onKuotaChanged}
           onClose={() => { setStepKey(null); refresh(); }}
           onOpenDoc={onOpenDoc}
         />
@@ -201,7 +203,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul }) {
   );
 }
 
-function StepWorkspace({ paket, stepKey, onClose, onOpenDoc }) {
+function StepWorkspace({ paket, stepKey, waLink, onKuotaChanged, onClose, onOpenDoc }) {
   const dt = DOC_TYPES[stepKey];
   const need = BUTUH[stepKey];
   const [teks, setTeks] = useState('');       // CP resmi (tempel) / materi tambahan
@@ -209,7 +211,9 @@ function StepWorkspace({ paket, stepKey, onClose, onOpenDoc }) {
   const [sumberJudul, setSumberJudul] = useState('');
   const [markdown, setMarkdown] = useState('');
   const [busy, setBusy] = useState(false);
-  const [stage, setStage] = useState(0);
+  const [tahapLive, setTahapLive] = useState([]);   // tahapan asli dari server
+  const [statusLive, setStatusLive] = useState({});
+  const [paywall, setPaywall] = useState(null);
   const [error, setError] = useState('');
   const [finalMd, setFinalMd] = useState('');
 
@@ -228,15 +232,40 @@ function StepWorkspace({ paket, stepKey, onClose, onOpenDoc }) {
     jenjang: paket.jenjang, fase: paket.fase, kelas: paket.kelas, semester: paket.semester, mapel: paket.mapel,
   };
 
+  function tandaiTahap(key, label) {
+    setTahapLive((prev) => (prev.some((p) => p.key === key) ? prev : [...prev, { key, label }]));
+    setStatusLive((prev) => {
+      const next = { ...prev };
+      for (const k of Object.keys(next)) if (next[k] === 'jalan') next[k] = 'ok';
+      next[key] = 'jalan';
+      return next;
+    });
+  }
+
   async function handleGenerate() {
-    setError(''); setBusy(true); setStage(0);
-    const iv = setInterval(() => setStage((s) => Math.min(s + 1, GEN_STAGE.length - 1)), 8000);
+    setError(''); setPaywall(null); setBusy(true);
+    setTahapLive([]); setStatusLive({});
     try {
       // CP: teks tempelan resmi jadi materi utama. Lainnya: sumber = dokumen acuan sebelumnya.
-      const md = await generateDoc(stepKey, info, teks, stepKey === 'cp' ? '' : sumber);
+      let md = '';
+      await generateDocStream(stepKey, info, teks, stepKey === 'cp' ? '' : sumber, null, (ev) => {
+        if (ev.tipe === 'tahap') tandaiTahap(ev.key, ev.label);
+        else if (ev.tipe === 'selesai') {
+          md = ev.markdown || '';
+          setStatusLive((prev) => {
+            const next = { ...prev };
+            for (const k of Object.keys(next)) next[k] = 'ok';
+            return next;
+          });
+        } else if (ev.tipe === 'gagal') throw new Error(ev.error || 'Generate gagal.');
+      });
+      if (!md.trim()) throw new Error('AI mengembalikan dokumen kosong.');
       setMarkdown(md); setFinalMd(md);
-    } catch (e) { setError(e.message); }
-    finally { clearInterval(iv); setBusy(false); }
+      onKuotaChanged && onKuotaChanged();
+    } catch (e) {
+      if (e.code === 'kuota_habis') setPaywall({ mode: 'kuota_habis', detail: e.detail });
+      else setError(e.message);
+    } finally { setBusy(false); }
   }
 
   async function handleSave() {
@@ -302,11 +331,7 @@ function StepWorkspace({ paket, stepKey, onClose, onOpenDoc }) {
       )}
 
       {busy && (
-        <div className="loader-wrap">
-          <div className="spinner" />
-          <h2 style={{ margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>Menyusun {dt.nama}…</h2>
-          <div className="stage">{GEN_STAGE[stage]}</div>
-        </div>
+        <ProsesLive judul={'Menyusun ' + dt.nama} tahap={tahapLive} status={statusLive} />
       )}
 
       {markdown && !busy && (
@@ -329,6 +354,15 @@ function StepWorkspace({ paket, stepKey, onClose, onOpenDoc }) {
             <button className="btn btn-primary" onClick={handleSave}>Simpan ke Paket</button>
           </div>
         </>
+      )}
+
+      {paywall && (
+        <Paywall
+          mode={paywall.mode}
+          detail={paywall.detail}
+          waLink={waLink}
+          onClose={() => setPaywall(null)}
+        />
       )}
     </div>
   );

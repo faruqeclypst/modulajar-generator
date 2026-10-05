@@ -246,6 +246,26 @@ Aturan:
 - Alert info: border ink, latar wash. Alert error: border bata, teks bata
   gelap. Selalu berisi tindakan ("Muat ulang", "Coba lagi").
 
+### Kuota & Paywall
+
+- Aturan: 1 dokumen selesai dibuat = 1 kuota. User biasa mendapat
+  `KUOTA_HARIAN` dokumen per hari, reset harian WIB. Admin (`ADMIN_EMAILS`,
+  default faruq.blogger@gmail.com, komparasi case-insensitive): tanpa batas,
+  tidak dihitung.
+- Generate dokumen tunggal memakai endpoint SSE `POST /api/generate-doc/stream`
+  yang menampilkan tahapan asli server (fondasi, kegiatan, koreksi bila ada,
+  asesmen, rakit; satu tahap "susun" untuk dokumen non-modul).
+- Pembuatan paket (`POST /api/paket`) mengecek kuota di awal: estimasi =
+  jumlah dokumen paket. Job yang sudah berjalan tidak diblokir di tengah jalan.
+- Komponen: `ProsesLive` (stepper vertikal tahapan asli + bilah progres +
+  timer, gaya kartu job), `Paywall` (modal dua mode: kuota_habis dan upgrade;
+  tombol "Upgrade Sekarang" memanggil seam `lib/bayar.js mulaiUpgrade()` yang
+  masih stub dan jujur menampilkan "Pembayaran segera hadir" + opsi WhatsApp),
+  pil kuota di topbar ("Kuota X/Y" atau "Admin", klik membuka Pengaturan),
+  seksi "Kuota & Langganan" di Pengaturan.
+- Copy jujur: "Kuota harian habis. Kuota diperbarui besok." Tanpa klaim palsu,
+  tanpa countdown palsu.
+
 ## Screens
 
 1. **Login**: kartu terpusat (lihat komponen Layar Login).

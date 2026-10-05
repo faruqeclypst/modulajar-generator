@@ -42,7 +42,17 @@ create table if not exists jobs (
 );
 create index if not exists jobs_user_idx on jobs(user_id, created_at desc);
 
--- 4) Row Level Security: tiap user hanya bisa akses datanya sendiri
+-- 4) Kuota harian per user (1 dokumen selesai = 1 kuota; reset harian WIB)
+--    Cara pakai: jalankan section ini di Supabase Dashboard → SQL Editor.
+--    Backend menambah/membaca baris hari ini via service-role (melewati RLS).
+create table if not exists kuota_harian (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  tanggal date not null,
+  dipakai int not null default 0,
+  primary key (user_id, tanggal)
+);
+
+-- 5) Row Level Security: tiap user hanya bisa akses datanya sendiri
 alter table dokumen enable row level security;
 alter table paket enable row level security;
 alter table jobs enable row level security;
@@ -58,3 +68,8 @@ create policy "own_paket" on paket for all
 drop policy if exists "own_jobs" on jobs;
 create policy "own_jobs" on jobs for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+alter table kuota_harian enable row level security;
+drop policy if exists "own_kuota" on kuota_harian;
+create policy "own_kuota" on kuota_harian for select
+  using (auth.uid() = user_id);

@@ -456,3 +456,42 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 
 /* judul tidak tertutup navbar lengket saat scroll */
 .paper, .card { scroll-margin-top: 90px; }
+
+/* ---------- kuota & paywall ---------- */
+/* pil kuota di topbar: kecil, gaya chip, klik membuka Pengaturan */
+.kuota-pil {
+  display: inline-flex; align-items: center; background: var(--paper-2); color: var(--ink);
+  border: 2px solid var(--paper); border-radius: 999px; font: inherit;
+  font-weight: 800; font-size: 13px; padding: 8px 14px; min-height: 44px; cursor: pointer;
+}
+.kuota-pil:hover { background: #fff; }
+.kuota-pil.admin { background: var(--red); color: #fff; }
+.kuota-pil:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .kuota-pil { font-size: 12px; padding: 8px 10px; }
+}
+
+/* spinner kecil di dalam job-dot tahap berjalan */
+.spinner-sm {
+  width: 18px; height: 18px; margin: 0; border-width: 3px;
+  border-color: rgba(255,255,255,.35); border-top-color: #fff;
+}
+
+/* modal paywall: overlay ink 60%, kartu paper-2, border 2px ink, shadow kaku */
+.paywall-overlay {
+  position: fixed; inset: 0; background: rgba(36,31,27,.6); z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.paywall-card {
+  background: var(--paper-2); border: var(--bd); box-shadow: var(--sh);
+  max-width: 480px; width: 100%; padding: 32px;
+}
+.paywall-card h2 {
+  margin: 0 0 12px; font-size: 24px; font-weight: 900;
+  text-transform: uppercase; letter-spacing: -.5px;
+}
+.paywall-card p { color: var(--slate); margin: 0 0 20px; line-height: 1.65; }
+.paywall-card .btn-row { margin-bottom: 0; }
+@media (max-width: 560px) {
+  .paywall-card { padding: 24px 20px; }
+}

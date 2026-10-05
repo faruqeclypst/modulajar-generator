@@ -18,6 +18,48 @@ export async function generateDoc(docType, info, materi, sumber, rekomendasi) {
   return d.markdown;
 }
 
+// Generate dokumen dengan progress live via Server-Sent Events.
+// onEvent menerima objek per baris "data:" dari backend:
+//   { tipe:'tahap', key, label } | { tipe:'selesai', markdown } | { tipe:'gagal', error }
+// Bila kuota habis (HTTP 402), throw Error dengan properti code='kuota_habis'
+// dan detail berisi body JSON (butuh/sisa/batas).
+export async function generateDocStream(docType, info, materi, sumber, rekomendasi, onEvent) {
+  const body = { docType, info, materi, sumber };
+  if (rekomendasi) body.rekomendasi = rekomendasi;
+  const r = await fetch('/api/generate-doc/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    const err = new Error(d.error || 'Gagal menghubungi AI.');
+    err.code = d.code;
+    err.detail = d;
+    throw err;
+  }
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf('\n\n')) !== -1) {
+      const chunk = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      for (const line of chunk.split('\n')) {
+        const t = line.trim();
+        if (t.startsWith('data:')) {
+          try { onEvent(JSON.parse(t.slice(5).trim())); }
+          catch { /* baris rusak, abaikan */ }
+        }
+      }
+    }
+  }
+}
+
 export async function regenBlock(docType, blockType, blockText, docTitle, topic) {
   const r = await fetch('/api/regen-block', {
     method: 'POST',

@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import Paywall from './Paywall';
 
 // Halaman Pengaturan: hanya kontrol nyata, semuanya berfungsi.
-export default function Pengaturan({ user, waLink, onRefresh, onSignOut }) {
+export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }) {
   const meta = user?.user_metadata || {};
   const nama = meta.full_name || meta.name || '';
   const email = user?.email || '';
@@ -10,6 +11,7 @@ export default function Pengaturan({ user, waLink, onRefresh, onSignOut }) {
   const [besar, setBesar] = useState(() => localStorage.getItem('ma-font-besar') === '1');
   const [memuat, setMemuat] = useState(false);
   const [catatan, setCatatan] = useState('');
+  const [paywall, setPaywall] = useState(null);
 
   function pilihUkuran(v) {
     setBesar(v);
@@ -58,6 +60,31 @@ export default function Pengaturan({ user, waLink, onRefresh, onSignOut }) {
             <p className="hint" style={{ margin: '4px 0 0' }}>Diambil dari akun Google, tidak bisa diubah di sini.</p>
           </div>
         </div>
+      </section>
+
+      <section className="card" aria-labelledby="set-kuota">
+        <h2 className="sec" id="set-kuota" style={{ marginTop: 0 }}>Kuota &amp; Langganan</h2>
+        {!kuota && (
+          <p style={{ marginBottom: 0 }}>Memuat status kuota…</p>
+        )}
+        {kuota && kuota.admin && (
+          <p style={{ marginBottom: 0 }}>
+            <span className="chip red">Tanpa batas (Admin)</span>
+          </p>
+        )}
+        {kuota && !kuota.admin && (
+          <>
+            <p style={{ marginTop: 0 }}>
+              Sisa <b>{kuota.sisa}</b> dari <b>{kuota.batas}</b> dokumen hari ini.
+              Kuota diperbarui setiap hari.
+            </p>
+            <div className="btn-row" style={{ marginTop: 12, marginBottom: 0 }}>
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => setPaywall({ mode: 'upgrade' })}>
+                Upgrade
+              </button>
+            </div>
+          </>
+        )}
       </section>
 
       <section className="card" aria-labelledby="set-tampilan">
@@ -112,6 +139,15 @@ export default function Pengaturan({ user, waLink, onRefresh, onSignOut }) {
           <button type="button" className="btn btn-sm btn-danger" onClick={keluar}>Keluar dari aplikasi</button>
         </div>
       </section>
+
+      {paywall && (
+        <Paywall
+          mode={paywall.mode}
+          detail={null}
+          waLink={waLink}
+          onClose={() => setPaywall(null)}
+        />
+      )}
     </div>
   );
 }

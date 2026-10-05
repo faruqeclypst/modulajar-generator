@@ -71,4 +71,4 @@ export const FIELD_LABEL = {
   model: 'Model Pembelajaran', jmlPG: 'Jumlah Soal PG', jmlUraian: 'Jumlah Soal Uraian',
 };
 
-export const SEMESTER = ['Ganjil', 'Genap'];
+export const SEMESTER = ['Ganjil', 'Genap', 'Ganjil + Genap (1 tahun ajaran)'];

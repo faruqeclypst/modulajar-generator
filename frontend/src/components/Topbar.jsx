@@ -22,7 +22,7 @@ function inisial(user) {
   return (n[0] || 'G').toUpperCase();
 }
 
-export default function Topbar({ view, onNav, user, onOpenSettings, onSignOut }) {
+export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onSignOut }) {
   const [open, setOpen] = useState(false); // menu pengguna
   const [mobileOpen, setMobileOpen] = useState(false); // panel navigasi mobile
   const triggerRef = useRef(null);
@@ -105,6 +105,18 @@ export default function Topbar({ view, onNav, user, onOpenSettings, onSignOut })
         >
           Menu
         </button>
+
+        {kuota && (
+          <button
+            type="button"
+            className={'kuota-pil' + (kuota.admin ? ' admin' : '')}
+            onClick={onOpenSettings}
+            title={kuota.admin ? 'Akun admin: tanpa batas kuota' : `Sisa ${kuota.sisa} dari ${kuota.batas} dokumen hari ini`}
+            aria-label={kuota.admin ? 'Akun admin, tanpa batas kuota. Buka pengaturan.' : `Sisa kuota ${kuota.sisa} dari ${kuota.batas}. Buka pengaturan.`}
+          >
+            {kuota.admin ? 'Admin' : `Kuota ${kuota.sisa}/${kuota.batas}`}
+          </button>
+        )}
 
         <div className="user-menu-wrap">
           <button

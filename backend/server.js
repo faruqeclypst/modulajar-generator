@@ -13,6 +13,52 @@ app.use(express.json({ limit: '2mb' }));
 const KENARI_URL = 'https://kenari.id/v1/chat/completions';
 const MODEL = 'agnes-3-0-flash:free';
 
+// ============ KUOTA HARIAN ============
+const KUOTA_HARIAN = parseInt(process.env.KUOTA_HARIAN || '10', 10);
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'faruq.blogger@gmail.com')
+  .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+function isAdmin(user) {
+  return ADMIN_EMAILS.includes((user?.email || '').toLowerCase());
+}
+// Tanggal hari ini dalam WIB (format YYYY-MM-DD), untuk reset harian kuota
+function tanggalWIB() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+}
+async function kuotaInfo(userId) {
+  const tanggal = tanggalWIB();
+  let dipakai = 0;
+  if (sb) {
+    const { data } = await sb.from('kuota_harian')
+      .select('dipakai').eq('user_id', userId).eq('tanggal', tanggal).single();
+    dipakai = data?.dipakai || 0;
+  }
+  return { batas: KUOTA_HARIAN, dipakai, sisa: Math.max(0, KUOTA_HARIAN - dipakai), tanggal };
+}
+async function tambahKuota(userId, n = 1) {
+  if (!sb) return;
+  const tanggal = tanggalWIB();
+  const { data } = await sb.from('kuota_harian')
+    .select('dipakai').eq('user_id', userId).eq('tanggal', tanggal).single();
+  if (data) {
+    await sb.from('kuota_harian').update({ dipakai: data.dipakai + n })
+      .eq('user_id', userId).eq('tanggal', tanggal);
+  } else {
+    await sb.from('kuota_harian').insert({ user_id: userId, tanggal, dipakai: n });
+  }
+}
+async function cekKuota(userId, butuh = 1) {
+  const info = await kuotaInfo(userId);
+  return { ...info, cukup: info.sisa >= butuh };
+}
+// Email user dari id (untuk penentuan admin di job yang berjalan di background)
+async function emailOf(userId) {
+  try {
+    const { data } = await sb.auth.admin.getUserById(userId);
+    return data?.user?.email || '';
+  } catch { return ''; }
+}
+
 // ============ SUPABASE ============
 const SB_URL = process.env.SUPABASE_URL || '';
 const SB_ANON = process.env.SUPABASE_ANON_KEY || '';
@@ -411,8 +457,9 @@ function ekstrakJson(raw) {
   }
 }
 
-async function generateModulPipeline(info, materi, sumber, rekomendasi) {
+async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap = () => {}) {
   // Tahap 1 — fondasi terstruktur
+  await onTahap('fondasi');
   const p1 = promptTahap1(info, materi, sumber, rekomendasi);
   let fondasi;
   try {
@@ -425,6 +472,7 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi) {
   if (!fondasi || !Array.isArray(fondasi.tp) || fondasi.tp.length < 1) throw new Error('Tahap 1 gagal: TP kosong.');
 
   // Tahap 2 — kegiatan + validasi menit (retry 1x dengan koreksi)
+  await onTahap('kegiatan');
   const { totalMenit, label } = parseAlokasi(info.alokasi);
   const budget = budgetKegiatan(totalMenit);
   const sintaks = deteksiSintaks(info.model || (rekomendasi && rekomendasi.model) || '');
@@ -434,6 +482,7 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi) {
   const target = budget.pendahuluan + budget.inti + budget.penutup;
   if (totalKegiatan !== target) {
     console.warn(`[modulajar] tahap 2: total menit ${totalKegiatan} != ${target} (${label}), retry dengan koreksi`);
+    await onTahap('koreksi');
     const koreksi = `\n\nKOREKSI: total menit kegiatanmu ${totalKegiatan}, HARUS TEPAT ${target} (Pendahuluan ${budget.pendahuluan} + Inti ${budget.inti} + Penutup ${budget.penutup}). Tulis ulang dengan total yang tepat.`;
     kegiatanMd = await ai(p2.system, p2.user + koreksi, 6000, 0.5);
     totalKegiatan = jumlahMenit(kegiatanMd);
@@ -441,10 +490,12 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi) {
   }
 
   // Tahap 3 — asesmen & pelengkap dari TP
+  await onTahap('asesmen');
   const p3 = promptTahap3(info, fondasi, materi, sumber);
   const asesmenMd = await ai(p3.system, p3.user, 5000, 0.7);
 
   // Tahap 4 — assembly + validasi akhir
+  await onTahap('rakit');
   const markdown = rakitModul(info, fondasi, budget, sintaks, kegiatanMd.trim(), asesmenMd.trim());
   const masalah = validasiAkhir(markdown, budget);
   if (masalah.length) console.warn('[modulajar] validasi akhir:', masalah.join(' | '));
@@ -767,17 +818,18 @@ Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 };
 
 // Inti generate satu dokumen — dipakai route langsung maupun job paket
-async function generateDocInternal(docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null) {
+async function generateDocInternal(docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null, onTahap = () => {}) {
   if (!process.env.KENARI_API_KEY) throw new Error('Kunci AI belum dikonfigurasi di server.');
   if (docType === 'modul') {
     try {
-      return await generateModulPipeline(info, materi, sumber, rekomendasi);
+      return await generateModulPipeline(info, materi, sumber, rekomendasi, onTahap);
     } catch (e) {
       console.error('[modulajar] pipeline gagal, fallback ke single-shot:', e.message);
     }
   }
   const system = docType === 'modul' ? LEGACY_MODUL : PROMPTS[docType];
   if (!system) throw new Error('Jenis dokumen tidak dikenal: ' + docType);
+  await onTahap('susun');
   const userMsg = `Susun dokumen dengan data berikut:\n${IDENT(info)}\n- Materi Pokok/Topik: ${info.topik || '-'}\n- Alokasi Waktu: ${info.alokasi || '-'}\n- Model Pembelajaran: ${info.model || '-'}\n- Jumlah Soal PG: ${info.jmlPG || '-'} | Uraian: ${info.jmlUraian || '-'}\n\n${konteksSumber(materi, sumber)}`;
   return await ai(system, userMsg);
 }
@@ -883,6 +935,8 @@ async function jalankanJob(jobId) {
     let job = await sbGetJob(jobId);
     if (job.status !== 'berjalan' && job.status !== 'antri') return;
     const userId = job.user_id;
+    // Admin tidak dibatasi dan tidak dihitung kuotanya (ditentukan sekali di awal job)
+    const adminJob = ADMIN_EMAILS.includes((await emailOf(userId) || '').toLowerCase());
     const cfg = job.config || {};
     const info0 = cfg.info || {};
     const uploads = cfg.uploads || {};
@@ -965,6 +1019,7 @@ async function jalankanJob(jobId) {
         const judul = extractTitle(markdown);
         const meta = { ...info0, topik: step.topik || topiks.join('; ') };
         const dokumenId = await simpanDokumen(userId, step.docType, judul, markdown, meta, images);
+        if (!adminJob) await tambahKuota(userId, 1); // 1 dokumen selesai = 1 kuota
         md[keyOf(step)] = markdown;
         hasil.push({ key: keyOf(step), docType: step.docType, topik: step.topik || null, dokumenId, judul });
         step.status = 'ok';
@@ -1039,6 +1094,17 @@ app.post('/api/paket', requireAuth(async (req, res) => {
     if ((mode === 'lengkap' || mode === 'pelaksanaan') && !daftarTopik.length)
       return res.status(400).json({ ok: false, error: 'Daftar topik kosong.' });
     const langkah = rencanaJob(mode, daftarTopik);
+    // Cek kuota SEBELUM job dibuat: estimasi = jumlah dokumen yang akan disusun
+    if (!isAdmin(req.user)) {
+      const cek = await cekKuota(req.user.id, langkah.length);
+      if (!cek.cukup) {
+        return res.status(402).json({
+          ok: false, code: 'kuota_habis',
+          error: 'Kuota harian tidak cukup untuk paket ini.',
+          butuh: langkah.length, sisa: cek.sisa, batas: cek.batas,
+        });
+      }
+    }
     const { data, error } = await sb.from('jobs').insert({
       user_id: req.user.id, mode, status: 'antri',
       config: { info, materi: materi || '', topiks: daftarTopik, uploads: uploads || {} },
@@ -1121,10 +1187,96 @@ app.get('/api/config', (req, res) => {
 app.post('/api/generate-doc', requireAuth(async (req, res) => {
   try {
     const { docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null } = req.body;
+    if (sb && !isAdmin(req.user)) {
+      const cek = await cekKuota(req.user.id, 1);
+      if (!cek.cukup) {
+        return res.status(402).json({
+          ok: false, code: 'kuota_habis',
+          error: 'Kuota harian habis. Kuota diperbarui besok.',
+          butuh: 1, sisa: cek.sisa, batas: cek.batas,
+        });
+      }
+    }
     const markdown = await generateDocInternal(docType, info, materi, sumber, rekomendasi);
+    if (sb && !isAdmin(req.user)) await tambahKuota(req.user.id, 1);
     res.json({ ok: true, markdown });
   } catch (e) {
     res.status(500).json({ ok: false, error: 'Kesalahan server: ' + (e.message || e) });
+  }
+}));
+
+// Nama dokumen untuk label tahap stream
+const NAMA_DOKUMEN = {
+  modul: 'Modul Ajar', lkpd: 'LKPD', soal: 'Paket Soal', kktp: 'KKTP',
+  cp: 'CP', atp: 'ATP', prota: 'Prota', prosem: 'Prosem', minggu_efektif: 'Minggu Efektif',
+};
+const TAHAP_LABEL = {
+  fondasi: 'Menyusun fondasi: CP, TP, dan dimensi lulusan',
+  kegiatan: 'Menyusun kegiatan inti mengikuti sintaks model',
+  koreksi: 'Mengoreksi alokasi waktu',
+  asesmen: 'Menyusun asesmen dan pelengkap',
+  rakit: 'Merakit dokumen final',
+};
+
+// Generate dokumen tunggal dengan progress live via Server-Sent Events.
+// Kuota dicek DULU (402 JSON biasa bila habis), lalu stream event:
+//   data: {"tipe":"tahap","key":"...","label":"..."}
+//   data: {"tipe":"selesai","markdown":"..."} | data: {"tipe":"gagal","error":"..."}
+app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
+  try {
+    const { docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null } = req.body || {};
+    if (sb && !isAdmin(req.user)) {
+      const cek = await cekKuota(req.user.id, 1);
+      if (!cek.cukup) {
+        return res.status(402).json({
+          ok: false, code: 'kuota_habis',
+          error: 'Kuota harian habis. Kuota diperbarui besok.',
+          butuh: 1, sisa: cek.sisa, batas: cek.batas,
+        });
+      }
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no', // penting: nginx tidak boleh buffer, kalau tidak "live" gagal
+    });
+    const kirim = (obj) => {
+      if (!res.writableEnded) res.write('data: ' + JSON.stringify(obj) + '\n\n');
+    };
+    const namaDoc = NAMA_DOKUMEN[docType] || 'dokumen';
+    const onTahap = async (key) => {
+      kirim({ tipe: 'tahap', key, label: key === 'susun' ? 'Menyusun ' + namaDoc : (TAHAP_LABEL[key] || key) });
+    };
+    try {
+      const markdown = await generateDocInternal(docType, info, materi, sumber, rekomendasi, onTahap);
+      if (sb && !isAdmin(req.user)) await tambahKuota(req.user.id, 1);
+      kirim({ tipe: 'selesai', markdown });
+    } catch (e) {
+      kirim({ tipe: 'gagal', error: e.message || String(e) });
+    }
+    res.end();
+  } catch (e) {
+    if (!res.headersSent) res.status(500).json({ ok: false, error: 'Kesalahan server: ' + (e.message || e) });
+    else res.end();
+  }
+}));
+
+// Status kuota harian user yang login
+app.get('/api/kuota', requireAuth(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const admin = isAdmin(req.user);
+    const info = await kuotaInfo(req.user.id);
+    res.json({
+      ok: true, admin,
+      batas: admin ? null : info.batas,
+      dipakai: admin ? 0 : info.dipakai,
+      sisa: admin ? null : info.sisa,
+      tanggal: info.tanggal,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
   }
 }));
 

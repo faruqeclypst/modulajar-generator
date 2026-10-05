@@ -4,6 +4,7 @@ import { DOC_TYPES, SEMESTER } from '../lib/docs';
 import { getProfile, saveProfile } from '../lib/api';
 import { getToken } from '../lib/supabase';
 import UnggahDokumen from './UnggahDokumen';
+import Paywall from './Paywall';
 
 // Generator Paket via job backend: browser boleh ditutup, job tetap jalan di server.
 const RANTAI_LABEL = {
@@ -41,11 +42,16 @@ async function apiJob(path, method, body) {
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const d = await r.json().catch(() => ({}));
-  if (!d.ok) throw new Error(d.error || 'Server tidak merespons.');
+  if (!d.ok) {
+    const err = new Error(d.error || 'Server tidak merespons.');
+    err.code = d.code;
+    err.detail = d;
+    throw err;
+  }
   return d;
 }
 
-export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
+export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, onKuotaChanged }) {
   const [mode, setMode] = useState('lengkap');
   const [form, setForm] = useState(() => ({ ...emptyForm, ...getProfile() }));
   const [tahap, setTahap] = useState('form'); // form | jalan | selesai
@@ -54,6 +60,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
   const [errJalan, setErrJalan] = useState('');
   const [detik, setDetik] = useState(0);
   const [jobAktif, setJobAktif] = useState([]);
+  const [paywall, setPaywall] = useState(null); // {mode, detail}
   const pollRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -114,7 +121,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
         setJob(d.job);
         if (['selesai', 'gagal', 'dibatalkan'].includes(d.job.status)) {
           hentikanPoll();
-          if (d.job.status === 'selesai') { setTahap('selesai'); onChanged && onChanged(); }
+          if (d.job.status === 'selesai') { setTahap('selesai'); onChanged && onChanged(); onKuotaChanged && onKuotaChanged(); }
         }
         cekJobAktif();
       } catch (e) {
@@ -129,6 +136,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
   async function mulai() {
     if (!validasi()) return;
     setErrJalan('');
+    setPaywall(null);
     try {
       saveProfile({ nama: form.nama, sekolah: form.sekolah, tahunAjaran: form.tahunAjaran, jenjang: form.jenjang });
       const d = await apiJob('/api/paket', 'POST', {
@@ -145,7 +153,9 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
       });
       pantau(d.jobId);
     } catch (e) {
-      setErrJalan(e.message || 'Gagal memulai job.');
+      // Kuota tidak cukup → buka Paywall dengan rincian butuh/sisa
+      if (e.code === 'kuota_habis') setPaywall({ mode: 'kuota_habis', detail: e.detail });
+      else setErrJalan(e.message || 'Gagal memulai job.');
     }
   }
 
@@ -405,6 +415,15 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
             <button className="btn" onClick={onBack}>Kembali ke Beranda</button>
           </div>
         </>
+      )}
+
+      {paywall && (
+        <Paywall
+          mode={paywall.mode}
+          detail={paywall.detail}
+          waLink={waLink}
+          onClose={() => setPaywall(null)}
+        />
       )}
     </div>
   );

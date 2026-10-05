@@ -1,23 +1,18 @@
 import { useEffect, useState } from 'react';
 import { JENJANG, FASE, MAPEL, MODEL } from '../lib/referensi';
 import { DOC_TYPES, FIELD_LABEL, SEMESTER } from '../lib/docs';
-import { generateDoc, rekomendasiAI, extractTitle, buangJudulGanda, rapikanIdentitas, getProfile, saveProfile } from '../lib/api';
+import { generateDocStream, rekomendasiAI, extractTitle, buangJudulGanda, rapikanIdentitas, getProfile, saveProfile } from '../lib/api';
 import { parseProsemWeeks } from '../lib/prosem';
 import { saveDraft, getDraft, clearDraft, saveModul, listPakets, getPaket, getModul, listModuls } from '../lib/db';
 import DocEditor from './DocEditor';
 import ImagePicker from './ImagePicker';
+import ProsesLive from './ProsesLive';
+import Paywall from './Paywall';
 
 // Jenis dokumen yang wajib/sangat disarankan memakai acuan perencanaan
 const ACUAN_TYPES = ['modul', 'lkpd', 'soal', 'kktp'];
 
 const STEPS = ['Dokumen', 'Informasi', 'Materi', 'Generate', 'Gambar', 'Editor'];
-const STAGES = [
-  'Menyiapkan kerangka dokumen...',
-  'Merumuskan tujuan pembelajaran...',
-  'Menyusun isi dokumen...',
-  'Menyiapkan tabel dan lampiran...',
-  'Merapikan dokumen akhir...',
-];
 
 const emptyForm = {
   docType: 'modul', jenjang: 'SMA/MA', fase: '', kelas: '', semester: 'Ganjil',
@@ -30,11 +25,13 @@ function formAwal(preselectDocType, initial) {
   return { ...emptyForm, docType: preselectDocType || 'modul', ...getProfile(), ...(initial?.form || {}) };
 }
 
-export default function Wizard({ onDone, onCancel, initial, preselectPaketId, preselectDocType, preselectModulId }) {
+export default function Wizard({ onDone, onCancel, initial, preselectPaketId, preselectDocType, preselectModulId, waLink, onKuotaChanged }) {
   const [step, setStep] = useState(preselectPaketId || preselectModulId ? 2 : 1);
   const [form, setForm] = useState(() => formAwal(preselectDocType, initial));
   const [loading, setLoading] = useState(false);
-  const [stage, setStage] = useState(0);
+  const [tahapLive, setTahapLive] = useState([]);   // [{key,label}] tahapan asli dari server
+  const [statusLive, setStatusLive] = useState({}); // {key: 'tunggu'|'jalan'|'ok'}
+  const [paywall, setPaywall] = useState(null);    // {mode, detail}
   const [error, setError] = useState('');
   const [markdown, setMarkdown] = useState('');
   const [images, setImages] = useState([]);
@@ -203,21 +200,47 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     return parts.join('\n\n');
   }
 
+  // Tandai satu tahap sebagai berjalan; tahap sebelumnya yang masih 'jalan' jadi 'ok'
+  function tandaiTahap(key, label) {
+    setTahapLive((prev) => (prev.some((p) => p.key === key) ? prev : [...prev, { key, label }]));
+    setStatusLive((prev) => {
+      const next = { ...prev };
+      for (const k of Object.keys(next)) if (next[k] === 'jalan') next[k] = 'ok';
+      next[key] = 'jalan';
+      return next;
+    });
+  }
+
   async function handleGenerate() {
     setError('');
+    setPaywall(null);
     setLoading(true);
-    setStage(0);
-    const iv = setInterval(() => setStage((s) => Math.min(s + 1, STAGES.length - 1)), 7000);
+    setTahapLive([]);
+    setStatusLive({});
     try {
       const sumber = butuhAcuan ? await buildSumber() : '';
-      const md = await generateDoc(form.docType, form, form.materi, sumber);
+      let md = '';
+      await generateDocStream(form.docType, form, form.materi, sumber, null, (ev) => {
+        if (ev.tipe === 'tahap') tandaiTahap(ev.key, ev.label);
+        else if (ev.tipe === 'selesai') {
+          md = ev.markdown || '';
+          setStatusLive((prev) => {
+            const next = { ...prev };
+            for (const k of Object.keys(next)) next[k] = 'ok';
+            return next;
+          });
+        } else if (ev.tipe === 'gagal') throw new Error(ev.error || 'Generate gagal.');
+      });
+      if (!md.trim()) throw new Error('AI mengembalikan dokumen kosong.');
       setMarkdown(md);
       setStep(dt.gambar ? 5 : 6);
       await clearDraft();
+      onKuotaChanged && onKuotaChanged();
     } catch (e) {
-      setError(e.message);
+      // Kuota habis → buka Paywall, jangan tampilkan error mentah
+      if (e.code === 'kuota_habis') setPaywall({ mode: 'kuota_habis', detail: e.detail });
+      else setError(e.message);
     } finally {
-      clearInterval(iv);
       setLoading(false);
     }
   }
@@ -547,13 +570,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       )}
 
       {step === 4 && loading && (
-        <div className="card">
-          <div className="loader-wrap">
-            <div className="spinner" />
-            <h2 style={{ margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>Menyusun {dt.nama}…</h2>
-            <div className="stage">{STAGES[stage]}</div>
-          </div>
-        </div>
+        <ProsesLive judul={'Menyusun ' + dt.nama} tahap={tahapLive} status={statusLive} />
       )}
 
       {step === 5 && dt.gambar && (
@@ -576,6 +593,15 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           onBack={() => setStep(dt.gambar ? 5 : 4)}
           onRegen={() => { setMarkdown(''); setStep(4); }}
           onSave={handleSave}
+        />
+      )}
+
+      {paywall && (
+        <Paywall
+          mode={paywall.mode}
+          detail={paywall.detail}
+          waLink={waLink}
+          onClose={() => setPaywall(null)}
         />
       )}
     </div>
