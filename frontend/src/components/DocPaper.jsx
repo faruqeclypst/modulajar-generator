@@ -1,6 +1,8 @@
 import { marked } from 'marked';
 import { splitInfoUmum, extractTitle, buangJudulGanda, rapikanIdentitas } from '../lib/api';
+import { ekstrakPengesahan, buangPengesahan } from '../lib/pengesahan';
 import { DOC_TYPES } from '../lib/docs';
+import Pengesahan from './Pengesahan';
 
 const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -11,7 +13,8 @@ const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 export default function DocPaper({ doc }) {
   const judul = doc.judul || extractTitle(doc.markdown || '');
   const { infoRows, rest } = splitInfoUmum(rapikanIdentitas(doc.markdown || ''));
-  const body = buangJudulGanda(rest, judul);
+  const sah = ekstrakPengesahan(rest);
+  const body = buangJudulGanda(sah ? buangPengesahan(rest) : rest, judul);
   const images = doc.images || [];
   const typeName = (DOC_TYPES[doc.docType] || {}).nama || 'Dokumen Ajar';
 
@@ -63,6 +66,8 @@ export default function DocPaper({ doc }) {
           ))}
         </>
       )}
+
+      {sah && <Pengesahan data={sah} />}
     </div>
   );
 }
