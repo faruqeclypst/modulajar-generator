@@ -8,6 +8,7 @@ import Topbar from './components/Topbar';
 import Landing from './components/Landing';
 import DocsView from './components/DocsView';
 import AdminDashboard from './components/AdminDashboard';
+import ErrorBoundary from './components/ErrorBoundary';
 import Pengaturan from './components/Pengaturan';
 import { ProyekList, ProyekDetail } from './components/Proyek';
 import { DOC_TYPES } from './lib/docs';
@@ -274,7 +275,8 @@ export default function App() {
         onSignOut={signOut}
       />
 
-      <div key={view} className="view-enter">
+      <ErrorBoundary key={view} onBack={goApp}>
+      <div className="view-enter">
       {view === 'landing' && <Landing onStart={goApp} onDocs={() => setView('docs')} waLink={WA_LINK} />}
 
       {view === 'docs' && <DocsView onBack={goApp} />}
@@ -383,6 +385,7 @@ export default function App() {
         </div>
       )}
       </div>
+      </ErrorBoundary>
 
       <footer className="footer">
         <div>ModulAjar oleh Alfaruq Asri, S.Pd.</div>

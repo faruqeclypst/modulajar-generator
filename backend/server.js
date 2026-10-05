@@ -2014,7 +2014,7 @@ app.get('/api/admin/pengguna', requireAdmin(async (req, res) => {
       } catch { /* abaikan */ }
       daftar.push({ id: u.id, email: u.email, dibuat: u.created_at, byok: byokSet.has(u.id), jmlDokumen });
     }
-    res.json({ ok: true, daftar, total: data?.total ?? users.length });
+    res.json({ ok: true, data: daftar, total: data?.total ?? users.length });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });
   }
@@ -2034,7 +2034,7 @@ app.get('/api/admin/masukan', requireAdmin(async (req, res) => {
         pesan: m.pesan, dibaca: m.dibaca, dibuat: m.created_at,
       }));
     } catch { /* abaikan: tabel masukan mungkin belum ada */ }
-    res.json({ ok: true, daftar });
+    res.json({ ok: true, data: daftar });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });
   }
@@ -2076,7 +2076,7 @@ app.get('/api/admin/jobs', requireAdmin(async (req, res) => {
     } catch { /* abaikan */ }
     res.json({
       ok: true,
-      daftar: (data || []).map((j) => ({
+      data: (data || []).map((j) => ({
         id: j.id, mode: j.mode, status: j.status,
         dibuat: j.created_at, userEmail: emailMap[j.user_id] || null,
       })),

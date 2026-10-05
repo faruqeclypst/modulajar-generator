@@ -65,17 +65,21 @@ export default function AdminDashboard({ onBack }) {
   const [jobs, setJobs] = useState(null);
   const [err, setErr] = useState({});
 
-  const muat = (nama, setFn, path) => {
+  // asArray: paksa hasil jadi array; respons tak terduga tidak boleh crash render.
+  const muat = (nama, setFn, path, asArray) => {
     setErr((e) => ({ ...e, [nama]: '' }));
     apiAdmin(path)
-      .then((d) => setFn(d.data ?? d))
+      .then((d) => {
+        const v = d.data ?? d;
+        setFn(asArray ? (Array.isArray(v) ? v : []) : v);
+      })
       .catch((e) => setErr((p) => ({ ...p, [nama]: e.message || 'Gagal memuat data.' })));
   };
 
   useEffect(() => { muat('ringkasan', setRingkasan, '/api/admin/ringkasan'); }, []);
-  useEffect(() => { if (tab === 'pengguna' && pengguna === null && !err.pengguna) muat('pengguna', setPengguna, '/api/admin/pengguna'); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (tab === 'masukan' && masukan === null && !err.masukan) muat('masukan', setMasukan, '/api/admin/masukan'); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (tab === 'jobs' && jobs === null && !err.jobs) muat('jobs', setJobs, '/api/admin/jobs'); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (tab === 'pengguna' && pengguna === null && !err.pengguna) muat('pengguna', setPengguna, '/api/admin/pengguna', true); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (tab === 'masukan' && masukan === null && !err.masukan) muat('masukan', setMasukan, '/api/admin/masukan', true); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (tab === 'jobs' && jobs === null && !err.jobs) muat('jobs', setJobs, '/api/admin/jobs', true); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function tandaiBaca(id) {
     try {
@@ -142,7 +146,7 @@ export default function AdminDashboard({ onBack }) {
       {tab === 'pengguna' && (
         <section aria-label="Daftar pengguna">
           {err.pengguna ? (
-            <div className="alert alert-error">Gagal memuat daftar pengguna: {err.pengguna}<MuatUlang onClick={() => muat('pengguna', setPengguna, '/api/admin/pengguna')} /></div>
+            <div className="alert alert-error">Gagal memuat daftar pengguna: {err.pengguna}<MuatUlang onClick={() => muat('pengguna', setPengguna, '/api/admin/pengguna', true)} /></div>
           ) : !pengguna ? (
             <p className="hint" role="status">Memuat daftar pengguna…</p>
           ) : pengguna.length === 0 ? (
@@ -172,7 +176,7 @@ export default function AdminDashboard({ onBack }) {
       {tab === 'masukan' && (
         <section aria-label="Masukan pengguna">
           {err.masukan ? (
-            <div className="alert alert-error">Gagal memuat masukan: {err.masukan}<MuatUlang onClick={() => muat('masukan', setMasukan, '/api/admin/masukan')} /></div>
+            <div className="alert alert-error">Gagal memuat masukan: {err.masukan}<MuatUlang onClick={() => muat('masukan', setMasukan, '/api/admin/masukan', true)} /></div>
           ) : !masukan ? (
             <p className="hint" role="status">Memuat masukan…</p>
           ) : masukan.length === 0 ? (
@@ -204,7 +208,7 @@ export default function AdminDashboard({ onBack }) {
       {tab === 'jobs' && (
         <section aria-label="Job paket terbaru">
           {err.jobs ? (
-            <div className="alert alert-error">Gagal memuat job: {err.jobs}<MuatUlang onClick={() => muat('jobs', setJobs, '/api/admin/jobs')} /></div>
+            <div className="alert alert-error">Gagal memuat job: {err.jobs}<MuatUlang onClick={() => muat('jobs', setJobs, '/api/admin/jobs', true)} /></div>
           ) : !jobs ? (
             <p className="hint" role="status">Memuat job terbaru…</p>
           ) : jobs.length === 0 ? (
