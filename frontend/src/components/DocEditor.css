@@ -1,0 +1,120 @@
+/* Editor blok ala Notion untuk ModulAjar (Warm Paper v2).
+   Chrome (handle + menu) hanya muncul saat hover/fokus; isi blok memakai
+   kelas tipografi global (.blk-*, .figure) agar WYSIWYG terhadap hasil cetak. */
+
+.doceditor { display: flex; flex-direction: column; gap: 2px; }
+
+/* Satu baris blok: gutter handle + isi */
+.nblk {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: start;
+}
+.nblk:hover { background: rgba(36, 31, 27, 0.028); }
+.nblk.busy .nblk-body { opacity: 0.55; }
+
+/* Gutter kiri: tombol tambah + menu blok */
+.nblk-gutter {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  padding-top: 6px;
+}
+.nblk-handle {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 0;
+  color: var(--slate);
+  font-size: 17px;
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+.nblk:hover .nblk-handle,
+.nblk:focus-within .nblk-handle { opacity: 1; }
+.nblk-handle:hover { background: var(--wash); border-color: var(--ink); color: var(--ink); }
+.nblk-handle:focus-visible { opacity: 1; outline: 3px solid var(--red); outline-offset: 1px; }
+@media (hover: none) { .nblk-handle { opacity: 0.9; } }
+
+/* Isi blok */
+.nblk-body { position: relative; min-width: 0; padding: 8px 4px 10px 0; }
+.nblk-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.nblk-total {
+  font-size: 11px;
+  font-weight: 800;
+  background: var(--red);
+  color: #fff;
+  padding: 2px 8px;
+}
+.nblk-busy { font-size: 12px; font-weight: 700; color: var(--warn); }
+
+/* Panel sisip gambar membentang penuh di bawah baris blok */
+.nblk-full { grid-column: 1 / -1; }
+
+/* Bungkus tabel agar bisa scroll horizontal di layar kecil */
+.ntable-wrap { overflow-x: auto; }
+
+/* Popover menu kecil */
+.nmenu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 60;
+  min-width: 240px;
+  max-width: min(300px, 84vw);
+  background: var(--paper-2);
+  border: 2px solid var(--ink);
+  box-shadow: 5px 5px 0 rgba(36, 31, 27, 0.16);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.nmenu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+}
+.nmenu-item b { font-size: 14px; font-weight: 800; }
+.nmenu-item span { font-size: 12.5px; color: var(--muted); }
+.nmenu-item:hover:not(:disabled) { background: var(--wash); }
+.nmenu-item:disabled { opacity: 0.35; cursor: default; }
+.nmenu-item.danger b { color: var(--red); }
+.nmenu-item:focus-visible { outline: 3px solid var(--red); outline-offset: -3px; }
+.nmenu-sep { border: none; border-top: 2px solid var(--wash); margin: 4px 2px; }
+
+/* Menu slash tampil di bawah blok teks (in-flow, aman di mobile) */
+.nmenu-slash { position: static; margin-top: 6px; min-width: 200px; max-width: 280px; }
+
+/* Status kosong */
+.nblk-empty {
+  border: 2px dashed var(--ink);
+  background: var(--paper-2);
+  padding: 28px 20px;
+  text-align: center;
+}
+.nblk-empty p { margin: 0 0 12px; }
+
+@media (max-width: 560px) {
+  .nblk { grid-template-columns: 48px minmax(0, 1fr); }
+  .nblk-gutter { padding-top: 4px; }
+}
