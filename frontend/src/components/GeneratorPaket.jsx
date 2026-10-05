@@ -380,7 +380,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
               <span className="kicker">Sedang ditulis AI</span>
               <h3 style={{ margin: '0 0 4px' }}>{live.label}</h3>
               {live.subfase && <p className="hint" style={{ marginTop: 0 }}>{live.subfase}</p>}
-              <TulisanAI segmen={[{ key: live.key, label: '', teks: live.teks }]} />
+              <TulisanAI segmen={[{ key: live.key, label: '', teks: live.teks }]} live={job.status === 'berjalan'} />
             </div>
           )}
           {job.status === 'menunggu_review' && (

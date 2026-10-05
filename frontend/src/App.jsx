@@ -9,6 +9,7 @@ import Pengaturan from './components/Pengaturan';
 import { DOC_TYPES } from './lib/docs';
 import { listModuls, getModul, listPakets, paketProgress } from './lib/db';
 import { getSupabase, getSession } from './lib/supabase';
+import { klaimReferal } from './lib/api';
 import { fetchKuota } from './lib/kuota';
 
 const WA_LINK = 'https://wa.me/6285359907696?text=Halo%2C%20saya%20butuh%20bantuan%20ModulAjar';
@@ -18,6 +19,13 @@ function fmtDate(ts) {
 }
 
 function Landing({ onStart }) {
+  // Tangkap kode referal dari URL (?ref=KODE) untuk diklaim setelah login
+  useEffect(() => {
+    try {
+      const kode = new URLSearchParams(window.location.search).get('ref');
+      if (kode && kode.trim()) localStorage.setItem('ma-ref', kode.trim().slice(0, 64));
+    } catch { /* abaikan */ }
+  }, []);
   return (
     <div className="wrap">
       <section className="hero-land">
@@ -217,6 +225,19 @@ export default function App() {
   }, []);
   useEffect(() => { if (auth === 'app') refresh(); }, [auth]);
 
+  // Klaim referal sekali setelah login pertama (kode dari ?ref= di landing).
+  // Gagal klaim ditangani diam-diam agar tidak mengganggu login.
+  useEffect(() => {
+    if (auth !== 'app') return;
+    let kode = null;
+    try { kode = localStorage.getItem('ma-ref'); } catch { /* abaikan */ }
+    if (!kode) return;
+    (async () => {
+      try { await klaimReferal(kode); } catch { /* diam-diam */ }
+      try { localStorage.removeItem('ma-ref'); } catch { /* abaikan */ }
+    })();
+  }, [auth]);
+
   // Restore dokumen tersimpan setelah login (hanya setelah auth==='app')
   useEffect(() => {
     if (auth !== 'app') return;
@@ -287,6 +308,7 @@ export default function App() {
         onSignOut={signOut}
       />
 
+      <div key={view} className="view-enter">
       {view === 'landing' && <Landing onStart={goApp} />}
 
       {view === 'wizard' && (
@@ -408,6 +430,7 @@ export default function App() {
           )}
         </div>
       )}
+      </div>
 
       <footer className="footer">
         <div>ModulAjar oleh Alfaruq Asri, S.Pd.</div>

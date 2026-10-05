@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 // apa adanya (markdown mentah), dikelompokkan per tahap.
 // segmen: [{key, label, teks}]. aria-live dimatikan agar screen reader tidak
 // kebanjiran pengumuman tiap delta; user membacanya sesuai permintaan.
-export default function TulisanAI({ segmen = [], defaultBuka = true }) {
+export default function TulisanAI({ segmen = [], defaultBuka = true, live = false }) {
   const [buka, setBuka] = useState(defaultBuka);
   const boxRef = useRef(null);
   const totalLen = segmen.reduce((a, s) => a + (s.teks || '').length, 0);
@@ -30,10 +30,13 @@ export default function TulisanAI({ segmen = [], defaultBuka = true }) {
       </button>
       {buka && (
         <div className="tulisan-ai-box" ref={boxRef} tabIndex={0} aria-label="Tulisan AI yang sedang dibuat">
-          {segmen.filter((s) => (s.teks || '').length > 0).map((s) => (
+          {segmen.filter((s) => (s.teks || '').length > 0).map((s, ix, arr) => (
             <div key={s.key} className="tulisan-ai-segmen">
               {s.label && <div className="tulisan-ai-label">{s.label}</div>}
-              <div className="tulisan-ai-teks">{s.teks}</div>
+              <div className="tulisan-ai-teks">
+                {s.teks}
+                {live && ix === arr.length - 1 && <span className="tulisan-caret" aria-hidden="true" />}
+              </div>
             </div>
           ))}
         </div>

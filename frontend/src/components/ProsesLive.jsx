@@ -20,12 +20,17 @@ export default function ProsesLive({ judul, tahap, status, tulisan = [] }) {
     return () => clearInterval(iv);
   }, []);
   const okCount = tahap.filter((t) => status[t.key] === 'ok').length;
+  const tahapJalan = tahap.find((t) => status[t.key] === 'jalan');
+  const semuaSelesai = tahap.length > 0 && okCount === tahap.length;
+  const live = !!tahapJalan && !semuaSelesai;
   return (
     <div className="card">
       <span className="kicker">Proses berjalan</span>
       <h2 style={{ margin: '0 0 4px' }}>{judul}</h2>
       <p className="hint" style={{ marginTop: 0 }}>
-        Tahapan asli dari server, bukan animasi. Halaman ini jangan ditutup.
+        {tahapJalan
+          ? <>AI sedang {tahapJalan.label.charAt(0).toLowerCase() + tahapJalan.label.slice(1)}. Halaman ini jangan ditutup.</>
+          : 'Tahapan asli dari server, bukan animasi. Halaman ini jangan ditutup.'}
       </p>
       <div
         className="progress" role="progressbar"
@@ -35,7 +40,14 @@ export default function ProsesLive({ judul, tahap, status, tulisan = [] }) {
         <div className="progress-fill" style={{ width: (tahap.length ? (okCount / tahap.length) * 100 : 0) + '%' }} />
       </div>
       <p className="progress-label">Langkah {okCount} dari {tahap.length} · {fmtDetik(detik)}</p>
-      <TulisanAI segmen={tulisan} />
+      <TulisanAI segmen={tulisan} live={live} />
+      {tahap.length === 0 ? (
+        <div className="shimmer-wrap" role="status" aria-label="Menyiapkan generate">
+          <span className="shimmer" aria-hidden="true" />
+          <span className="shimmer" aria-hidden="true" />
+          <span className="shimmer pendek" aria-hidden="true" />
+        </div>
+      ) : (
       <ol className="job-steps">
         {tahap.map((t, i) => {
           const st = status[t.key] || 'tunggu';
@@ -53,6 +65,7 @@ export default function ProsesLive({ judul, tahap, status, tulisan = [] }) {
           );
         })}
       </ol>
+      )}
     </div>
   );
 }

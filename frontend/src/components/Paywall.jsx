@@ -44,7 +44,7 @@ export default function Paywall({ mode, detail, onClose, waLink }) {
               {typeof butuh === 'number' && typeof sisa === 'number'
                 ? `Paket ini butuh ${butuh} dokumen, sisa kreditmu ${sisa}. `
                 : ''}
-              Kredit diperbarui besok, atau upgrade untuk membuat tanpa batas.
+              Kredit diperbarui setiap jam 15:00 WIB, atau upgrade untuk membuat tanpa batas.
             </p>
             <div className="btn-row">
               <button ref={utamaRef} type="button" className="btn btn-primary" onClick={() => setLayar('upgrade')}>

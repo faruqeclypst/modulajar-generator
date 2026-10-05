@@ -2,7 +2,7 @@
 name: ModulAjar Warm Paper
 version: 2.0
 description: Sistem desain aplikasi ModulAjar. Kertas hangat, aksen bata, ramah guru senior.
-dial: ENERGY 2 / RHYTHM 2 / MOTION 1
+dial: ENERGY 2 / RHYTHM 2 / MOTION 2
 
 colors:
   paper: "#FBF6EE"
@@ -74,10 +74,13 @@ kaku ala cetakan (hard offset shadow), tipografi Archivo yang tegas. Dokumen
 adalah warga kelas satu: setiap layar memperlakukan dokumen seperti lembaran
 kertas asli.
 
-**Dial: ENERGY 2 / RHYTHM 2 / MOTION 1.**
-Hangat dan berkarakter, tapi tenang. Komposisi boleh bervariasi antar layar,
-gerak hanya pada interaksi (hover, focus, buka/tutup), tanpa animasi
-scroll-reveal, tanpa loop tanpa henti.
+**Dial: ENERGY 2 / RHYTHM 2 / MOTION 2.**
+Hangat dan berkarakter, tapi tenang. Komposisi boleh bervariasi antar layar.
+Gerak secukupnya dan selalu punya tujuan: transisi antar layar (orientasi),
+langkah generate yang muncul berurutan (keterbacaan alur), kursor ketik
+(penanda tulisan AI masih berjalan), shimmer hangat (sinyal menunggu event
+pertama server), tanpa scroll-reveal, tanpa loop tanpa henti. Semua nonaktif
+saat prefers-reduced-motion.
 
 ### Referensi yang dipakai
 
@@ -223,12 +226,24 @@ Aturan:
 - Halaman/kartu "Pengaturan" berisi seksi nyata saja:
   1. **Profil**: foto profil Google (72px; fallback inisial bila tidak ada),
      nama, email dari Google (read-only).
-  2. **Tampilan**: Ukuran teks (Normal/Besar). Fungsional, tersimpan di
+  2. **Kredit & Langganan**: sisa kredit ("20 kredit/hari, diperbarui setiap
+     jam 15:00 WIB") + tombol Upgrade.
+  3. **Kunci AI Sendiri**: pakai API key sendiri agar generate tidak memotong
+     kuota. Form Base URL + API Key (password) + Model opsional; status Aktif
+     (baseUrl + keyMasked) vs Belum diatur; tombol Simpan/Ganti/Hapus.
+  4. **Bagikan & Bonus**: link referal + "Salin Link"; "+3 kredit bonus untuk
+     tiap teman yang bergabung lewat linkmu (maks 5 per 3 hari). Bonus
+     dihitung ulang tiap 3 hari."; "Bonus periode ini: X",
+     "Tautan diklaim: Y/5".
+  5. **Tampilan**: Ukuran teks (Normal/Besar). Fungsional, tersimpan di
      localStorage, langsung diterapkan.
-  3. **Data**: info "Dokumen tersimpan di akunmu (Supabase)" + tombol
+  6. **Data**: info "Dokumen tersimpan di akunmu (Supabase)" + tombol
      "Muat ulang data".
-  4. **Bantuan**: tombol "Chat WhatsApp" (link WA yang sudah ada).
-  5. **Keluar**: tombol bahaya "Keluar dari aplikasi" dengan konfirmasi.
+  7. **Bantuan**: tombol "Chat WhatsApp" (link WA yang sudah ada).
+  8. **Keluar**: tombol bahaya "Keluar dari aplikasi" dengan konfirmasi.
+- Landing menangkap `?ref=KODE` ke localStorage `ma-ref`; setelah login
+  pertama, `POST /api/referal/klaim` dipanggil sekali otomatis lalu `ma-ref`
+  dihapus. Gagal klaim ditangani diam-diam.
 - Tidak ada pengaturan palsu. Setiap kontrol harus benar-benar bekerja.
 
 ### Status: kosong, memuat, error
@@ -339,5 +354,8 @@ Aturan:
 - Menu pengguna (bukan tombol Keluar telanjang): keluar adalah aksi akun,
   dikelompokkan dengan profil dan pengaturan.
 - Radius 0: potongan kertas; lingkaran hanya untuk manusia (avatar).
-- MOTION 1: audiens guru, perangkat kelas bervariasi; gerak hanya sebagai
-  umpan balik interaksi.
+- MOTION 2: audiens guru, perangkat kelas bervariasi; gerak sebagai umpan
+  balik dan orientasi, masing-masing dengan tujuan tertulis: transisi view
+  (tahu layar berganti), stagger langkah (mata mengikuti urutan), kursor
+  ketik dan shimmer (tahu AI sedang bekerja). Tanpa gerak ambient tanpa
+  tujuan; semua mati saat prefers-reduced-motion.

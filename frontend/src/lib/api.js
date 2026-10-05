@@ -230,3 +230,33 @@ export function getProfile() {
 export function saveProfile(p) {
   localStorage.setItem(PKEY, JSON.stringify(p));
 }
+
+// ---- Kunci AI sendiri (BYOK) & referal ----
+// Kontrak backend (dikerjakan agen lain):
+//   GET  /api/ai-config     -> { ada, baseUrl, model, keyMasked }
+//   POST /api/ai-config     -> { baseUrl, apiKey, model? }
+//   DELETE /api/ai-config
+//   GET  /api/referal       -> { kode, link, bonusPeriodeIni, klaimPeriodeIni, maksKlaim }
+//   POST /api/referal/klaim -> { kode }
+async function apiAuthed(path, method, body) {
+  const r = await fetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!d.ok) {
+    const err = new Error(d.error || 'Server tidak merespons.');
+    err.code = d.code;
+    err.detail = d;
+    throw err;
+  }
+  return d;
+}
+
+export const getAiConfig = () => apiAuthed('/api/ai-config', 'GET');
+export const saveAiConfig = ({ baseUrl, apiKey, model }) =>
+  apiAuthed('/api/ai-config', 'POST', { baseUrl, apiKey, ...(model ? { model } : {}) });
+export const deleteAiConfig = () => apiAuthed('/api/ai-config', 'DELETE');
+export const getReferal = () => apiAuthed('/api/referal', 'GET');
+export const klaimReferal = (kode) => apiAuthed('/api/referal/klaim', 'POST', { kode });

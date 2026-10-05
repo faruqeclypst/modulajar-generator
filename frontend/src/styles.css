@@ -550,3 +550,66 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
    Outline bata lemah di atas ink; putih memberi kontras AA yang jelas. */
 .topbar :focus-visible,
 .hero-land :focus-visible { outline-color: #fff; }
+
+/* ---------- gerak & animasi (MOTION 2) ----------
+   Setiap gerak punya tujuan (tulis di DESIGN.md). Semua nonaktif
+   saat prefers-reduced-motion. */
+
+/* Masuk antar view: orientasi bahwa layar berganti */
+.view-enter { animation: viewIn .28s ease both; }
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Bilah progres meluncur halus saat tahap selesai, bukan melompat */
+.progress-fill { transition: width .5s ease; }
+
+/* Langkah generate muncul berurutan: mata mengikuti alur */
+.job-steps .job-step { animation: fadeUp .32s ease both; }
+.job-steps .job-step:nth-child(2) { animation-delay: .05s; }
+.job-steps .job-step:nth-child(3) { animation-delay: .1s; }
+.job-steps .job-step:nth-child(4) { animation-delay: .15s; }
+.job-steps .job-step:nth-child(5) { animation-delay: .2s; }
+.job-steps .job-step:nth-child(n+6) { animation-delay: .24s; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Kursor ketik: penanda tulisan AI masih berjalan (status nyata) */
+.tulisan-caret {
+  display: inline-block; width: 9px; height: 1.1em; margin-left: 2px;
+  background: var(--red); vertical-align: text-bottom;
+  animation: kedip 1s steps(2, start) infinite;
+}
+@keyframes kedip { to { visibility: hidden; } }
+
+/* Shimmer hangat: sinyal jujur menunggu event pertama dari server */
+.shimmer-wrap { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.shimmer {
+  height: 18px; border: var(--bd);
+  background: linear-gradient(90deg, var(--wash) 25%, #fffdf8 50%, var(--wash) 75%);
+  background-size: 200% 100%; animation: shimmer 1.6s linear infinite;
+}
+.shimmer.pendek { width: 60%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* Haluskan hover kartu mode paket yang sudah ada */
+.mode-card { transition: transform .12s ease, box-shadow .12s ease; }
+
+/* Baris link referal: input + tombol berdampingan, wrap di layar kecil */
+.ref-row { display: flex; gap: 8px; align-items: stretch; }
+.ref-row input { flex: 1; min-width: 0; }
+.ref-row .btn { flex: none; }
+@media (max-width: 560px) {
+  .ref-row { flex-wrap: wrap; }
+  .ref-row .btn { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-enter, .job-steps .job-step { animation: none; }
+  .progress-fill, .mode-card { transition: none; }
+  .tulisan-caret { animation: none; }
+  .shimmer { animation: none; }
+}

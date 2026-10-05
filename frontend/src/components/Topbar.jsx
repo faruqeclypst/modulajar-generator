@@ -115,7 +115,7 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onSig
             aria-controls="mobile-nav-panel"
             onClick={() => setMobileOpen((o) => !o)}
           >
-            Menu
+            {mobileOpen ? 'Tutup' : 'Menu'}
           </button>
         )}
 
