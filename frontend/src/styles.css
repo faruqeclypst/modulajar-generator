@@ -531,3 +531,13 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 @media (max-width: 560px) {
   .paywall-card { padding: 24px 20px; }
 }
+
+/* Daftar checkbox dokumen acuan (Wizard): scroll bila panjang, target sentuh nyaman */
+.dok-acuan-list { max-height: 230px; overflow-y: auto; border: var(--bd); background: var(--paper-2); }
+.dok-acuan-grup { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0; padding: 10px 12px 2px; }
+.dok-acuan-ul { list-style: none; margin: 0; padding: 0 0 6px; }
+.dok-acuan-ul li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--wash); }
+.dok-acuan-ul li:last-child { border-bottom: 0; }
+.dok-acuan-ul li.aktif { background: var(--wash); }
+.dok-acuan-ul input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: var(--red); }
+.dok-acuan-ul label { font-size: 14.5px; line-height: 1.45; cursor: pointer; }

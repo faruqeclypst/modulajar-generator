@@ -48,17 +48,20 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
   const [modulLabel, setModulLabel] = useState('');
   const [modulList, setModulList] = useState([]);
   const [modulAcuanId, setModulAcuanId] = useState('');
+  const [semuaDocs, setSemuaDocs] = useState([]);
+  const [dokAcuanIds, setDokAcuanIds] = useState([]);
 
   const dt = DOC_TYPES[form.docType];
   const butuhAcuan = ACUAN_TYPES.includes(form.docType);
 
-  // muat paket perencanaan + daftar modul ajar untuk acuan
+  // muat paket perencanaan + daftar dokumen tersimpan untuk acuan
   useEffect(() => {
     if (!butuhAcuan) return;
     (async () => {
       setPakets(await listPakets());
       const all = await listModuls();
       for (const m of all) if (!m.docType) m.docType = 'modul'; // normalisasi dokumen lama
+      setSemuaDocs(all);
       setModulList(all.filter((m) => m.docType === 'modul'));
     })();
   }, [butuhAcuan, step]);
@@ -130,6 +133,27 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     })();
   }, [paketId]);
 
+  // Dokumen yang sudah tercakup paket / modul acuan tidak boleh dipilih lagi sebagai acuan tambahan
+  useEffect(() => {
+    const terpakai = new Set([...Object.values(paketDocs).map(String), ...(modulAcuanId ? [String(modulAcuanId)] : [])]);
+    setDokAcuanIds((prev) => prev.filter((id) => !terpakai.has(String(id))));
+  }, [paketDocs, modulAcuanId]);
+
+  function toggleDokAcuan(id) {
+    setDokAcuanIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  // Opsi dokumen tersimpan untuk acuan tambahan, dikelompokkan per jenis dokumen
+  const idTerpakaiAcuan = new Set([...Object.values(paketDocs).map(String), ...(modulAcuanId ? [String(modulAcuanId)] : [])]);
+  const dokAcuanOptions = semuaDocs.filter((d) => !idTerpakaiAcuan.has(String(d.id)));
+  const grupDokAcuan = {};
+  for (const d of dokAcuanOptions) {
+    const t = d.docType || 'modul';
+    (grupDokAcuan[t] = grupDokAcuan[t] || []).push(d);
+  }
+  const urutanGrupDok = Object.keys(grupDokAcuan).sort((a, b) =>
+    ((DOC_TYPES[a] || {}).nama || a).localeCompare(((DOC_TYPES[b] || {}).nama || b), 'id'));
+
   function pilihMinggu(ix) {
     setWeekIx(ix);
     if (ix === '') return;
@@ -197,6 +221,17 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     if (modulAcuanId) {
       const d = await getModul(Number(modulAcuanId));
       if (d?.markdown) parts.push(`===== MODUL AJAR ACUAN: ${d.judul} =====\n${d.markdown}`);
+    }
+    // Dokumen tersimpan tambahan yang dicentang (maks 8000 karakter per dokumen)
+    const terpakaiSumber = new Set([...Object.values(paketDocs).map(String), ...(modulAcuanId ? [String(modulAcuanId)] : [])]);
+    for (const id of dokAcuanIds) {
+      if (terpakaiSumber.has(String(id))) continue;
+      const d = await getModul(Number(id));
+      if (!d?.markdown) continue;
+      const jenis = ((DOC_TYPES[d.docType] || {}).nama || 'Dokumen').toUpperCase();
+      let isi = d.markdown;
+      if (isi.length > 8000) isi = isi.slice(0, 8000) + '\n…(dipotong)';
+      parts.push(`===== ${jenis}: ${d.judul} =====\n${isi}`);
     }
     return parts.join('\n\n');
   }
@@ -519,10 +554,11 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           {error && <div className="alert alert-error">{error}</div>}
           {butuhAcuan && (
             <div className="card" style={{ margin: '0 0 16px', background: '#fbf9f4' }}>
-              <h3 style={{ margin: '0 0 6px' }}>Acuan Perencanaan</h3>
+              <h3 style={{ margin: '0 0 6px' }}>Sumber Acuan</h3>
               <p className="hint" style={{ margin: '0 0 12px' }}>
-                {dt.nama}{' '}yang kredibel diturunkan dari CP → ATP → Prota → Prosem yang sudah disusun.
-                Pilih paketnya agar AI merujuk dokumen tersebut, bukan mengarang.
+                {dt.nama}{' '}yang kredibel diturunkan dari dokumen yang sudah disusun.
+                Acuan bisa dari paket perencanaan, dokumen tersimpan, atau keduanya.
+                Pilih yang relevan agar AI merujuk dokumen tersebut, bukan mengarang.
               </p>
               <div className="field">
                 <label>Paket Perencanaan</label>
@@ -576,6 +612,46 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
                   </select>
                 </div>
               )}
+              <div className="field" style={{ marginTop: 10 }}>
+                <label id="lbl-dok-acuan">Dokumen lain sebagai acuan (opsional)</label>
+                <p className="hint" style={{ margin: '0 0 8px' }}>
+                  {dokAcuanIds.length > 0
+                    ? `${dokAcuanIds.length} dokumen dipilih.`
+                    : 'Centang dokumen tersimpan untuk dijadikan acuan tambahan.'}
+                </p>
+                {dokAcuanOptions.length > 0 ? (
+                  <div className="dok-acuan-list" role="group" aria-labelledby="lbl-dok-acuan">
+                    {urutanGrupDok.map((t) => (
+                      <div key={t}>
+                        <p className="dok-acuan-grup">{(DOC_TYPES[t] || {}).nama || t}</p>
+                        <ul className="dok-acuan-ul">
+                          {grupDokAcuan[t].map((d) => {
+                            const cid = 'dok-acuan-' + d.id;
+                            const aktif = dokAcuanIds.includes(d.id);
+                            return (
+                              <li key={d.id} className={aktif ? 'aktif' : ''}>
+                                <input
+                                  type="checkbox"
+                                  id={cid}
+                                  checked={aktif}
+                                  onChange={() => toggleDokAcuan(d.id)}
+                                />
+                                <label htmlFor={cid}>{d.judul}</label>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="hint" style={{ margin: 0 }}>
+                    {semuaDocs.length === 0
+                      ? 'Belum ada dokumen tersimpan.'
+                      : 'Dokumen tersimpan sudah dipakai sebagai acuan di atas.'}
+                  </p>
+                )}
+              </div>
             </div>
           )}
           <div className="alert alert-info">Proses generate membutuhkan ±30–60 detik. Jangan tutup halaman ini.</div>
