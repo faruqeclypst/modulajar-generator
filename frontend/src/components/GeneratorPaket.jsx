@@ -3,6 +3,7 @@ import { JENJANG, FASE, MAPEL, MODEL } from '../lib/referensi';
 import { DOC_TYPES, SEMESTER } from '../lib/docs';
 import { generateDoc, rekomendasiAI, extractTitle, getProfile, saveProfile } from '../lib/api';
 import { saveModul, savePaket } from '../lib/db';
+import UnggahDokumen from './UnggahDokumen';
 
 // Urutan rantai: tiap dokumen menjadi acuan otomatis bagi dokumen berikutnya
 const RANTAI = {
@@ -73,6 +74,14 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
   useEffect(() => () => { clearInterval(timerRef.current); }, []);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Teks hasil unggahan dokumen ditambahkan ke kolom (tetap bisa diedit manual)
+  function gabung(k, teks, nama) {
+    setForm((f) => {
+      const lama = (f[k] || '').trim();
+      return { ...f, [k]: lama ? lama + '\n\n[Sumber: ' + nama + ']\n' + teks : teks };
+    });
+  }
 
   function validasi() {
     const e = {};
@@ -275,16 +284,19 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged }) {
           </div>
           <div className="field"><label>Materi Sumber <span className="hint">(opsional)</span></label>
             <textarea value={form.materi} onChange={(e) => set('materi', e.target.value)}
-              placeholder="Tempel ringkasan materi dari buku atau sumber tepercaya" rows={3} /></div>
+              placeholder="Tempel ringkasan materi dari buku atau sumber tepercaya" rows={3} />
+            <UnggahDokumen onTeks={(t, n) => gabung('materi', t, n)} /></div>
           {mode === 'pelaksanaan' && (
             <div className="field"><label>Dokumen Acuan (ATP/Prosem)</label>
               <textarea value={form.acuan} onChange={(e) => set('acuan', e.target.value)}
                 placeholder="Tempel ATP atau Prosem yang sudah ada" rows={4} />
+              <UnggahDokumen onTeks={(t, n) => gabung('acuan', t, n)} />
               {errForm.acuan && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.acuan}</p>}</div>
           )}
           <div className="field"><label>Teks CP Resmi <span className="hint">(opsional, bila ditempel AI merujuk persis ke teks ini)</span></label>
             <textarea value={form.cpResmi} onChange={(e) => set('cpResmi', e.target.value)}
-              placeholder="Tempel CP resmi Kemendikdasmen bila ada" rows={3} /></div>
+              placeholder="Tempel CP resmi Kemendikdasmen bila ada" rows={3} />
+            <UnggahDokumen onTeks={(t, n) => gabung('cpResmi', t, n)} /></div>
 
           <div className="btn-row">
             <button className="btn btn-primary" onClick={mulai}>Buat {MODE_INFO[mode].nama}</button>
