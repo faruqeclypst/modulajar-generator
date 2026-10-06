@@ -715,7 +715,10 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
                   <b style={{ display: 'block', marginTop: 6 }}>{h.judul}</b>
                   {h.topik && <span className="hint">{h.topik}</span>}
                 </div>
-                <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(h.dokumenId, { view: 'paket' })}>Buka</button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-sm" onClick={() => onOpenDoc(h.dokumenId, { view: 'paket', mode: 'susun-ulang' })} title="Susun ulang dokumen ini saja">Susun Ulang</button>
+                  <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(h.dokumenId, { view: 'paket' })}>Buka</button>
+                </div>
               </div>
             ))}
           </div>

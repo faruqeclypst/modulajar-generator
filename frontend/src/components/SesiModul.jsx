@@ -535,11 +535,8 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
           )}
           <div className="btn-row">
             <button type="button" className="btn" onClick={onBack}>Kembali</button>
-            <button type="button" className="btn" onClick={() => mulaiSesi(0)} disabled={busy || !topiks.length}>
-              Sesi Per Modul ({topiks.length})
-            </button>
-            <button type="button" className="btn btn-primary" onClick={paketLengkap} disabled={busy || !topiks.length} title="Generate semua modul sekaligus tanpa konfirmasi per modul">
-              Paket Lengkap Sekali Generate ({topiks.length} modul)
+            <button type="button" className="btn btn-primary" onClick={paketLengkap} disabled={busy || !topiks.length} title="Generate semua modul sekaligus">
+              Generate Paket ({topiks.length} modul)
             </button>
           </div>
           {topiks.length > 0 && (
