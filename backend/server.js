@@ -405,6 +405,7 @@ const ANTI_FIKSI = `DILARANG mengarang: jangan membuat indikator, fakta, rumus, 
 const ISTILAH_BARU = `Gunakan istilah "8 Dimensi Profil Lulusan" (Permendikdasmen No. 10/2025); JANGAN gunakan istilah lama "Profil Pelajar Pancasila"/"P5".`;
 // Kualitas isi: larang placeholder kosong dan jaga konsistensi istilah di semua dokumen.
 const ANTI_SLOP = `Tulis isi yang lengkap dan siap pakai. DILARANG menulis "...", "[...]", "[diisi]", atau placeholder kosong sebagai isi bagian mana pun. Setiap bagian harus berisi teks final yang benar-benar bisa dipakai guru di kelas.`;
+const RANTAI_VALIDITAS = `RANTAI DOKUMEN (WAJIB DIPAHAMI): Perangkat pembelajaran adalah SATU KESATUAN yang saling terhubung, bukan dokumen lepas. Urutannya: CP → Analisis CP → TP → ATP → Minggu Efektif → Distribusi JP → Prota → Prosem → Modul Ajar → Asesmen → LKPD. SETIAP dokumen WAJIB diturunkan dari dokumen sebelumnya: materi di Prosem HARUS SAMA dengan materi di Prota/ATP/TP (tidak boleh ganti topik); materi di Modul Ajar HARUS SAMA dengan materi di Prosem (ambil dari baris Prosem yang sesuai, jangan karang topik baru); TP di Modul HARUS SAMA dengan TP di ATP. Jika dokumen acuan tersedia, JANGAN mengarang materi/TP/tujuan baru di luar acuan. Pelanggaran rantai = dokumen TIDAK VALID.`;
 const KONSISTENSI = `Pakai sebutan mata pelajaran, kelas, fase, semester, dan topik PERSIS seperti pada data di atas di seluruh dokumen. Jangan mengubah-ubah istilahnya di tengah dokumen. IDENTITAS SINGKAT: setiap field identitas/informasi umum (nama, sekolah, kelas, fase, mata pelajaran, dll.) hanya berisi nilainya saja dari data — contoh: "X", "PJOK". DILARANG menulis penjelasan, catatan, analisis, atau koreksi di field identitas; kalau data tampak tidak konsisten, tetap tulis apa adanya tanpa komentar.`;
 // (IDENTITAS_SINGKAT sudah digabung ke KONSISTENSI di atas)
 
@@ -646,7 +647,7 @@ Aturan:
 - "pemahaman": 2-3 kalimat pemahaman bermakna bagi peserta didik.
 - "pemantik": 3-5 pertanyaan pemantik yang terbuka dan dekat dengan pengalaman peserta didik.
 - Sesuaikan kedalaman bahasa, contoh, dan kompleksitas dengan jenjang, fase, dan kelas pada data.
-- Isi setiap field dengan teks final, bukan placeholder. ${KONSISTENSI}
+- Isi setiap field dengan teks final, bukan placeholder. ${RANTAI_VALIDITAS} ${KONSISTENSI}
 Bahasa Indonesia formal. ${ISTILAH_BARU}`;
   const user = `Susun fondasi modul dengan data berikut:\n${IDENT(info)}\n- Materi Pokok/Topik: ${info.topik || '-'}${kunciRekomendasi}${txtPertemuan}\n\n${konteksSumber(materi, sumber)}`;
   return { system, user };
@@ -685,7 +686,7 @@ PENTING: angka menit fase hanya boleh muncul di sub-heading fase (format koma "a
 #### c. Penutup: [N] menit
 Langkah refleksi, umpan balik, tindak lanjut, masing-masing diakhiri (X menit), total TEPAT = N menit penutup pada DATA.
 
-Tulis langkah kegiatan yang konkret dan bisa langsung dilaksanakan (siapa berbuat apa, dengan bahan atau media apa), bukan instruksi umum seperti "Guru melaksanakan pembelajaran". ${ANTI_SLOP} ${KONSISTENSI}
+Tulis langkah kegiatan yang konkret dan bisa langsung dilaksanakan (siapa berbuat apa, dengan bahan atau media apa), bukan instruksi umum seperti "Guru melaksanakan pembelajaran". ${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Kembalikan HANYA markdown kegiatan (tiga sub-bagian di atas), tanpa pembuka/penutup tambahan. Bahasa Indonesia formal.`;
   const systemMulti = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
@@ -716,7 +717,7 @@ ATURAN PENANDA MENIT (hanya dua bentuk ini, jangan campur):
 - Sub-heading bagian: "#### a. Pendahuluan: [N] menit" (pakai titik dua, TANPA kurung)
 - Setiap langkah kegiatan diakhiri "(X menit)" (WAJIB dalam kurung)
 
-Tulis langkah kegiatan yang konkret dan bisa langsung dilaksanakan (siapa berbuat apa, dengan bahan atau media apa), bukan instruksi umum seperti "Guru melaksanakan pembelajaran". ${ANTI_SLOP} ${KONSISTENSI}
+Tulis langkah kegiatan yang konkret dan bisa langsung dilaksanakan (siapa berbuat apa, dengan bahan atau media apa), bukan instruksi umum seperti "Guru melaksanakan pembelajaran". ${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Kembalikan HANYA markdown kegiatan (satu blok per pertemuan, berurutan), tanpa pembuka/penutup tambahan. Bahasa Indonesia formal.`;
   const system = multi ? systemMulti : systemTunggal;
@@ -764,7 +765,7 @@ Struktur WAJIB persis:
 ### 9. Refleksi Peserta Didik dan Guru
 Pertanyaan refleksi untuk peserta didik dan untuk guru.
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTILAH_BARU}`;
   const user = `Susun asesmen dan pelengkap untuk modul "${fondasi.judul}".\nData: ${IDENT(info)}\n- Mata Pelajaran: ${info.mapel || '-'} | Materi: ${info.topik || '-'}\n- Tujuan Pembelajaran (rujukan asesmen):\n${fondasi.tp.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n${konteksSumber(materi, sumber)}`;
@@ -794,7 +795,7 @@ Soal harus mengukur TP di atas, bervariasi dari C1 sampai C4.
 ### 12. Rubrik Penilaian
 Tabel rubrik: kolom Aspek | Skor 4 | Skor 3 | Skor 2 | Skor 1, untuk penilaian uraian atau produk di atas. Deskriptor tiap sel harus konkret dan bisa diamati (bukan "baik", "cukup", "kurang" tanpa penjelasan). Plus panduan konversi skor ke nilai 0-100.
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTILAH_BARU}`;
   const user = `Susun materi pembelajaran dan bank soal untuk modul "${fondasi.judul}".\nData: ${IDENT(info)}\n- Mata Pelajaran: ${info.mapel || '-'} | Materi: ${info.topik || '-'}\n- Jumlah soal: ${nPG} pilihan ganda, ${nUraian} uraian\n- Tujuan Pembelajaran (rujukan materi & soal):\n${fondasi.tp.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n${konteksSumber(materi, sumber)}`;
@@ -1017,7 +1018,7 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap 
 // Prompt single-shot lama untuk docType=modul — dipakai sebagai FALLBACK
 const LEGACY_MODUL = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
 Susun MODUL AJAR yang lengkap, rapi, siap pakai. WAJIB ikuti struktur markdown persis di bawah. Jangan tambah/kurangi heading.
-${ANTI_FIKSI} ${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_FIKSI} ${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 # [Judul modul yang menarik dan spesifik]
 
@@ -1114,7 +1115,7 @@ Urutkan dari yang konkret ke abstrak / mudah ke sulit. Jika data memuat JP per m
 ## D. Catatan Pengembangan
 Prasyarat antar materi dan diferensiasi yang disarankan. ${ISTILAH_BARU}
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. TP operasional dan terukur.`,
 
@@ -1143,7 +1144,7 @@ Pada akhir fase, peserta didik mampu: ... (uraian perilaku yang dapat diamati, 3
 ## D. Catatan
 Keterkaitan antar elemen dan dengan Profil Lulusan (8 Dimensi Profil Lulusan, Permendikdasmen No. 10/2025).
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. Gunakan kata kerja operasional.`,
 
@@ -1173,7 +1174,7 @@ Untuk setiap elemen, susun tabel:
 ## D. Implikasi untuk TP
 Butir-butir turunan yang siap dirumuskan menjadi Tujuan Pembelajaran (TP): operasional, terukur, berurutan dari mudah ke sulit.
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 
@@ -1202,7 +1203,7 @@ Setiap TP memakai kata kerja operasional yang dapat diamati/diukur (mengidentifi
 ## C. Catatan
 Keterkaitan antar TP dan saran pengelompokan menjadi bab/materi pokok untuk ATP.
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 
@@ -1245,7 +1246,7 @@ Total JP pada tabel WAJIB sama dengan rekapitulasi. Sisakan JP untuk asesmen sum
 ## D. Catatan
 Penyesuaian bila ada minggu tidak efektif susulan.
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 LARANGAN KERAS: DILARANG menampilkan proses berpikir, draf awal, atau bagian "Perbaikan Tabel". Hitung SEMUA angka (total JP, nomor pertemuan) dengan benar SEBELUM menulis — pastikan sudah tepat dari awal. Keluarkan HANYA satu versi final yang sudah benar. Jangan pernah menulis dua versi tabel (salah lalu dibetulkan).
 
 Aturan: Bahasa Indonesia formal.`,
@@ -1280,7 +1281,7 @@ Cakup seluruh materi pokok esensial satu tahun. Alokasi realistis; jika data mem
 ## D. Catatan
 Penyesuaian untuk minggu tidak efektif dan pengayaan/remedial.
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 
@@ -1359,7 +1360,7 @@ STRUKTUR MINGGU (WAJIB): Buka dokumen Analisis Minggu Efektif, baca TABEL 1 (Gan
 ## C. Pengesahan
 Tulis blok tanda tangan: "Mengetahui, Kepala Sekolah" dan "[Kota], [Bulan Tahun] — Guru Mata Pelajaran", masing-masing dengan baris "Nama" dan "NIP".
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. Alur materi logis dan berurutan. ${ISTILAH_BARU}`,
 
@@ -1395,7 +1396,7 @@ Alokasi JP per minggu untuk mata pelajaran ini dan total JP efektif selama satu 
 ## E. Catatan Penyesuaian
 Hal yang perlu disesuaikan bila kalender pendidikan berubah.
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 
@@ -1432,7 +1433,7 @@ Aktivitas inti: pengamatan, diskusi, percobaan, atau pemecahan masalah. Setiap t
 ## F. Penilaian
 Rubrik singkat untuk guru (aspek, kriteria, skor). Kriteria tiap skor harus konkret dan bisa diamati.
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia yang mudah dipahami sesuai jenjang. Tugas autentik dan kontekstual. ${ISTILAH_BARU}`,
 
@@ -1467,7 +1468,7 @@ Rubrik untuk tiap teknik: aspek, kriteria per level, skor. Kriteria konkret dan 
 ## G. Tindak Lanjut
 Rencana remedial dan pengayaan berdasarkan hasil.
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 
@@ -1492,7 +1493,7 @@ Poin-poin kunci dalam daftar ringkas.
 ## E. Latihan Mandiri
 5–8 pertanyaan latihan tanpa kunci (untuk dikerjakan mandiri).
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia yang mudah dipahami sesuai jenjang. ${ISTILAH_BARU}`,
 
@@ -1528,7 +1529,7 @@ Jumlah sesuai baris "Uraian" pada pesan pengguna (bila tertulis '-', pakai 5): s
 ## E. Kunci Jawaban dan Pedoman Penskoran
 Kunci PG dengan format: 1-B, 2-C, ... (tanpa bold pada opsi). Rubrik penskoran uraian: skor per langkah penyelesaian, dengan deskriptor yang konkret.
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. Sebar level kognitif C1-C6. Soal HOTS (C4-C6) minimal 20%. ${ISTILAH_BARU}`;
   },
@@ -1561,7 +1562,7 @@ Deskripsikan kategori ketercapaian (mis. Sangat Baik / Baik / Cukup / Perlu Bimb
 - **Pengayaan**: bagi yang melampaui kriteria
 - **Remedial**: bagi yang belum mencapai kriteria
 
-${ANTI_SLOP} ${KONSISTENSI}
+${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 };
