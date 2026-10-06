@@ -68,7 +68,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink }) {
   return (
     <div className="wrap">
       <section className="hero-land">
-        <img src="/logo.png" alt="Logo ModulAjar" className="hero-logo" width="76" height="76" />
+        <img src="/logo.svg" alt="Logo ModulAjar" className="hero-logo" width="76" height="76" />
         <span className="kicker kicker-light">Untuk Guru Indonesia</span>
         <h1>Perangkat Ajar<br />Lengkap dalam<br /><span className="accent">Hitungan Menit.</span></h1>
         <p>
@@ -175,7 +175,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink }) {
       <footer className="land-footer">
         <div className="land-footer-grid">
           <div className="land-footer-brand">
-            <img src="/logo.png" alt="Logo ModulAjar" className="land-footer-logo" width="60" height="60" />
+            <img src="/logo.svg" alt="Logo ModulAjar" className="land-footer-logo" width="60" height="60" />
             <div>
               <b>ModulAjar</b>
               <span>Perangkat Ajar AI untuk Guru Indonesia</span>

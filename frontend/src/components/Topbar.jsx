@@ -97,7 +97,7 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
     <header className="topbar">
       <div className="topbar-inner">
         <button type="button" className="logo" onClick={() => { onNav('landing'); setMobileOpen(false); }} aria-label="ModulAjar, ke halaman depan">
-          <img src="/logo.png" alt="" aria-hidden="true" className="logo-mark logo-img" width="42" height="42" />
+          <img src="/logo.svg" alt="" aria-hidden="true" className="logo-mark logo-img" width="42" height="42" />
           <span className="logo-teks"><b>ModulAjar</b><small>Perangkat Ajar AI</small></span>
         </button>
         <div className="spacer" />

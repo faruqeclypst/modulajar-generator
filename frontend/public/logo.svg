@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <!-- ModulAjar: buku terbuka + sparkle AI, gaya brutalist Warm Paper -->
+  <!-- sampul belakang -->
+  <path d="M10 38 L48 48 L86 38 L86 54 L48 64 L10 54 Z"
+        fill="#B5362A" stroke="#241F1B" stroke-width="4" stroke-linejoin="miter"/>
+  <!-- halaman kiri -->
+  <path d="M16 22 L46 30 L46 54 L16 46 Z"
+        fill="#F7F3EA" stroke="#241F1B" stroke-width="4" stroke-linejoin="miter"/>
+  <!-- halaman kanan -->
+  <path d="M80 22 L50 30 L50 54 L80 46 Z"
+        fill="#F7F3EA" stroke="#241F1B" stroke-width="4" stroke-linejoin="miter"/>
+  <!-- garis teks -->
+  <path d="M22 34 L40 39" stroke="#241F1B" stroke-width="3" stroke-linecap="round"/>
+  <path d="M22 41 L40 46" stroke="#241F1B" stroke-width="3" stroke-linecap="round"/>
+  <path d="M56 39 L74 34" stroke="#241F1B" stroke-width="3" stroke-linecap="round"/>
+  <path d="M56 46 L74 41" stroke="#241F1B" stroke-width="3" stroke-linecap="round"/>
+  <!-- sparkle AI besar -->
+  <path d="M72 3 C73.5 8.5 75.5 10.5 81 12 C75.5 13.5 73.5 15.5 72 21 C70.5 15.5 68.5 13.5 63 12 C68.5 10.5 70.5 8.5 72 3 Z"
+        fill="#B5362A" stroke="#241F1B" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- sparkle kecil -->
+  <path d="M25 5 C25.8 8 26.8 9 30 10 C26.8 11 25.8 12 25 15 C24.2 12 23.2 11 20 10 C23.2 9 24.2 8 25 5 Z"
+        fill="#F7F3EA" stroke="#241F1B" stroke-width="2" stroke-linejoin="round"/>
+</svg>
