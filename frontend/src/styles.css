@@ -267,6 +267,12 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .step-body { flex: 1; min-width: 220px; }
 .step-body h3 { margin: 0 0 4px; font-size: 19px; font-weight: 800; }
 .step-body p { margin: 0; font-size: 14px; color: var(--slate); }
+/* Grid langkah perencanaan: 1 kolom di HP, 2 kolom di layar lebar */
+.ruang-steps { display: grid; grid-template-columns: 1fr; gap: 16px; margin: 16px 0; }
+.ruang-steps .step-card { margin: 0; height: 100%; }
+@media (min-width: 900px) {
+  .ruang-steps { grid-template-columns: 1fr 1fr; }
+}
 
 /* ---------- Generator Paket: pantau job ---------- */
 .job-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }

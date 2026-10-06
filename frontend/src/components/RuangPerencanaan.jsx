@@ -10,7 +10,7 @@ import Paywall from './Paywall';
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
 const BUTUH = { cp: null, atp: 'cp', minggu_efektif: 'atp', prota: 'minggu_efektif', prosem: 'prota' };
 
-export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, preselectProjectId, waLink, onKuotaChanged }) {
+export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBuatModul, preselectProjectId, waLink, onKuotaChanged }) {
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState(preselectProjectId || null);
   const [project, setProject] = useState(null);
@@ -141,7 +141,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, prese
   const prog = paketProgress(paket);
 
   return (
-    <div className="wrap narrow">
+    <div className="wrap">
       <span className="kicker">Ruang Perencanaan</span>
       <h1 className="page">{[project.mapel, project.kelas].filter(Boolean).join(' ') || project.nama}</h1>
       <p className="lead">{project.jenjang} · {project.fase} · {project.kelas} · Semester {project.semester} · {project.tahunAjaran}</p>
@@ -153,6 +153,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, prese
 
       {!stepKey && (
         <>
+          <div className="ruang-steps">
           {ALUR_PERENCANAAN.map((s) => {
             const need = BUTUH[s.key];
             const locked = need && !docs[need];
@@ -169,7 +170,14 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, prese
                     {done && <div className="hint" style={{ color: 'var(--ok)', fontWeight: 700 }}>Sudah disusun ✓</div>}
                   </div>
                   <div className="btn-row" style={{ margin: 0 }}>
-                    {done && <button className="btn btn-sm" onClick={() => onOpenDoc(docs[s.key])}>Lihat</button>}
+                    {done && (
+                      <a
+                        className="btn btn-sm" href={'#/dokumen/' + docs[s.key]}
+                        onClick={() => onCatatAsal && onCatatAsal({ view: 'ruang', ruangProjectId: projectId })}
+                      >
+                        Lihat
+                      </a>
+                    )}
                     <button className="btn btn-sm btn-primary" disabled={!!locked} onClick={() => setStepKey(s.key)}>
                       {done ? 'Susun Ulang' : locked ? 'Terkunci' : 'Susun'}
                     </button>
@@ -178,6 +186,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onBuatModul, prese
               </div>
             );
           })}
+          </div>
           <div className="btn-row">
             <button className="btn" onClick={tutupProyek}>Semua Proyek</button>
             {docs.atp && (

@@ -140,7 +140,7 @@ function LayarTunggu({ pesan }) {
 }
 
 // Posisi halaman tersimpan agar refresh tidak melempar ke halaman utama.
-// Format: {view, docId, projectId} (docId untuk view 'detail', projectId untuk 'proyek').
+// Format: {view, docId, projectId, ruangProjectId} (docId untuk 'detail', projectId untuk 'proyek', ruangProjectId untuk 'ruang').
 const VIEW_KEY = 'ma-view';
 const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek', 'docs', 'admin'];
 function bacaViewTersimpan() {
@@ -171,7 +171,7 @@ export default function App() {
   const [wizardKey, setWizardKey] = useState(0);
   const [wizardPaket, setWizardPaket] = useState(null);
   const [wizardProyek, setWizardProyek] = useState(null);
-  const [ruangProyek, setRuangProyek] = useState(null);
+  const [ruangProyek, setRuangProyek] = useState(() => bacaViewTersimpan()?.ruangProjectId || null);
   const [wizardTurunan, setWizardTurunan] = useState(null); // { docType, modulId }
   const [kuota, setKuota] = useState(null); // { admin, batas, dipakai, sisa, tanggal } | null
 
@@ -265,6 +265,19 @@ export default function App() {
         .finally(() => { if (!stop) setRestoring(false); });
       return () => { stop = true; };
     }
+    if (d.view === 'ruang') {
+      // Kembalikan proyek ruang yang sedang dibuka; tanpa itu jatuh ke 'app'
+      if (d.ruangProjectId) setRuangProyek(d.ruangProjectId);
+      else { setView('app'); }
+      setRestoring(false);
+      return;
+    }
+    if (d.view === 'wizard') {
+      // Wizard adalah alur transien (form tidak dipersist) -> kembali ke app
+      setView('app');
+      setRestoring(false);
+      return;
+    }
     setRestoring(false);
   }, [auth]);
 
@@ -273,14 +286,16 @@ export default function App() {
     if (auth !== 'app' || restoring) return;
     if (view === 'detail' && !active?.id) return; // restore belum selesai, jangan timpa
     if (view === 'proyek' && !projectAktif?.id) return;
+    if (view === 'ruang' && !ruangProyek) return;
     try {
       localStorage.setItem(VIEW_KEY, JSON.stringify({
         view,
         docId: view === 'detail' ? active?.id || null : null,
         projectId: view === 'proyek' ? projectAktif?.id || null : null,
+        ruangProjectId: view === 'ruang' ? ruangProyek || null : null,
       }));
     } catch { /* abaikan */ }
-  }, [auth, view, active, projectAktif, restoring]);
+  }, [auth, view, active, projectAktif, ruangProyek, restoring]);
   useEffect(() => { window.scrollTo(0, 0); }, [view]);
 
   function startNew(paketId, projectId) {
@@ -291,11 +306,43 @@ export default function App() {
     setView('wizard');
   }
   function startTurunan(docType, modulId) { setWizardTurunan({ docType, modulId }); setWizardPaket(null); setWizardProyek(null); setWizardKey((k) => k + 1); setView('wizard'); }
-  async function openDoc(id) {
+  async function openDoc(id, asal) {
     const d = await getModul(id);
     if (d && !d.docType) d.docType = 'modul';
+    // asal === undefined: pertahankan asal yang sudah dicatat (mis. via klik link)
+    if (asal !== undefined) setAsalDoc(asal || null);
     setActive(d); setView('detail');
+    const h = '#/dokumen/' + id;
+    if (window.location.hash !== h) window.location.hash = h;
   }
+  // Catat halaman asal sebelum buka dokumen (untuk tombol Kembali)
+  const catatAsal = (asal) => setAsalDoc(asal || null);
+  function kembaliDariDoc() {
+    if (window.location.hash.startsWith('#/dokumen/')) {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    const a = asalDoc; setAsalDoc(null);
+    if (a?.view === 'proyek' && a.projectId) openProyek(a.projectId);
+    else if (a?.view === 'ruang' && a.ruangProjectId) goRuang(a.ruangProjectId);
+    else goApp();
+  }
+  // Hash routing: #/dokumen/<id> -> buka dokumen (dukung klik kanan "buka di tab baru").
+  // Hash kosong saat di detail -> anggap tombol back browser -> kembali ke asal.
+  useEffect(() => {
+    if (auth !== 'app') return;
+    const onHash = () => {
+      const m = window.location.hash.match(/^#\/dokumen\/([\w-]+)/);
+      if (m) {
+        if (view !== 'detail' || active?.id !== m[1]) openDoc(m[1]);
+      } else if (view === 'detail') {
+        kembaliDariDoc();
+      }
+    };
+    onHash(); // tab baru dibuka langsung dengan hash
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth, view, active]);
   async function openProyek(id) {
     const p = await getProject(id);
     if (!p) return;
@@ -356,7 +403,8 @@ export default function App() {
 
       {view === 'ruang' && (
         <RuangPerencanaan
-          onBack={goApp} onOpenDoc={openDoc}
+          onBack={goApp} onOpenDoc={(id) => openDoc(id, { view: 'ruang', ruangProjectId: ruangProyek })}
+          onCatatAsal={catatAsal}
           onBuatModul={(pid, projId) => startNew(pid, projId)}
           preselectProjectId={ruangProyek}
           waLink={WA_LINK} onKuotaChanged={muatKuota}
@@ -370,8 +418,8 @@ export default function App() {
       {view === 'detail' && active && (
         <DocView
           doc={active}
-          onBack={goApp}
-          onDeleted={goApp}
+          onBack={kembaliDariDoc}
+          onDeleted={kembaliDariDoc}
           onChanged={refresh}
           onBuatTurunan={startTurunan}
         />
@@ -388,6 +436,7 @@ export default function App() {
           docs={moduls}
           onBack={goApp}
           onOpenDoc={openDoc}
+          onCatatAsal={catatAsal}
           onRuang={() => goRuang(projectAktif.id)}
           onBuatModul={() => startNew(null, projectAktif.id)}
           onChanged={refresh}

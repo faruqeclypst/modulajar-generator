@@ -178,7 +178,7 @@ const GRUP_DETAIL = [
   { key: 'penilaian', judul: 'Penilaian', types: ['soal', 'kktp'] },
 ];
 
-export function ProyekDetail({ project, docs, onBack, onOpenDoc, onRuang, onBuatModul, onChanged }) {
+export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, onRuang, onBuatModul, onChanged }) {
   const [paketDocs, setPaketDocs] = useState(null);
   const [editNama, setEditNama] = useState(false);
   const [namaBaru, setNamaBaru] = useState(project.nama || '');
@@ -265,7 +265,14 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onRuang, onBuat
                 {dok ? <div className="hint" style={{ color: 'var(--ok)', fontWeight: 700 }}>Sudah disusun ✓</div> : <p>{s.desc}</p>}
               </div>
               <div className="btn-row" style={{ margin: 0 }}>
-                {dok && <button className="btn btn-sm" onClick={() => onOpenDoc(dok.id)}>Lihat</button>}
+                {dok && (
+                  <a
+                    className="btn btn-sm" href={'#/dokumen/' + dok.id}
+                    onClick={() => onCatatAsal && onCatatAsal({ view: 'proyek', projectId: project.id })}
+                  >
+                    Lihat
+                  </a>
+                )}
                 <button className="btn btn-sm btn-primary" onClick={onRuang}>{dok ? 'Susun Ulang' : 'Susun'}</button>
               </div>
             </div>
