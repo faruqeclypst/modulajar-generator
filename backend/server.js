@@ -1344,7 +1344,12 @@ ATURAN JSON:
    Alokasi JP per materi mengikuti acuan — bisa 1 JP, 2 JP, 5 JP, dst. Bersifat DINAMIS, bukan pola tetap.
 2. Nama "materi" harus KONKRET dan SPESIFIK sesuai rincian TP di ATP (contoh: "Sorting dan searching array", bukan "Struktur Data lanjutan"). Jika ATP mengelompokkan banyak TP dalam satu judul umum, pecah menjadi sub-topik yang lebih spesifik.
 3. Urutan array = urutan pengajaran.
-4. Total "jp" per semester HARUS sama dengan total JP efektif semester itu. Jika kurang, tambahkan {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}.
+4. HITUNG TOTAL JP DENGAN BENAR (JANGAN asal):
+   a. Dari dokumen Analisis Minggu Efektif, hitung JUMLAH MINGGU EFEKTIF per semester (hanya minggu yang efektif KBM, bukan libur/ujian).
+   b. Total JP = (jumlah minggu efektif) × (JP per minggu dari data).
+   c. Total "jp" SEMUA objek per semester HARUS SAMA PERSIS dengan angka ini. DILARANG kurang.
+   d. Materi harus tersebar dari minggu efektif PERTAMA hingga minggu efektif TERAKHIR — DILARANG berhenti di tengah semester (mis. berakhir Oktober padahal semester sampai Desember).
+   e. Jika materi pokok tidak cukup mengisi semua minggu efektif, tambahkan objek {"materi": "Pengayaan / Remedial / Proyek", "jp": <selisih>, "ket": "Buffer"} atau {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}.
 5. Jika satu semester saja, array semester lainnya = [].
 
 ## C. Pengesahan". DILARANG menambah section lain.
