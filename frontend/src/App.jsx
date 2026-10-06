@@ -787,7 +787,7 @@ export default function App() {
       )}
       {/* Kartu progress mengambang: generate yang berjalan di latar */}
       <TugasFloating
-        sembunyi={view === 'wizard' ? ['wizard'] : view === 'paket' ? ['paket'] : view === 'ruang' ? ['ruang'] : []}
+        awalMinim={view === 'wizard' || view === 'ruang' || view === 'paket'}
         onKembali={(t) => {
           if (t.konteks === 'wizard') {
             setTugasKembaliId(t.id);

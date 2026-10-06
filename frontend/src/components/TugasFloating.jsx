@@ -9,17 +9,23 @@ function fmtLama(ms) {
 
 // Kartu progress mengambang ala bubble chat: bisa dibuka & diminimize.
 // Tetap tampil saat pengguna pindah halaman. Responsif mobile.
-export default function TugasFloating({ sembunyi = [], onKembali, onBuka }) {
+// awalMinim: mulai sebagai bubble kecil (dipakai saat di halaman asal tugas).
+export default function TugasFloating({ onKembali, onBuka, awalMinim }) {
   const [daftar, setDaftar] = useState([]);
-  const [buka, setBuka] = useState(true);
+  const [buka, setBuka] = useState(!awalMinim);
+  const userTutup = useRef(false); // true bila pengguna manual minimize/buka
   const [, setDetik] = useState(0);
   useEffect(() => langgananTugas(setDaftar), []);
   useEffect(() => {
     const iv = setInterval(() => setDetik((d) => d + 1), 1000);
     return () => clearInterval(iv);
   }, []);
+  // Sinkronkan mode awal hanya bila pengguna belum interaksi manual
+  useEffect(() => {
+    if (!userTutup.current) setBuka(!awalMinim);
+  }, [awalMinim]);
 
-  const tampil = daftar.filter((t) => !sembunyi.includes(t.konteks));
+  const tampil = daftar;
   const jalan = tampil.filter((t) => t.state === 'jalan');
   if (!tampil.length) return null;
 
@@ -29,7 +35,7 @@ export default function TugasFloating({ sembunyi = [], onKembali, onBuka }) {
       <button
         type="button"
         className="tugas-bubble"
-        onClick={() => setBuka(true)}
+        onClick={() => { userTutup.current = true; setBuka(true); }}
         aria-label={`${jalan.length} proses berjalan. Buka untuk melihat.`}
         title="Lihat proses berjalan"
       >
@@ -47,7 +53,7 @@ export default function TugasFloating({ sembunyi = [], onKembali, onBuka }) {
         <b>Proses berjalan</b>
         <button
           type="button" className="tugas-tutup" aria-label="Minimize"
-          onClick={() => setBuka(false)}
+          onClick={() => { userTutup.current = true; setBuka(false); }}
           title="Minimize"
         >—</button>
       </div>
