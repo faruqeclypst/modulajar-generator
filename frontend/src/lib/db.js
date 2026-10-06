@@ -322,6 +322,12 @@ export async function deleteProject(id) {
       try { await updateModul(d.id, { projectId: null }); } catch { /* abaikan */ }
     }
   }
+  // Hapus paket tertaut (bila ada) agar migrasiPaketKeProyek() tidak
+  // membuat ulang proyek ini saat login/refresh berikutnya.
+  try {
+    const proj = await getProject(id).catch(() => null);
+    if (proj && proj.paketId) await deletePaket(proj.paketId).catch(() => {});
+  } catch { /* abaikan */ }
   if (await cekProyekDB()) {
     const c = await getSupabase();
     const { error } = await c.from('proyek').delete().eq('id', String(id));
