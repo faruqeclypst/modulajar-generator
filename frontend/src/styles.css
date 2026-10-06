@@ -722,9 +722,11 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   box-shadow: 2px 0 0 rgba(0,0,0,0.08);
 }
 .matriks-lebar .md table thead th:first-child, .matriks-lebar .md table tr:first-child th:first-child { z-index: 3; }
-/* Kolom minggu ramping: hanya berisi angka */
-.matriks-lebar .md table th:not(:first-child):not(:nth-child(2)):not(:last-child),
-.matriks-lebar .md table td:not(:first-child):not(:nth-child(2)):not(:last-child) { min-width: 34px; padding: 6px 4px; }
+/* Kolom minggu ramping (hanya di baris data): hanya berisi angka */
+.matriks-lebar .md table tbody td:not(:first-child):not(:nth-child(2)):not(:last-child) { min-width: 34px; padding: 6px 4px; }
+/* Header minggu: semua sel nomor minggu ukurannya sama */
+.matriks-lebar .md table thead th { min-width: 34px; }
+.matriks-lebar .md table thead th:first-child { min-width: 200px; max-width: 260px; }
 @media print {
   /* Matriks Prosem: font kecil agar 33 kolom muat di A4 landscape */
   .matriks-lebar .md { overflow: visible; }

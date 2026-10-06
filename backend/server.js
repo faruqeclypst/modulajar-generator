@@ -1601,11 +1601,11 @@ function bangunMatriksProsem(md, info) {
     // Header kolom minggu: Bln-1 .. Bln-5 per bulan
     const kolomMinggu = [];
     bulan.forEach(([, kode]) => { for (let w = 1; w <= 5; w++) kolomMinggu.push(kode + '-' + w); });
-    let html = '<table>\n<tr><th rowspan="2">Materi Pokok</th><th rowspan="2">JP</th>';
+    let html = '<table>\n<thead>\n<tr><th rowspan="2">Materi Pokok</th><th rowspan="2">JP</th>';
     bulan.forEach(([nama]) => { html += '<th colspan="5">' + nama + '</th>'; });
     html += '<th rowspan="2">Ket</th></tr>\n<tr>';
     bulan.forEach(() => { for (let w = 1; w <= 5; w++) html += '<th>' + w + '</th>'; });
-    html += '</tr>\n';
+    html += '</tr>\n</thead>\n<tbody>\n';
     // Baris jumlah per minggu (untuk LBR/PTS/PAS dan total)
     const jumlah = new Array(kolomMinggu.length).fill('');
     // Tandai kolom minggu tidak efektif lebih dulu (dipakai saat bangun sel)
@@ -1642,7 +1642,7 @@ function bangunMatriksProsem(md, info) {
     const totalJP = daftar.reduce((a, it) => a + (Number(it.jp) || 0), 0);
     html += '<tr><td>Jumlah</td><td>' + totalJP + '</td>';
     jumlah.forEach((j, c) => { html += '<td' + clsKolom(c) + '>' + j + '</td>'; });
-    html += '<td></td></tr>\n</table>';
+    html += '<td></td></tr>\n</tbody>\n</table>';
     return html;
   };
 
