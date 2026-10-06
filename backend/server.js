@@ -1300,7 +1300,7 @@ ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (PROTA), materi dan alokasi JP WAJIB mengik
 - **Alokasi Waktu**: [JP per minggu] JP/minggu
 
 ## B. Matriks Program Semester
-Tulis HANYA SATU blok JSON (tanpa teks lain sebelum/sesudahnya) berisi daftar materi berurutan per semester. CONTOH FORMAT PERSIS:
+Dokumen tetap memiliki section A (Informasi Umum) dan C (Pengesahan) seperti biasa. Namun UNTUK SECTION B INI SAJA, tulis HANYA SATU blok JSON di bawah ini — tanpa kalimat pembuka, tanpa penjelasan, tanpa teks lain di dalam section B. CONTOH FORMAT PERSIS:
 
 \`\`\`json
 {
