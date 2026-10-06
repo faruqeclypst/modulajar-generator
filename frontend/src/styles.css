@@ -427,7 +427,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .paper-head { border-bottom: 4px solid var(--ink); padding-bottom: 20px; margin-bottom: 24px; }
 .paper-head .doclabel { font-size: 12px; font-weight: 800; letter-spacing: 3px; color: var(--red-dark); text-transform: uppercase; margin-bottom: 8px; }
 .paper-head h1 { font-size: clamp(24px, 4.5vw, 38px); font-weight: 900; line-height: 1.15; margin: 0 0 14px; letter-spacing: -.5px; }
-.info-table { width: 100%; border-collapse: collapse; margin: 0; font-size: 14.5px; display: block; overflow-x: auto; }
+.info-table { width: 100%; border-collapse: collapse; margin: 0; font-size: 14.5px; display: table; }
 .info-table th, .info-table td { border: 2px solid var(--ink); padding: 9px 12px; text-align: left; vertical-align: top; }
 .info-table th { background: var(--ink); color: var(--paper); width: 220px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
 @media (max-width: 560px) { .info-table th { width: 130px; } }
@@ -441,7 +441,9 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .md li::marker { font-weight: 800; }
 .md strong { color: var(--ink); }
 .md hr { border: none; border-top: 2px solid var(--ink); margin: 26px 0; }
-.md table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; display: block; overflow-x: auto; }
+.md table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; display: table; }
+/* Layar kecil: tabel isi boleh scroll horizontal agar tidak merusak layout kertas */
+@media (max-width: 640px) { .md table { display: block; overflow-x: auto; } }
 .md th, .md td { border: 2px solid var(--ink); padding: 8px 10px; text-align: left; vertical-align: top; }
 .md th { background: var(--ink); color: var(--paper); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
 .md img { max-width: 100%; border: var(--bd); }
