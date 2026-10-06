@@ -846,6 +846,13 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 }
 .btn-ghost-light:hover { background: rgba(251, 246, 238, .12); box-shadow: none; transform: none; }
 .hero-note { color: var(--paper); opacity: .85; font-size: 13.5px; margin: 14px 0 0; position: relative; z-index: 2; }
+.hero-login { color: var(--paper); opacity: .85; font-size: 14px; margin: 10px 0 0; position: relative; z-index: 2; }
+.hero-login button {
+  background: none; border: none; padding: 4px 2px; cursor: pointer;
+  color: #fff; font: inherit; font-weight: 800; text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.hero-login button:hover { color: var(--red); }
 
 /* ---------- landing: rantai dokumen ---------- */
 .land-chain { list-style: none; margin: 8px 0 0; padding: 0; }

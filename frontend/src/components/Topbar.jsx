@@ -31,7 +31,7 @@ function avatarUrl(user) {
   return meta.avatar_url || meta.picture || null;
 }
 
-export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpenDocs, isAdmin, onSignOut }) {
+export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpenDocs, isAdmin, onSignOut, onLogin }) {
   const [open, setOpen] = useState(false); // menu pengguna
   const [mobileOpen, setMobileOpen] = useState(false); // panel navigasi mobile
   const triggerRef = useRef(null);
@@ -107,13 +107,18 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
             {navButtons(false)}
           </nav>
         )}
-        {diLanding && (
+        {user && diLanding && (
           <button type="button" className="btn btn-primary btn-sm topbar-cta" onClick={() => onNav('app')}>
             Buka Aplikasi
           </button>
         )}
+        {!user && (
+          <button type="button" className="btn btn-primary btn-sm topbar-cta" onClick={onLogin}>
+            Masuk
+          </button>
+        )}
 
-        {!diLanding && (
+        {user && !diLanding && (
           <button
             type="button"
             className="menu-toggle"
@@ -126,6 +131,7 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
           </button>
         )}
 
+        {user && (
         <div className="topbar-acts">
         {kuota && (
           <button
@@ -181,6 +187,7 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
           )}
         </div>
         </div>
+        )}
       </div>
 
       <nav

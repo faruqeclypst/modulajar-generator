@@ -31,7 +31,7 @@ function GoogleG() {
   );
 }
 
-function LayarLogin({ err }) {
+function LayarLogin({ err, onBatal }) {
   const [busy, setBusy] = useState(false);
   const [gagal, setGagal] = useState(err || '');
   const [siteKey, setSiteKey] = useState(null); // null = memuat, '' = captcha nonaktif
@@ -99,6 +99,11 @@ function LayarLogin({ err }) {
   return (
     <div className="login-wrap">
       <div className="login-card">
+        {onBatal && (
+          <button type="button" className="btn btn-sm" onClick={onBatal} style={{ alignSelf: 'flex-start', marginBottom: 14 }}>
+            ← Kembali
+          </button>
+        )}
         <div className="login-logo" aria-hidden="true">M</div>
         <span className="kicker">Untuk Guru Indonesia</span>
         <h1>Perangkat ajar lengkap dalam hitungan menit</h1>
@@ -158,6 +163,7 @@ export default function App() {
   const [auth, setAuth] = useState('loading'); // loading | login | app
   const [user, setUser] = useState(null);
   const [authErr, setAuthErr] = useState('');
+  const [mintaLogin, setMintaLogin] = useState(false); // belum login: tampilkan form login di atas landing
   // Lazy dari localStorage agar tidak ada flash halaman utama saat refresh
   const [view, setView] = useState(() => bacaViewTersimpan()?.view || 'landing'); // landing | app | wizard | detail | ruang | paket | pengaturan | proyek | docs | admin
   const [restoring, setRestoring] = useState(() => {
@@ -204,9 +210,9 @@ export default function App() {
       try {
         const sb = await getSupabase();
         const sess = await getSession();
-        if (!stop) { setUser(sess?.user || null); setAuth(sess ? 'app' : 'login'); }
+        if (!stop) { setUser(sess?.user || null); setAuth(sess ? 'app' : 'login'); if (sess) setMintaLogin(false); }
         const { data: sub } = sb.auth.onAuthStateChange((_ev, sess2) => {
-          if (!stop) { setUser(sess2?.user || null); setAuth(sess2 ? 'app' : 'login'); }
+          if (!stop) { setUser(sess2?.user || null); setAuth(sess2 ? 'app' : 'login'); if (sess2) setMintaLogin(false); }
         });
         stopSub = () => sub.subscription.unsubscribe();
       } catch (e) {
@@ -363,7 +369,37 @@ export default function App() {
   }
 
   if (auth === 'loading') return <LayarTunggu pesan="Menyiapkan aplikasi…" />;
-  if (auth === 'login') return <LayarLogin err={authErr} />;
+  // Belum login: tampilkan landing page dulu; form login muncul saat pengguna
+  // memilih "Masuk" / "Mulai Membuat".
+  if (auth === 'login') {
+    if (mintaLogin) return <LayarLogin err={authErr} onBatal={() => setMintaLogin(false)} />;
+    return (
+      <>
+        <Topbar
+          view="landing"
+          onNav={() => {}}
+          user={null}
+          kuota={null}
+          onLogin={() => setMintaLogin(true)}
+          onOpenSettings={() => {}}
+          onOpenDocs={null}
+          isAdmin={false}
+          onSignOut={() => {}}
+        />
+        <ErrorBoundary key="landing-publik" onBack={() => {}}>
+        <div className="view-enter">
+          <Landing
+            onStart={() => setMintaLogin(true)}
+            onDocs={null}
+            onMasukan={null}
+            waLink={WA_LINK}
+            onLogin={() => setMintaLogin(true)}
+          />
+        </div>
+        </ErrorBoundary>
+      </>
+    );
+  }
   if (restoring) return <LayarTunggu pesan="Memuat dokumen…" />;
 
   return (

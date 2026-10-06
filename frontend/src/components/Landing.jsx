@@ -56,7 +56,7 @@ const FAQ = [
     'Di akunmu (login Google). Buka dari perangkat mana pun, datanya tetap ada. Hanya kamu yang bisa membukanya.'],
 ];
 
-export default function Landing({ onStart, onDocs, onMasukan, waLink }) {
+export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin }) {
   // Tangkap kode referral dari URL (?ref=KODE) untuk diklaim setelah login.
   useEffect(() => {
     try {
@@ -81,6 +81,9 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink }) {
           <a className="btn btn-ghost-light" href="#cara-kerja">Lihat Cara Kerja</a>
         </div>
         <p className="hero-note">Gratis 20 kredit setiap minggu. Tanpa kartu kredit.</p>
+        {onLogin && (
+          <p className="hero-login">Sudah punya akun? <button type="button" onClick={onLogin}>Masuk</button></p>
+        )}
       </section>
 
       <div className="marquee" aria-hidden="true">
