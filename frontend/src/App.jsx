@@ -227,6 +227,11 @@ export default function App() {
         const sb = await getSupabase();
         const sess = await getSession();
         if (!stop) { setUidLokal(sess?.user?.id || null); setUser(sess?.user || null); setAuth(sess ? 'app' : 'login'); if (sess) setMintaLogin(false); }
+        // gotrue-js membersihkan token OAuth di hash via `location.hash = ''`,
+        // yang menyisakan "#" gantung di URL -> bersihkan agar address bar rapi.
+        if (!stop && window.location.hash === '#') {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
         const { data: sub } = sb.auth.onAuthStateChange((_ev, sess2) => {
           if (!stop) { setUidLokal(sess2?.user?.id || null); setUser(sess2?.user || null); setAuth(sess2 ? 'app' : 'login'); if (sess2) setMintaLogin(false); }
         });
@@ -438,12 +443,8 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth, view, active]);
-  // Bersihkan hash kosong ("#") dari URL agar tidak tampil aneh di address bar
-  useEffect(() => {
-    if (window.location.hash === '#') {
-      history.replaceState(null, '', window.location.pathname + window.location.search);
-    }
-  }, []);
+  // (pembersihan "#" gantung sisa OAuth kini dilakukan di efek auth di atas,
+  // tepat setelah sesi selesai dimuat)
   async function openProyek(id) {
     const p = await getProject(id);
     if (!p) return false;
