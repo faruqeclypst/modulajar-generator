@@ -2805,7 +2805,8 @@ app.post('/api/rekomendasi', requireAuth(async (req, res) => {
   try {
     if (!cekRateLimit(req.user.id, 'rekomendasi', 30))
       return kirimGagal(res, 429, 'Terlalu banyak permintaan. Coba lagi nanti.');
-    const rekomendasi = await rekomendasiAIInternal(req.body || {});
+    const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
+    const rekomendasi = await aiKeyCtx.run(kunciUser, () => rekomendasiAIInternal(req.body || {}));
     res.json({ ok: true, rekomendasi });
   } catch (e) {
     kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
