@@ -24,14 +24,20 @@ export default function ProsesLive({ judul, tahap, status, tulisan = [] }) {
   const tahapJalan = tahap.find((t) => status[t.key] === 'jalan');
   const semuaSelesai = tahap.length > 0 && okCount === tahap.length;
   const live = !!tahapJalan && !semuaSelesai;
+  // Fokus pada tahap AKTIF, bukan hitungan "Langkah X dari Y" yang penyebutnya
+  // bisa bertambah saat stream (membingungkan).
+  const langkahAktif = tahapJalan ? tahap.indexOf(tahapJalan) + 1 : (semuaSelesai ? tahap.length : okCount);
+  const labelProgres = tahap.length
+    ? `Sedang ${tahapJalan ? 'menyusun tahap ' + langkahAktif : 'menyusun tahap terakhir'}${tahapJalan ? ': ' + tahapJalan.label : ''}`
+    : 'Menyiapkan…';
   return (
     <div className="card">
       <span className="kicker">Proses berjalan</span>
       <h2 style={{ margin: '0 0 4px' }}>{judul}</h2>
       <p className="hint" style={{ marginTop: 0 }}>
         {tahapJalan
-          ? <>AI sedang {tahapJalan.label.charAt(0).toLowerCase() + tahapJalan.label.slice(1)}. Halaman ini jangan ditutup.</>
-          : 'Tahapan asli dari server, bukan animasi. Halaman ini jangan ditutup.'}
+          ? <>AI sedang {tahapJalan.label.charAt(0).toLowerCase() + tahapJalan.label.slice(1)}. Boleh pindah halaman — progres tetap terlihat di kartu mengambang. Jangan tutup tab browser.</>
+          : 'Tahapan asli dari server, bukan animasi. Boleh pindah halaman — progres tetap terlihat di kartu mengambang. Jangan tutup tab browser.'}
       </p>
       <div
         className="progress" role="progressbar"
@@ -40,7 +46,7 @@ export default function ProsesLive({ judul, tahap, status, tulisan = [] }) {
       >
         <div className="progress-fill" style={{ width: (tahap.length ? (okCount / tahap.length) * 100 : 0) + '%' }} />
       </div>
-      <p className="progress-label">Langkah {okCount} dari {tahap.length} · {fmtDetik(detik)}</p>
+      <p className="progress-label">{semuaSelesai ? 'Selesai' : labelProgres} · {fmtDetik(detik)}</p>
       <TulisanAI segmen={tulisan} live={live} />
       {semuaSelesai && (
         <StempelSelesai teks="Dokumen selesai disusun" subteks="Klik dokumen untuk membuka dan mengeditnya." />

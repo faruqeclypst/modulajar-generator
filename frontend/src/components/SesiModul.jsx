@@ -6,12 +6,13 @@ import { buatTugas, tugasTahap, tugasTulisan, tugasSelesai, tugasGagal, tutupTug
 import { kunciAkun } from '../lib/akunLokal';
 import ProsesLive from './ProsesLive';
 import DocEditor from './DocEditor';
-import WawancaraGuru, { kompilasiPersona } from './WawancaraGuru';
+import WawancaraGuru, { kompilasiPersona, ringkasanPersona } from './WawancaraGuru';
+import Konfirmasi from './Konfirmasi';
 
 // Sesi Modul Batch: generate banyak modul 1-klik berdasarkan dokumen perencanaan
 // (CP, ATP, Prota, Prosem). Setiap modul dikonfirmasi user sebelum lanjut ke berikut:
 // bisa Revisi (edit/regenerate) atau Lanjut. Nama guru/mapel bisa di-rename massal.
-export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged }) {
+export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuotaChanged }) {
   const [project, setProject] = useState(null);
   const [docs, setDocs] = useState({}); // {cp, atp, prota, prosem} -> markdown
   const [topiks, setTopiks] = useState([]); // [{topik, alokasi}]
@@ -20,6 +21,7 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
   const [namaGuru, setNamaGuru] = useState('');
   const [mapel, setMapel] = useState('');
   const [persona, setPersona] = useState(''); // teks profil guru dari wawancara
+  const [personaRingkasan, setPersonaRingkasan] = useState(''); // versi ramah pengguna
   const [tahap, setTahap] = useState('wawancara'); // wawancara | setup | jalan | konfirmasi | selesai
   const [idx, setIdx] = useState(0);
   const [hasil, setHasil] = useState([]); // [{topik, docId, markdown}]
@@ -30,22 +32,24 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
   const [tulisan, setTulisan] = useState([]);
   const [error, setError] = useState('');
   const [renameOpen, setRenameOpen] = useState(false);
+  const [sesiTerhenti, setSesiTerhenti] = useState(false); // draft punya progres -> tawarkan lanjutkan
+  const [konf, setKonf] = useState(null);
   const labelMap = useRef({});
   const tugasIdRef = useRef(null);
 
-  // Draft sesi: tahan refresh (topik, pengaturan, persona)
+  // Draft sesi: tahan refresh (topik, pengaturan, persona, progres)
   function kunciDraft() { return kunciAkun('ma-sesi-modul-' + projectId); }
   function simpanDraft() {
     try {
       localStorage.setItem(kunciDraft(), JSON.stringify({
-        topiks, model, namaGuru, mapel, persona,
+        topiks, model, namaGuru, mapel, persona, personaRingkasan, idx, hasil,
       }));
     } catch { /* abaikan */ }
   }
   useEffect(() => {
     if (!project) return;
     simpanDraft();
-  }, [topiks, model, namaGuru, mapel, persona]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [topiks, model, namaGuru, mapel, persona, personaRingkasan, idx, hasil]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     (async () => {
@@ -65,6 +69,13 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
           if (d.namaGuru) setNamaGuru(d.namaGuru);
           if (d.mapel) setMapel(d.mapel);
           if (d.persona) { setPersona(d.persona); setTahap('setup'); }
+          if (d.personaRingkasan) setPersonaRingkasan(d.personaRingkasan);
+          if (Array.isArray(d.hasil) && d.hasil.length) {
+            setHasil(d.hasil);
+            setIdx(typeof d.idx === 'number' ? d.idx : d.hasil.length);
+            setSesiTerhenti(true);
+            setTahap('setup');
+          }
         }
       } catch { /* abaikan */ }
       // Muat dokumen perencanaan sebagai acuan
@@ -175,12 +186,20 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
     }
   }
 
-  function mulaiSesi() {
+  function mulaiSesi(dariIdx) {
     if (!topiks.length) { setError('Tambahkan minimal satu topik.'); return; }
-    setHasil([]);
-    setIdx(0);
+    const mulai = typeof dariIdx === 'number' ? dariIdx : 0;
+    if (mulai === 0) setHasil([]);
+    setSesiTerhenti(false);
+    setIdx(mulai);
     setTahap('jalan');
-    generateUntuk(topiks[0], 0);
+    generateUntuk(topiks[mulai], mulai);
+  }
+
+  function mulaiUlang() {
+    setHasil([]);
+    setSesiTerhenti(false);
+    mulaiSesi(0);
   }
 
   async function simpanSkrg() {
@@ -200,35 +219,56 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
   }
 
   async function konfirmasiLanjut() {
-    const docId = await simpanSkrg();
-    const baru = [...hasil, { topik: skrg.topik, docId, markdown: skrg.markdown }];
-    setHasil(baru);
-    setSkrg(null);
-    if (tugasIdRef.current) tutupTugas(tugasIdRef.current);
-    if (idx + 1 < topiks.length) {
-      setIdx(idx + 1);
-      setTahap('jalan');
-      generateUntuk(topiks[idx + 1], idx + 1);
-    } else {
-      try { localStorage.removeItem(kunciDraft()); } catch { /* abaikan */ }
-      setTahap('selesai');
+    if (busy) return;
+    setBusy(true);
+    try {
+      const docId = await simpanSkrg();
+      const baru = [...hasil, { topik: skrg.topik, docId, markdown: skrg.markdown }];
+      setHasil(baru);
+      setSkrg(null);
+      if (tugasIdRef.current) tutupTugas(tugasIdRef.current);
+      if (idx + 1 < topiks.length) {
+        setIdx(idx + 1);
+        setTahap('jalan');
+        generateUntuk(topiks[idx + 1], idx + 1);
+      } else {
+        try { localStorage.removeItem(kunciDraft()); } catch { /* abaikan */ }
+        setTahap('selesai');
+      }
+    } finally {
+      setBusy(false);
     }
   }
 
   async function konfirmasiSelesai() {
-    const docId = await simpanSkrg();
-    setHasil([...hasil, { topik: skrg.topik, docId, markdown: skrg.markdown }]);
-    setSkrg(null);
-    if (tugasIdRef.current) tutupTugas(tugasIdRef.current);
-    try { localStorage.removeItem(kunciDraft()); } catch { /* abaikan */ }
-    setTahap('selesai');
+    if (busy) return;
+    setBusy(true);
+    try {
+      const docId = await simpanSkrg();
+      setHasil([...hasil, { topik: skrg.topik, docId, markdown: skrg.markdown }]);
+      setSkrg(null);
+      if (tugasIdRef.current) tutupTugas(tugasIdRef.current);
+      try { localStorage.removeItem(kunciDraft()); } catch { /* abaikan */ }
+      setTahap('selesai');
+    } finally {
+      setBusy(false);
+    }
   }
 
   function konfirmasiRevisi() {
-    // Kembali ke mode jalan tapi biarkan user edit via DocEditor di layar konfirmasi
-    // (tombol "Generate ulang" memicu generate ulang topik yang sama)
-    setTahap('jalan');
-    generateUntuk(topiks[idx], idx);
+    // Generate ulang memotong 1 kredit lagi — minta persetujuan dulu.
+    setKonf({
+      judul: `Generate ulang Modul ${idx + 1}?`,
+      pesan: `"${topiks[idx]?.topik}" akan disusun ulang dari awal dan memakai 1 kredit lagi. Edit manualmu di atas akan hilang.`,
+      teksYa: 'Ya, generate ulang', berbahaya: true,
+      aksi: () => { setTahap('jalan'); generateUntuk(topiks[idx], idx); },
+    });
+  }
+  async function jalankanKonf() {
+    if (!konf || !konf.aksi) return;
+    const aksi = konf.aksi;
+    setKonf(null);
+    await aksi();
   }
 
   // Rename massal: ubah nama guru / mapel untuk semua modul dalam sesi ini
@@ -270,8 +310,8 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
 
   return (
     <div className="wrap">
-      <span className="kicker">Sesi Modul Batch</span>
-      <h1 className="page">Buat Modul 1-Klik</h1>
+      <span className="kicker">Sesi Modul</span>
+      <h1 className="page">Buat Banyak Modul Sekaligus</h1>
       <p className="lead">
         {project.nama || project.mapel} · {project.kelas} · {project.semester}.
         AI menyusun modul per topik berdasarkan CP, ATP, Prota, Prosem.
@@ -282,9 +322,10 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
         <WawancaraGuru
           onSelesai={({ jawaban, catatan }) => {
             setPersona(kompilasiPersona(jawaban, catatan));
+            setPersonaRingkasan(ringkasanPersona(jawaban, catatan));
             setTahap('setup');
           }}
-          onLewati={() => { setPersona(''); setTahap('setup'); }}
+          onLewati={() => { setPersona(''); setPersonaRingkasan(''); setTahap('setup'); }}
         />
       )}
 
@@ -343,14 +384,43 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
             Dokumen acuan tersedia: {[docs.cp && 'CP', docs.atp && 'ATP', docs.prota && 'Prota', docs.prosem && 'Prosem'].filter(Boolean).join(', ') || 'belum ada'}.
             {!docs.atp && ' Buat dulu di Ruang Perencanaan agar modul selaras.'}
           </p>
+          {personaRingkasan && (
+            <div className="card" style={{ marginTop: 16, background: '#fbf9f4' }}>
+              <h3 style={{ margin: '0 0 6px' }}>3. Persona Guru</h3>
+              <pre className="hint" style={{ whiteSpace: 'pre-wrap', margin: '0 0 8px', fontFamily: 'inherit' }}>{personaRingkasan}</pre>
+              <button type="button" className="btn btn-sm" onClick={() => { setTahap('wawancara'); }}>
+                Ubah jawaban wawancara
+              </button>
+            </div>
+          )}
 
           {error && <div className="alert alert-error">{error}</div>}
+          {sesiTerhenti && hasil.length > 0 && (
+            <div className="alert alert-info" role="status">
+              <b>Sesi terhenti di Modul {idx + 1} dari {topiks.length}.</b> {hasil.length} modul sudah tersimpan aman.
+              <div className="btn-row" style={{ marginTop: 10, marginBottom: 0 }}>
+                <button type="button" className="btn btn-sm btn-primary" onClick={() => mulaiSesi(idx)} disabled={busy}>
+                  Lanjutkan dari Modul {idx + 1}
+                </button>
+                <button type="button" className="btn btn-sm" onClick={mulaiUlang} disabled={busy}>
+                  Mulai ulang dari awal
+                </button>
+              </div>
+            </div>
+          )}
           <div className="btn-row">
             <button type="button" className="btn" onClick={onBack}>Kembali</button>
-            <button type="button" className="btn btn-primary" onClick={mulaiSesi} disabled={busy || !topiks.length}>
+            <button type="button" className="btn btn-primary" onClick={() => mulaiSesi(0)} disabled={busy || !topiks.length}>
               Mulai Sesi ({topiks.length} modul)
             </button>
           </div>
+          {topiks.length > 0 && (
+            <p className="hint" style={{ marginTop: 8 }}>
+              {topiks.length} modul × 1 kredit = {topiks.length} kredit.
+              {kuota && !kuota.admin && ` Sisa kreditmu minggu ini: ${kuota.sisa} dari ${kuota.batas}.`}
+              {kuota && kuota.admin && ' Kamu admin: tanpa batas kredit.'}
+            </p>
+          )}
         </div>
       )}
 
@@ -371,7 +441,7 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
         <div className="card">
           <span className="kicker">Konfirmasi Modul {idx + 1} dari {topiks.length}</span>
           <h2 style={{ margin: '4px 0 8px' }}>{skrg.topik}</h2>
-          <p className="hint">Periksa hasil. Lanjut ke modul berikut, revisi (generate ulang), atau selesai.</p>
+          <p className="hint">Periksa hasil di bawah. Edit manualmu ikut tersimpan saat menekan tombol — beda dengan "Generate ulang" yang menyusun ulang dari awal (memakai 1 kredit lagi).</p>
           <DocEditor
             initialMarkdown={skrg.markdown}
             images={skrg.images || []}
@@ -399,6 +469,13 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
           </div>
         </div>
       )}
+      {konf && (
+        <Konfirmasi
+          judul={konf.judul} pesan={konf.pesan} daftar={konf.daftar}
+          teksYa={konf.teksYa} berbahaya={konf.berbahaya}
+          sibuk={busy} onYa={jalankanKonf} onBatal={() => !busy && setKonf(null)}
+        />
+      )}
 
       {tahap === 'selesai' && (
         <div className="card">
@@ -413,13 +490,13 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, onKuotaChanged
           ))}
           <div className="btn-row" style={{ marginTop: 16 }}>
             <button type="button" className="btn" onClick={() => setRenameOpen(true)}>
-              Rename massal (nama guru / mapel)
+              Ubah nama guru / mapel sekaligus
             </button>
             <button type="button" className="btn btn-primary" onClick={onBack}>Kembali</button>
           </div>
           {renameOpen && (
             <div className="card" style={{ marginTop: 16 }}>
-              <h3 style={{ marginTop: 0 }}>Rename Massal</h3>
+              <h3 style={{ marginTop: 0 }}>Ubah Nama Guru / Mapel Sekaligus</h3>
               <p className="hint">Ubah sekali, berlaku untuk semua {hasil.length} modul dalam sesi ini.</p>
               <div className="grid2">
                 <div className="field">

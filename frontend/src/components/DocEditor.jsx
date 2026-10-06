@@ -5,6 +5,7 @@ import { regenBlock } from '../lib/api';
 import { bukaPratinjauBaru } from '../lib/pratinjau';
 import DocPaper from './DocPaper';
 import ImagePicker from './ImagePicker';
+import Konfirmasi from './Konfirmasi';
 
 let uid = 1;
 const nid = () => 'n' + (uid++) + Date.now().toString(36);
@@ -72,6 +73,7 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
   const [slashId, setSlashId] = useState(null); // id blok teks yang menu "/" nya terbuka
   const [pratinjau, setPratinjau] = useState(false); // mode pratinjau side-by-side
   const [pratinjauFull, setPratinjauFull] = useState(false); // mode pratinjau layar penuh
+  const [konfHapusBlok, setKonfHapusBlok] = useState(null); // id blok yang dikonfirmasi hapus
   const rowRefs = useRef({});
 
   const mdPratinjau = blocksToMd(blocks);
@@ -150,8 +152,12 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
   }
 
   function remove(id) {
-    if (!confirm('Hapus blok ini?')) return;
-    setBlocks((bs) => bs.filter((b) => b.id !== id));
+    setKonfHapusBlok(id);
+  }
+
+  function jalanHapusBlok() {
+    if (konfHapusBlok) setBlocks((bs) => bs.filter((b) => b.id !== konfHapusBlok));
+    setKonfHapusBlok(null);
   }
 
   function addBlock(type, at) {
@@ -489,6 +495,15 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
             <DocPaper doc={{ judul: docTitle, markdown: mdPratinjau, images: imgsPratinjau, docType }} />
           </div>
         </div>
+      )}
+      {konfHapusBlok && (
+        <Konfirmasi
+          judul="Hapus blok ini?"
+          pesan="Blok dokumen ini akan dihapus dari editor."
+          teksYa="Ya, hapus" berbahaya
+          onYa={jalanHapusBlok}
+          onBatal={() => setKonfHapusBlok(null)}
+        />
       )}
     </div>
   );

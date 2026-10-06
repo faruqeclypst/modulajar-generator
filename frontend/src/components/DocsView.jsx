@@ -178,9 +178,11 @@ export default function DocsView({ onBack, onMasukan }) {
               Menemukan yang kurang pas, punya ide fitur, atau butuh bantuan?
               Sampaikan lewat halaman masukan — dibaca langsung oleh pengembang.
             </p>
-            <div className="btn-row">
-              <button type="button" className="btn btn-primary" onClick={onMasukan}>Buka Halaman Masukan</button>
-            </div>
+            {onMasukan && (
+              <div className="btn-row">
+                <button type="button" className="btn btn-primary" onClick={onMasukan}>Buka Halaman Masukan</button>
+              </div>
+            )}
           </S>
         </div>
       </div>

@@ -576,9 +576,13 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
                   : 'Bingung mulai dari mana? AI akan memilihkan minggu yang paling cocok dari Prosem paket ini.')
                 : 'Bingung mulai dari mana? AI bisa merekomendasikan judul, model pembelajaran, dan alokasi waktu.'}
             </span>
-            <button className="btn btn-sm btn-ink" onClick={mintaRekomendasi} disabled={rekomLoading || !form.mapel}>
+            <button className="btn btn-sm btn-ink" onClick={mintaRekomendasi} disabled={rekomLoading || !form.mapel}
+              title={!form.mapel ? 'Pilih mata pelajaran dulu untuk meminta rekomendasi AI.' : undefined}>
               {rekomLoading ? 'Meminta…' : 'Minta Rekomendasi AI'}
             </button>
+            {!form.mapel && !rekomLoading && (
+              <span className="hint" style={{ marginLeft: 8 }}>Pilih mata pelajaran dulu.</span>
+            )}
           </div>
           {error && <div className="alert alert-error">{error}</div>}
           {rekom && (
@@ -896,7 +900,18 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
               )}
             </div>
           )}
-          <div className="alert alert-info">Proses generate membutuhkan ±30–60 detik. Jangan tutup halaman ini.</div>
+          <div className="alert alert-info">Proses generate membutuhkan ±30–60 detik. Boleh pindah halaman — progres tetap terlihat di kartu mengambang. Jangan tutup tab browser.</div>
+          {error && (
+            <div className="alert alert-error" role="alert" style={{ margin: '0 0 16px' }}>
+              <b>Generate gagal.</b> {error}
+              <br />Kredit tidak terpotong bila generate gagal.
+              <div className="btn-row" style={{ marginTop: 10, marginBottom: 0 }}>
+                <button type="button" className="btn btn-sm btn-primary" onClick={() => { setError(''); handleGenerate(); }} disabled={loading}>
+                  Coba lagi
+                </button>
+              </div>
+            </div>
+          )}
           {kuota && !kuota.admin && (
             <p className="hint" style={{ margin: '0 0 4px' }}>Sisa kredit minggu ini: <b>{kuota.sisa}</b> dari {kuota.batas}.</p>
           )}

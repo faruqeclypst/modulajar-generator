@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Paywall from './Paywall';
+import Konfirmasi from './Konfirmasi';
 import { getAiConfig, saveAiConfig, deleteAiConfig, getAiStatus, setAiPilihan, getReferal, getProfile, saveProfile } from '../lib/api';
 import { SkelForm, Skel } from './Kerangka';
 
@@ -18,6 +19,7 @@ function KunciAISendiri() {
   const [pilihan, setPilihan] = useState(true); // true = AI bawaan web
   const [bawaanAktif, setBawaanAktif] = useState(true);
   const [menggantiPilihan, setMenggantiPilihan] = useState(false);
+  const [konfHapus, setKonfHapus] = useState(false);
 
   async function muat() {
     setStatus('memuat');
@@ -77,7 +79,11 @@ function KunciAISendiri() {
   }
 
   async function hapus() {
-    if (!window.confirm('Hapus kunci AI sendiri? Generate akan kembali memakai kuota mingguan.')) return;
+    setKonfHapus(true);
+  }
+
+  async function jalanHapus() {
+    setKonfHapus(false);
     setErr('');
     setCatatan('');
     try {
@@ -181,6 +187,15 @@ function KunciAISendiri() {
       )}
       {catatan && <p className="hint" role="status" style={{ marginBottom: 0 }}>{catatan}</p>}
         </>
+      )}
+      {konfHapus && (
+        <Konfirmasi
+          judul="Hapus kunci AI sendiri?"
+          pesan="Generate akan kembali memakai kuota mingguan."
+          teksYa="Ya, hapus" berbahaya
+          onYa={jalanHapus}
+          onBatal={() => setKonfHapus(false)}
+        />
       )}
     </section>
   );
@@ -304,18 +319,23 @@ function PulihkanProyek({ onRefresh }) {
 // Hapus total: bersihkan seluruh data lokal dan mulai dari bersih.
 function HapusTotalData() {
   const [sibuk, setSibuk] = useState(false);
+  const [konf, setKonf] = useState(null);
   async function jalankan() {
     let yatim = 0;
     try {
       const { pindaiProyekYatim } = await import('../lib/db');
       yatim = (await pindaiProyekYatim()).length;
     } catch { /* abaikan */ }
-    const lanjut = window.confirm(
-      yatim
-        ? `Ditemukan ${yatim} proyek di penyimpanan lain. Hapus total akan MENGHAPUSNYA PERMANEN dari perangkat ini. Lanjutkan?`
-        : 'Hapus SELURUH data lokal (proyek, draft, profil, sesi login)? Kamu akan keluar dan perlu login lagi. Dokumen di server TIDAK ikut terhapus. Lanjutkan?'
-    );
-    if (!lanjut) return;
+    setKonf({
+      judul: 'Hapus seluruh data lokal?',
+      pesan: yatim
+        ? `Ditemukan ${yatim} proyek di penyimpanan lain. Hapus total akan menghapusnya permanen dari perangkat ini.`
+        : 'Hapus seluruh data lokal (proyek, draft, profil, sesi login)? Kamu akan keluar dan perlu login lagi. Dokumen di server tidak ikut terhapus.',
+      teksYa: 'Ya, hapus semua', berbahaya: true,
+    });
+  }
+  async function jalanHapus() {
+    setKonf(null);
     setSibuk(true);
     try {
       const { hapusTotalDataLokal } = await import('../lib/akunLokal');
@@ -333,6 +353,15 @@ function HapusTotalData() {
           {sibuk ? 'Menghapus…' : 'Hapus total data lokal'}
         </button>
       </div>
+      {konf && (
+        <Konfirmasi
+          judul={konf.judul} pesan={konf.pesan}
+          teksYa={konf.teksYa} berbahaya={konf.berbahaya}
+          sibuk={sibuk}
+          onYa={jalanHapus}
+          onBatal={() => !sibuk && setKonf(null)}
+        />
+      )}
     </div>
   );
 }
@@ -353,6 +382,7 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
     return { nip: p.nip || '', kepalaSekolah: p.kepalaSekolah || '', nipKepalaSekolah: p.nipKepalaSekolah || '' };
   });
   const [catatanPegawai, setCatatanPegawai] = useState('');
+  const [konf, setKonf] = useState(null); // {judul,pesan,teksYa,berbahaya,aksi}
 
   function simpanPegawai() {
     saveProfile({
@@ -388,8 +418,12 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
   }
 
   async function keluar() {
-    if (!window.confirm('Keluar dari ModulAjar? Kamu bisa masuk lagi kapan pun dengan akun Google yang sama.')) return;
-    await onSignOut();
+    setKonf({
+      judul: 'Keluar dari ModulAjar?',
+      pesan: 'Kamu bisa masuk lagi kapan pun dengan akun Google yang sama.',
+      teksYa: 'Ya, keluar', berbahaya: true,
+      aksi: onSignOut,
+    });
   }
 
   return (
@@ -505,7 +539,15 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
         </div>
         {catatan && <p className="hint" role="status" style={{ marginBottom: 0 }}>{catatan}</p>}
         <PulihkanProyek onRefresh={onRefresh} />
-        <HapusTotalData />
+        <details style={{ marginTop: 16, borderTop: '1px dashed var(--line)', paddingTop: 12 }}>
+          <summary style={{ fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+            Pemecahan masalah lanjutan
+          </summary>
+          <p className="hint" style={{ margin: '8px 0 0' }}>
+            Khusus bila data di perangkat ini tampak tidak sinkron. Tenang — dokumen di server tidak ikut terhapus.
+          </p>
+          <HapusTotalData />
+        </details>
       </section>
 
       <section className="card" aria-labelledby="set-bantuan">

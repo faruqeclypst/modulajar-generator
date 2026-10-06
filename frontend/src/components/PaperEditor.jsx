@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import { mdToBlocks, blocksToMd, figToImage, BLOCK_LABEL } from '../lib/blocks';
 import { regenBlock, gambarAI } from '../lib/api';
 import { buangJudulGanda, rapikanIdentitas } from '../lib/api';
+import Konfirmasi from './Konfirmasi';
 import ImagePicker from './ImagePicker';
 import './PaperEditor.css';
 
@@ -188,6 +189,7 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
   const [regenId, setRegenId] = useState(null);
   const [regenErr, setRegenErr] = useState('');
   const [imgAt, setImgAt] = useState(null);
+  const [konfHapusBlok, setKonfHapusBlok] = useState(null);
   const [dragId, setDragId] = useState(null);
   const [overId, setOverId] = useState(null);
   const editRefs = useRef({});
@@ -305,23 +307,23 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
         >⠿</button>
       )}
       {EDIT_INLINE.includes(b.type) && (
-        <button type="button" className="ptool" title="Ubah langsung di tempat" onClick={() => mulaiUbah(b)}>✎</button>
+        <button type="button" className="ptool" title="Ubah langsung di tempat" onClick={() => mulaiUbah(b)}>Ubah</button>
       )}
       {BISA_AI.includes(b.type) && (
         <button type="button" className="ptool" title="Perbaiki dengan AI"
-          onClick={() => { setEditingId(null); setImgAt(null); setAiId(aiId === b.id ? null : b.id); setAiTeks(''); setRegenErr(''); }}>✨</button>
+          onClick={() => { setEditingId(null); setImgAt(null); setAiId(aiId === b.id ? null : b.id); setAiTeks(''); setRegenErr(''); }}>AI</button>
       )}
       {!opts.tanpaGambar && (
         <button type="button" className="ptool" title="Sisipkan gambar di bawah bagian ini"
-          onClick={() => { setEditingId(null); setAiId(null); setImgAt(imgAt === b.id ? null : b.id); }}>🖼</button>
+          onClick={() => { setEditingId(null); setAiId(null); setImgAt(imgAt === b.id ? null : b.id); }}>Gbr</button>
       )}
       {!opts.tanpaTambah && (
         <button type="button" className="ptool" title="Tambah paragraf di bawah"
-          onClick={() => { const nb = { type: 'p', text: 'Tulis di sini…' }; sisipSetelah(b.id, nb); }}>＋</button>
+          onClick={() => { const nb = { type: 'p', text: 'Tulis di sini…' }; sisipSetelah(b.id, nb); }}>+</button>
       )}
       {!opts.tanpaHapus && (
         <button type="button" className="ptool danger" title="Hapus bagian"
-          onClick={() => { if (window.confirm('Hapus bagian ini?')) hapus(b.id); }}>🗑</button>
+          onClick={() => setKonfHapusBlok(b.id)}>Hapus</button>
       )}
     </div>
   );
@@ -451,9 +453,19 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
           <p className="hint">Dokumen kosong. Tambah paragraf pertama:</p>
           <button type="button" className="btn btn-sm btn-primary no-print"
             onClick={() => commit([{ id: nid(), type: 'p', text: 'Tulis di sini…' }])}>
-            ＋ Tambah paragraf
+            + Tambah paragraf
           </button>
         </div>
+      )}
+
+      {konfHapusBlok && (
+        <Konfirmasi
+          judul="Hapus bagian ini?"
+          pesan="Bagian dokumen ini akan dihapus dari pratinjau edit."
+          teksYa="Ya, hapus" berbahaya
+          onYa={() => { hapus(konfHapusBlok); setKonfHapusBlok(null); }}
+          onBatal={() => setKonfHapusBlok(null)}
+        />
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getToken } from '../lib/supabase';
 import { SkelStat, SkelTabel, SkelKartu, SkelForm } from './Kerangka';
 import Paginasi from './Paginasi';
+import Konfirmasi from './Konfirmasi';
 
 // Panggilan API admin: pola sama seperti apiJob di GeneratorPaket.jsx.
 async function apiAdmin(path, method, body) {
@@ -31,6 +32,9 @@ const fmtAngka = (v) => Number(v || 0).toLocaleString('id-ID');
 const STATUS_LABEL = {
   antri: 'Menunggu', berjalan: 'Berjalan', menunggu_review: 'Menunggu review',
   selesai: 'Selesai', gagal: 'Gagal', dibatalkan: 'Dibatalkan',
+};
+const MODE_LABEL = {
+  lengkap: 'Paket Lengkap', pelaksanaan: 'Dokumen Pelaksanaan', perencanaan: 'Perencanaan',
 };
 
 const TABS = [
@@ -231,6 +235,7 @@ function PengaturanAI() {
     const [daftar, setDaftar] = useState([]);
     const [f, setF] = useState(null);
     const [simpan, setSimpanF] = useState(false);
+    const [konfHapus, setKonfHapus] = useState(false);
 
     async function toggle() {
       try {
@@ -292,7 +297,10 @@ function PengaturanAI() {
     }
 
     async function hapus() {
-      if (!window.confirm(`Hapus "${p.nama}" dari daftar?`)) return;
+      setKonfHapus(true);
+    }
+    async function jalanHapus() {
+      setKonfHapus(false);
       try {
         await apiAdmin('/api/admin/daftar-ai/' + p.id, 'DELETE');
         muatPreset(); if (p.aktif) muatCfg();
@@ -402,6 +410,15 @@ function PengaturanAI() {
               </button>
             </div>
           </form>
+        )}
+        {konfHapus && (
+          <Konfirmasi
+            judul={`Hapus "${p.nama}" dari daftar?`}
+            pesan="Preset AI ini akan dihapus permanen."
+            teksYa="Ya, hapus" berbahaya
+            onYa={jalanHapus}
+            onBatal={() => setKonfHapus(false)}
+          />
         )}
       </div>
     );
@@ -593,6 +610,7 @@ function PengaturanAI() {
 // Dashboard admin: ringkasan + pengguna + masukan + job + pengaturan AI. Prop: onBack.
 export default function AdminDashboard({ onBack }) {
   const PER_HAL = 20;
+  const [konf, setKonf] = useState(null); // {judul,pesan,teksYa,berbahaya,aksi}
   const [tab, setTab] = useState('ringkasan');
   const [ringkasan, setRingkasan] = useState(null);
   const [pengguna, setPengguna] = useState(null);
@@ -644,13 +662,15 @@ export default function AdminDashboard({ onBack }) {
   }
 
   async function hapusMasukan(id) {
-    if (!window.confirm('Hapus masukan ini? Tindakan ini tidak bisa dibatalkan.')) return;
-    try {
-      await apiAdmin('/api/admin/masukan/' + id, 'DELETE');
-      setMasukan((m) => (m || []).filter((x) => x.id !== id));
-    } catch (e) {
-      setErr((p) => ({ ...p, masukan: e.message || 'Gagal menghapus masukan.' }));
-    }
+    setKonf({ judul: 'Hapus masukan ini?', pesan: 'Tindakan ini tidak bisa dibatalkan.', teksYa: 'Ya, hapus', berbahaya: true,
+      aksi: async () => {
+        try {
+          await apiAdmin('/api/admin/masukan/' + id, 'DELETE');
+          setMasukan((m) => (m || []).filter((x) => x.id !== id));
+        } catch (e) {
+          setErr((p) => ({ ...p, masukan: e.message || 'Gagal menghapus masukan.' }));
+        }
+      } });
   }
 
   const r = ringkasan || {};
@@ -787,7 +807,7 @@ export default function AdminDashboard({ onBack }) {
                     {jobs.map((j) => (
                       <tr key={j.id}>
                         <td><code>{String(j.id).slice(0, 8)}</code></td>
-                        <td>{j.mode}</td>
+                        <td>{MODE_LABEL[j.mode] || j.mode}</td>
                         <td>{STATUS_LABEL[j.status] || j.status}</td>
                         <td>{j.userEmail || '-'}</td>
                         <td>{fmtTgl(j.dibuat)}</td>
@@ -868,6 +888,15 @@ export default function AdminDashboard({ onBack }) {
       <div className="btn-row">
         <button type="button" className="btn" onClick={onBack}>Kembali</button>
       </div>
+
+      {konf && (
+        <Konfirmasi
+          judul={konf.judul} pesan={konf.pesan}
+          teksYa={konf.teksYa} berbahaya={konf.berbahaya}
+          onYa={async () => { const a = konf.aksi; setKonf(null); a && await a(); }}
+          onBatal={() => setKonf(null)}
+        />
+      )}
         </div>{/* /.admin-main */}
       </div>{/* /.admin-layout */}
     </div>

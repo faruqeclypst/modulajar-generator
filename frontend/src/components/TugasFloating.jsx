@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { langgananTugas, tutupTugas } from '../lib/tugasLatar';
+import { langgananTugas, tutupTugas, sembunyikanTugas } from '../lib/tugasLatar';
 
 function fmtLama(ms) {
   const s = Math.floor(ms / 1000);
@@ -14,6 +14,7 @@ export default function TugasFloating({ onKembali, onBuka, awalMinim }) {
   const [daftar, setDaftar] = useState([]);
   const [buka, setBuka] = useState(!awalMinim);
   const userTutup = useRef(false); // true bila pengguna manual minimize/buka
+  const persenMaks = useRef({}); // id -> persen tertinggi yang pernah tampil
   const [, setDetik] = useState(0);
   useEffect(() => langgananTugas(setDaftar), []);
   useEffect(() => {
@@ -25,7 +26,7 @@ export default function TugasFloating({ onKembali, onBuka, awalMinim }) {
     if (!userTutup.current) setBuka(!awalMinim);
   }, [awalMinim]);
 
-  const tampil = daftar;
+  const tampil = daftar.filter((t) => !t.tersembunyi);
   const jalan = tampil.filter((t) => t.state === 'jalan');
   if (!tampil.length) return null;
 
@@ -61,7 +62,11 @@ export default function TugasFloating({ onKembali, onBuka, awalMinim }) {
         const total = t.tahap.length;
         const ok = t.tahap.filter((p) => t.status[p.key] === 'ok').length;
         const jalanTahap = t.tahap.find((p) => t.status[p.key] === 'jalan');
-        const persen = total ? Math.round((ok / total) * 100) : 0;
+        // Penyebut dibekukan: persen tak pernah turun (tahap bisa bertambah saat stream)
+        const mentah = total ? Math.round((ok / total) * 100) : 0;
+        const persen = Math.max(mentah, persenMaks.current[t.id] || 0);
+        persenMaks.current[t.id] = persen;
+        const nungguReview = t.meta && t.meta.menunggu_review;
         return (
           <div key={t.id} className={'tugas-card' + (t.state === 'gagal' ? ' gagal' : '')}>
             <div className="tugas-kepala">
@@ -69,10 +74,18 @@ export default function TugasFloating({ onKembali, onBuka, awalMinim }) {
                 {t.state === 'selesai' ? '✓ ' : t.state === 'gagal' ? '✕ ' : ''}
                 {t.judul}
               </b>
-              <button
-                type="button" className="tugas-tutup" aria-label="Tutup"
-                onClick={() => tutupTugas(t.id)}
-              >×</button>
+              {t.state === 'jalan' ? (
+                <button
+                  type="button" className="tugas-tutup" aria-label="Sembunyikan (tugas tetap berjalan)"
+                  title="Sembunyikan — tugas tetap berjalan"
+                  onClick={() => sembunyikanTugas(t.id)}
+                >×</button>
+              ) : (
+                <button
+                  type="button" className="tugas-tutup" aria-label="Tutup"
+                  onClick={() => tutupTugas(t.id)}
+                >×</button>
+              )}
             </div>
             {t.state === 'jalan' && (
               <>
@@ -80,12 +93,16 @@ export default function TugasFloating({ onKembali, onBuka, awalMinim }) {
                   <div className="progress-fill" style={{ width: persen + '%' }} />
                 </div>
                 <p className="tugas-status">
-                  {jalanTahap ? <>Menyusun {jalanTahap.label.charAt(0).toLowerCase() + jalanTahap.label.slice(1)}…</> : 'Menyiapkan…'}
+                  {nungguReview ? (
+                    <><b>Menunggu review</b> — ketuk untuk lanjutkan.</>
+                  ) : jalanTahap ? (
+                    <>Menyusun {jalanTahap.label.charAt(0).toLowerCase() + jalanTahap.label.slice(1)}…</>
+                  ) : 'Menyiapkan…'}
                   <span className="tugas-waktu">{fmtLama(Date.now() - t.mulai)}</span>
                 </p>
                 {onKembali && (
                   <button type="button" className="btn btn-sm" onClick={() => onKembali(t)}>
-                    {t.aksi?.kembali || 'Lihat proses'}
+                    {nungguReview ? 'Lanjutkan review' : (t.aksi?.kembali || 'Lihat proses')}
                   </button>
                 )}
               </>
@@ -101,7 +118,14 @@ export default function TugasFloating({ onKembali, onBuka, awalMinim }) {
               </>
             )}
             {t.state === 'gagal' && (
-              <p className="tugas-status">{t.error}</p>
+              <>
+                <p className="tugas-status">{t.error}</p>
+                {t.konteks === 'ruang' && onKembali && (
+                  <button type="button" className="btn btn-sm btn-primary" onClick={() => onKembali(t)}>
+                    Buka langkah — coba lagi
+                  </button>
+                )}
+              </>
             )}
           </div>
         );

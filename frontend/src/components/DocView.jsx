@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { updateModul, deleteModul, listModuls } from '../lib/db';
-import { buangJudulGanda, rapikanIdentitas } from '../lib/api';
+import { buangJudulGanda, rapikanIdentitas, extractTitle } from '../lib/api';
 import { exportDocx } from '../lib/docxExport';
 import { TEMA_DOKUMEN, bacaTemaDokumen, simpanTemaDokumen } from '../lib/tema';
 import { DOC_TYPES } from '../lib/docs';
 import DocPaper from './DocPaper';
 import PaperEditor from './PaperEditor';
 import ImagePicker from './ImagePicker';
+import Konfirmasi from './Konfirmasi';
+import MenuTitik from './MenuTitik';
 
 export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurunan }) {
   const docType = doc.docType || 'modul'; // dokumen lama tanpa docType = modul
@@ -19,6 +21,8 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [turunan, setTurunan] = useState([]);
+  const [konfHapus, setKonfHapus] = useState(false);
+  const [errSimpan, setErrSimpan] = useState('');
 
   useEffect(() => {
     if (isModul) {
@@ -31,16 +35,25 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
 
   async function persist(patch) {
     setSaving(true);
-    await updateModul(doc.id, patch);
-    Object.assign(doc, patch);
-    setSaving(false);
-    onChanged && onChanged();
+    setErrSimpan('');
+    try {
+      await updateModul(doc.id, patch);
+      Object.assign(doc, patch);
+      onChanged && onChanged();
+    } catch (e) {
+      setErrSimpan('Gagal menyimpan: ' + (e.message || 'kesalahan tidak dikenal') + '.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleExport() {
     setExporting(true);
+    setErrSimpan('');
     try {
       await exportDocx({ judul, docType: doc.docType, markdown: text, images, tema });
+    } catch (e) {
+      setErrSimpan('Gagal mengunduh Word: ' + (e.message || 'kesalahan tidak dikenal') + '.');
     } finally {
       setExporting(false);
     }
@@ -52,7 +65,6 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
   }
 
   async function handleDelete() {
-    if (!confirm('Hapus ' + typeName + ' ini dari perangkat?')) return;
     await deleteModul(doc.id);
     onDeleted();
   }
@@ -63,20 +75,18 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
         <button className="btn btn-sm" onClick={onBack}>← Kembali</button>
         {mode === 'view' && (
           <>
-            <button className="btn btn-sm btn-ink" onClick={() => setMode('edit')}>Edit Langsung</button>
-            <button className="btn btn-sm" onClick={() => setMode('images')}>Kelola Gambar</button>
-            {isModul && onBuatTurunan && (
-              <>
-                <button className="btn btn-sm btn-primary" onClick={() => onBuatTurunan('lkpd', doc.id)}>Buat LKPD</button>
-                <button className="btn btn-sm" onClick={() => onBuatTurunan('soal', doc.id)}>Buat Bank Soal</button>
-                <button className="btn btn-sm" onClick={() => onBuatTurunan('kktp', doc.id)}>Buat KKTP</button>
-              </>
-            )}
             <button className="btn btn-sm btn-primary" onClick={handleExport} disabled={exporting}>
               {exporting ? 'Menyiapkan…' : 'Unduh Word'}
             </button>
+            <button className="btn btn-sm" onClick={() => setMode('edit')}>Edit Langsung</button>
+            <button className="btn btn-sm" onClick={() => setMode('images')}>Kelola Gambar</button>
             <button className="btn btn-sm" onClick={() => window.print()} title="Di dialog cetak: pilih 'Save as PDF', matikan 'Headers and footers' agar bersih">Cetak / PDF</button>
-            <button className="btn btn-sm" onClick={handleDelete}>Hapus</button>
+            <MenuTitik
+              label="Aksi lainnya"
+              opsi={[
+                { label: 'Hapus dokumen', aksi: () => setKonfHapus(true), bahaya: true },
+              ]}
+            />
           </>
         )}
         {mode === 'view' && (
@@ -130,8 +140,13 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
         <div>
           <div className="alert alert-info no-print">
             Ubah langsung di dokumen: <b>klik dua kali</b> teks untuk mengedit, arahkan kursor ke bagian
-            untuk <b>menggeser</b> (tahan ⠿ atau Alt+↑/↓), <b>perbaiki dengan AI</b> ✨, atau <b>sisipkan gambar</b> 🖼.
+            untuk <b>menggeser</b> (tahan ⠿ atau Alt+↑/↓), <b>perbaiki dengan AI</b>, atau <b>sisipkan gambar</b>.
           </div>
+          {errSimpan && (
+            <div className="alert alert-error no-print" role="alert">
+              {errSimpan}
+            </div>
+          )}
           <PaperEditor
             initialMarkdown={buangJudulGanda(rapikanIdentitas(text), judul)}
             images={images}
@@ -173,6 +188,15 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
             </div>
           )}
         </div>
+      )}
+      {konfHapus && (
+        <Konfirmasi
+          judul={`Hapus ${typeName.toLowerCase()} ini?`}
+          pesan={`"${judul}" akan dihapus permanen dan tidak bisa dikembalikan.`}
+          teksYa="Ya, hapus" berbahaya
+          onYa={handleDelete}
+          onBatal={() => setKonfHapus(false)}
+        />
       )}
     </div>
   );

@@ -14,6 +14,10 @@
 }
 .pblk:hover .pblk-tools,
 .pblk:focus-within .pblk-tools { opacity: 1; pointer-events: auto; transform: none; }
+/* Di layar sentuh tanpa hover, toolbar selalu terlihat agar terjangkau */
+@media (hover: none) {
+  .pblk-tools { opacity: 1; pointer-events: auto; transform: none; position: static; margin-bottom: 4px; float: right; }
+}
 .ptool {
   width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
   background: #fff; border: 2px solid transparent; font-size: 15px; cursor: pointer; color: var(--ink);

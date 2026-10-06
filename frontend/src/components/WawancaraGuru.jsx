@@ -78,6 +78,21 @@ export function kompilasiPersona(jawaban, catatan) {
   return `PROFIL GURU (sesuaikan nada, detail, dan aktivitas modul dengan profil ini):\n${bagian.join('\n')}`;
 }
 
+// Versi ramah pengguna untuk ringkasan di UI (tanpa instruksi prompt).
+export function ringkasanPersona(jawaban, catatan) {
+  const label = {
+    gayaMengajar: 'Gaya mengajar', karakteristikSiswa: 'Karakteristik siswa',
+    fasilitas: 'Fasilitas kelas', preferensiModul: 'Preferensi modul',
+    pengalaman: 'Pengalaman mengajar',
+  };
+  const baris = [];
+  for (const [k, v] of Object.entries(jawaban || {})) {
+    if (v && String(v).trim()) baris.push(`- ${label[k] || k}: ${String(v).trim()}`);
+  }
+  if (catatan?.trim()) baris.push(`- Catatan khusus: ${catatan.trim()}`);
+  return baris.join('\n');
+}
+
 export default function WawancaraGuru({ awal, onSelesai, onLewati }) {
   const [jawaban, setJawaban] = useState(awal?.jawaban || {});
   const [catatan, setCatatan] = useState(awal?.catatan || '');
@@ -178,7 +193,7 @@ export default function WawancaraGuru({ awal, onSelesai, onLewati }) {
         <div className="card" style={{ marginTop: 16, background: 'var(--paper-2)' }}>
           <b>Ringkasan persona:</b>
           <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, margin: '8px 0 0' }}>
-            {kompilasiPersona(jawaban, catatan)}
+            {ringkasanPersona(jawaban, catatan)}
           </pre>
         </div>
       )}

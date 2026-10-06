@@ -40,6 +40,7 @@ function LayarLogin({ err, onBatal }) {
   const [gagal, setGagal] = useState(err || '');
   const [siteKey, setSiteKey] = useState(null); // null = memuat, '' = captcha nonaktif
   const [captchaOk, setCaptchaOk] = useState(false);
+  const [captchaGagal, setCaptchaGagal] = useState(false); // script Turnstile gagal dimuat
   const widgetRef = useRef(null);
   const tokenRef = useRef('');
 
@@ -68,6 +69,7 @@ function LayarLogin({ err, onBatal }) {
       s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
       s.async = true; s.defer = true;
       s.onload = pasang;
+      s.onerror = () => { if (!stop) setCaptchaGagal(true); };
       document.head.appendChild(s);
     })();
     return () => { stop = true; };
@@ -116,7 +118,7 @@ function LayarLogin({ err, onBatal }) {
         <ul className="login-points">
           <li><span className="tick" aria-hidden="true">✓</span><span>Susun CP sampai KKTP mengikuti alur Kurikulum Merdeka yang runtut.</span></li>
           <li><span className="tick" aria-hidden="true">✓</span><span>Edit tiap bagian per blok, lalu unduh sebagai dokumen Word.</span></li>
-          <li><span className="tick" aria-hidden="true">✓</span><span>Paket besar dikerjakan server. Browser boleh ditutup, pekerjaan tetap jalan.</span></li>
+          <li><span className="tick" aria-hidden="true">✓</span><span>Dokumen banyak disusun otomatis di latar — browser boleh ditutup.</span></li>
         </ul>
         {gagal && (
           <div className="alert alert-error" role="alert" style={{ textAlign: 'left' }}>
@@ -125,7 +127,20 @@ function LayarLogin({ err, onBatal }) {
         )}
         {perluCaptcha && (
           <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 16px' }}>
-            <div ref={widgetRef} aria-label="Verifikasi keamanan Cloudflare" />
+            {captchaGagal ? (
+              <div className="alert alert-error" role="alert" style={{ textAlign: 'left', margin: 0 }}>
+                <b>Verifikasi keamanan gagal dimuat.</b> Periksa koneksi internet, lalu coba lagi.
+                <div className="btn-row" style={{ marginTop: 10, marginBottom: 0 }}>
+                  <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>
+                    Muat ulang halaman
+                  </button>
+                </div>
+              </div>
+            ) : siteKey === null ? (
+              <p className="hint" style={{ margin: 0 }}>Memuat verifikasi keamanan…</p>
+            ) : (
+              <div ref={widgetRef} aria-label="Verifikasi keamanan Cloudflare" />
+            )}
           </div>
         )}
         <button className="btn btn-google" onClick={masuk} disabled={busy || (perluCaptcha && !captchaOk)}>
@@ -134,7 +149,7 @@ function LayarLogin({ err, onBatal }) {
         {perluCaptcha && !captchaOk && (
           <p className="hint" style={{ marginTop: 10 }}>Selesaikan verifikasi keamanan di atas untuk masuk.</p>
         )}
-        <p className="login-note">Datamu tersimpan di akunmu dan bisa dibuka dari perangkat mana pun.</p>
+        <p className="login-note">Datamu tersimpan di akunmu dan bisa dibuka dari perangkat mana pun. Kamu akan diarahkan ke Google untuk verifikasi, lalu kembali otomatis.</p>
       </div>
     </div>
   );
@@ -231,11 +246,17 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authErr, setAuthErr] = useState('');
   const [mintaLogin, setMintaLogin] = useState(false); // belum login: tampilkan form login di atas landing
+  const [docsPublik, setDocsPublik] = useState(false); // panduan dibuka dari landing publik
   // Buka form login: bersihkan hash anchor landing (mis. #alur) agar URL rapi
-  const bukaLogin = () => {
+  const bukaLogin = (target) => {
     if (window.location.hash) {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
+    // Ingat tujuan setelah login (mis. 'paket' / 'ruang' dari landing)
+    try {
+      if (target) localStorage.setItem('ma-tujuan-login', target);
+      else localStorage.removeItem('ma-tujuan-login');
+    } catch { /* abaikan */ }
     setMintaLogin(true);
   };
   // Lazy dari localStorage agar tidak ada flash halaman utama saat refresh.
@@ -331,6 +352,14 @@ export default function App() {
         await imporProyekLokalKeDB().catch(() => {});
         await migrasiPaketKeProyek(); // idempoten: paket lama menjadi proyek
         await refresh();
+        // Tujuan setelah login dari landing (mis. langsung ke paket/ruang)
+        try {
+          const t = localStorage.getItem('ma-tujuan-login');
+          if (t) {
+            localStorage.removeItem('ma-tujuan-login');
+            if (t === 'paket' || t === 'ruang') setView(t);
+          }
+        } catch { /* abaikan */ }
       })();
     }
   }, [auth]);
@@ -572,6 +601,28 @@ export default function App() {
   // memilih "Masuk" / "Mulai Membuat".
   if (auth === 'login') {
     if (mintaLogin) return <LayarLogin err={authErr} onBatal={() => setMintaLogin(false)} />;
+    if (docsPublik) {
+      return (
+        <>
+          <Topbar
+            view="landing"
+            onNav={() => {}}
+            user={null}
+            kuota={null}
+            onLogin={bukaLogin}
+            onOpenSettings={() => {}}
+            onOpenDocs={null}
+            isAdmin={false}
+            onSignOut={() => {}}
+          />
+          <ErrorBoundary key="docs-publik" onBack={() => setDocsPublik(false)}>
+          <div className="view-enter">
+            <DocsView onBack={() => setDocsPublik(false)} onMasukan={null} />
+          </div>
+          </ErrorBoundary>
+        </>
+      );
+    }
     return (
       <>
         <Topbar
@@ -588,8 +639,8 @@ export default function App() {
         <ErrorBoundary key="landing-publik" onBack={() => {}}>
         <div className="view-enter">
           <Landing
-            onStart={bukaLogin}
-            onDocs={null}
+            onStart={(target) => bukaLogin(target)}
+            onDocs={() => setDocsPublik(true)}
             onMasukan={null}
             waLink={WA_LINK}
             onLogin={bukaLogin}
@@ -703,6 +754,7 @@ export default function App() {
           projectId={sesiModulProyek}
           onBack={goApp}
           onOpenDoc={(id) => openDoc(id, null)}
+          kuota={kuota}
           onKuotaChanged={muatKuota}
         />
       )}
@@ -740,7 +792,7 @@ export default function App() {
         <div className="wrap">
           <span className="kicker">Beranda</span>
           <h1 className="page">Mau buat perangkat apa?</h1>
-          <p className="lead">Pilih salah satu cara di bawah. Keduanya memakai 1 kredit per dokumen jadi.</p>
+          <p className="lead">Pilih salah satu cara di bawah. Keduanya memakai 1 kredit per dokumen jadi (1 kredit = 1 dokumen jadi; kamu dapat 10 gratis tiap minggu).</p>
 
           <div className="pilih-cara">
             <div className="card pilih-cara-kartu">
@@ -761,27 +813,30 @@ export default function App() {
                 Butuh cepat? Buat satu dokumen saja tanpa proyek.
                 Hasilnya tersimpan di Tanpa Proyek.
               </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <select
-                  value={satuanDocType}
-                  onChange={(e) => setSatuanDocType(e.target.value)}
-                  aria-label="Jenis dokumen"
-                  style={{ flex: 1, minWidth: 180 }}
-                >
-                  {Object.entries(DOC_TYPES).map(([key, dt]) => (
-                    <option key={key} value={key}>{dt.nama}</option>
-                  ))}
-                </select>
-                <button type="button" className="btn btn-ink" onClick={() => startSatuan(satuanDocType)}>
-                  Buat
-                </button>
+              <div className="field" style={{ margin: 0 }}>
+                <label htmlFor="satuan-jenis">Jenis dokumen</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <select
+                    id="satuan-jenis"
+                    value={satuanDocType}
+                    onChange={(e) => setSatuanDocType(e.target.value)}
+                    style={{ flex: 1, minWidth: 180 }}
+                  >
+                    {Object.entries(DOC_TYPES).map(([key, dt]) => (
+                      <option key={key} value={key}>{dt.nama}</option>
+                    ))}
+                  </select>
+                  <button type="button" className="btn btn-ink" onClick={() => startSatuan(satuanDocType)}>
+                    Buat Dokumen
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
           {draft && !draft.markdown && (
             <div className="alert alert-info">
-              Ada draft yang belum selesai.
+              Ada draft {(DOC_TYPES[draft.form?.docType] || {}).nama || ''} yang belum selesai.
               <button className="btn btn-sm btn-ink" style={{ marginLeft: 10 }} onClick={() => startNew()}>Lanjutkan Draft</button>
             </div>
           )}

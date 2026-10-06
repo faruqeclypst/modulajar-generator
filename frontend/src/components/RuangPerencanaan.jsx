@@ -23,6 +23,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
   const [showBaru, setShowBaru] = useState(false);
   const [baru, setBaru] = useState({ namaProyek: '', jenjang: 'SMA/MA', fase: 'F (Kelas 11-12)', kelas: '', semester: 'Ganjil', mapel: '', tahunAjaran: '' });
   const [stepKey, setStepKey] = useState(null);
+  const [alasanKunci, setAlasanKunci] = useState(null); // {untuk, butuh} saat tombol terkunci diketuk
   const [errBaru, setErrBaru] = useState('');
   const [memuatAwal, setMemuatAwal] = useState(true); // loading daftar proyek saat pertama dibuka
   // Buka langkah tertentu otomatis (dari kartu floating tugas latar / restore refresh).
@@ -88,16 +89,17 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
   const [sibukKonf, setSibukKonf] = useState(false);
   const [pilihMode, setPilihMode] = useState(false);
   const [terpilih, setTerpilih] = useState(new Set());
+  const [errAksi, setErrAksi] = useState('');
   async function jalankanKonf() {
     if (!konf || !konf.aksi) return;
     setSibukKonf(true);
     try { await konf.aksi(); setKonf(null); setPilihMode(false); setTerpilih(new Set()); refresh(); }
-    catch (e) { alert('Gagal: ' + (e.message || e)); }
+    catch (e) { setErrAksi('Gagal: ' + (e.message || e)); }
     finally { setSibukKonf(false); }
   }
   async function arsipkan(p) {
     try { await arsipkanProyek(p.id); refresh(); }
-    catch (e) { alert('Gagal mengarsipkan: ' + (e.message || e)); }
+    catch (e) { setErrAksi('Gagal mengarsipkan: ' + (e.message || e)); }
   }
   function namaProyek(p) { return p.nama || [p.mapel, p.kelas].filter(Boolean).join(' ') || 'Proyek'; }
   async function hapusProyek(p) {
@@ -185,9 +187,11 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
           <div className="empty">
             <h3>Belum ada proyek</h3>
             <p>Buat satu proyek per mata pelajaran + kelas + semester.</p>
+            <button type="button" className="btn btn-primary" onClick={() => setShowBaru(true)}>+ Buat Proyek Pertama</button>
           </div>
         ) : (
           <div className="modul-grid">
+            {errAksi && <div className="alert alert-error" role="alert" style={{ gridColumn: '1 / -1' }}>{errAksi}</div>}
             {projects.map((p) => (
               <div className="card modul-card" key={p.id} style={terpilih.has(String(p.id)) ? { outline: '3px solid var(--red)' } : undefined}>
                 {pilihMode && (
@@ -258,6 +262,11 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
 
       {!stepKey && (
         <>
+          {alasanKunci && (
+            <div className="alert alert-info" role="status" style={{ margin: '0 0 14px' }}>
+              <b>{alasanKunci.untuk} masih terkunci.</b> Selesaikan <b>{alasanKunci.butuh}</b> dulu — {alasanKunci.untuk} diturunkan darinya.
+            </div>
+          )}
           <div className="ruang-steps">
           {ALUR_PERENCANAAN.map((s) => {
             const need = BUTUH[s.key];
@@ -287,7 +296,19 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
                         Lihat
                       </a>
                     )}
-                    <button className="btn btn-sm btn-primary" disabled={!!locked} onClick={() => setStepKey(s.key)}>
+                    <button
+                      className={'btn btn-sm btn-primary' + (locked ? ' terkunci' : '')}
+                      aria-disabled={!!locked}
+                      title={locked ? `Selesaikan ${needName} dulu. ${s.nama} diturunkan darinya.` : undefined}
+                      onClick={() => {
+                        if (locked) {
+                          setAlasanKunci({ untuk: s.nama, butuh: needName });
+                        } else {
+                          setAlasanKunci(null);
+                          setStepKey(s.key);
+                        }
+                      }}
+                    >
                       {done ? 'Susun Ulang' : locked ? 'Terkunci' : 'Susun'}
                     </button>
                   </div>
@@ -621,7 +642,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
           />
           {error && <div className="alert alert-error">{error}</div>}
           <div className="btn-row no-print">
-            <button className="btn" onClick={() => { setMarkdown(''); setFinalMd(''); }}>Generate Ulang</button>
+            <button className="btn" onClick={() => { if (tugasIdRef.current) { tutupTugas(tugasIdRef.current); tugasIdRef.current = null; } setMarkdown(''); setFinalMd(''); }}>Generate Ulang</button>
             <button className="btn btn-primary" onClick={handleSave}>Simpan ke Proyek</button>
           </div>
         </>

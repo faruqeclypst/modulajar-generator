@@ -10,9 +10,36 @@ export default function Konfirmasi({
   berbahaya = false, sibuk = false, onYa, onBatal,
 }) {
   const batalRef = useRef(null);
+  const dialogRef = useRef(null);
+  const pemicuRef = useRef(null);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape' && !sibuk) onBatal(); };
+    // Simpan elemen yang sedang fokus; kembalikan saat modal ditutup
+    pemicuRef.current = document.activeElement;
+    return () => {
+      if (pemicuRef.current && pemicuRef.current.focus) pemicuRef.current.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !sibuk) { onBatal(); return; }
+      // Focus trap: Tab tidak boleh keluar dari dialog
+      if (e.key === 'Tab' && dialogRef.current) {
+        const fokus = dialogRef.current.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const aktif = [...fokus].filter((el) => !el.disabled);
+        if (!aktif.length) return;
+        const pertama = aktif[0];
+        const terakhir = aktif[aktif.length - 1];
+        if (e.shiftKey && document.activeElement === pertama) {
+          e.preventDefault(); terakhir.focus();
+        } else if (!e.shiftKey && document.activeElement === terakhir) {
+          e.preventDefault(); pertama.focus();
+        }
+      }
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onBatal, sibuk]);
@@ -27,7 +54,7 @@ export default function Konfirmasi({
       role="dialog" aria-modal="true" aria-labelledby="konf-judul"
       onClick={(e) => { if (e.target === e.currentTarget && !sibuk) onBatal(); }}
     >
-      <div className="paywall-card" style={{ maxWidth: 440 }}>
+      <div className="paywall-card" style={{ maxWidth: 440 }} ref={dialogRef}>
         <span className="kicker" style={{ color: berbahaya ? 'var(--red)' : undefined }}>
           {berbahaya ? 'Tindakan berbahaya' : 'Konfirmasi'}
         </span>

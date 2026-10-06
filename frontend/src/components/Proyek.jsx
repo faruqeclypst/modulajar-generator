@@ -84,7 +84,13 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
 
   async function buat(data) {
     setBusy(true);
-    try { await saveProject(data); setShowBaru(false); onChanged && onChanged(); }
+    try {
+      const id = await saveProject(data);
+      setShowBaru(false);
+      onChanged && onChanged();
+      // Langsung buka proyek yang baru dibuat agar ada arahan langkah berikut
+      if (id && onOpen) onOpen(id);
+    }
     finally { setBusy(false); }
   }
   async function ubah(id, data) {
@@ -344,7 +350,7 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
 const GRUP_DETAIL = [
   { key: 'modul', judul: 'Modul Ajar', types: ['modul'] },
   { key: 'lkpd', judul: 'LKPD', types: ['lkpd'] },
-  { key: 'penilaian', judul: 'Penilaian', types: ['soal', 'kktp'] },
+  { key: 'penilaian', judul: 'Penilaian & Bank Soal', types: ['soal', 'kktp'] },
 ];
 
 export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, onRuang, onSesiModul, onBuatModul, onChanged }) {
@@ -428,9 +434,12 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
       </div>
       <div className="btn-row" style={{ marginBottom: 8 }}>
         <button className="btn btn-primary" onClick={onRuang}>Buka Ruang Perencanaan</button>
-        <button className="btn" onClick={onSesiModul}>Sesi Modul Batch</button>
+        <button className="btn" onClick={onSesiModul} title="Isi topik sekali, AI susun modul satu per satu dengan konfirmasi">Buat Banyak Modul</button>
         <button className="btn" onClick={onBuatModul}>Buat Modul Ajar</button>
       </div>
+      <p className="hint" style={{ marginTop: 0 }}>
+        <b>Buat Banyak Modul</b>: isi daftar topik sekali, AI menyusun modul satu per satu dengan konfirmasi. <b>Buat Modul Ajar</b>: satu modul dengan detail penuh.
+      </p>
 
       <h2 className="sec" style={{ marginTop: 28 }}>Perencanaan</h2>
       <p className="hint" style={{ marginTop: 0 }}>CP, ATP, Prota, Prosem disusun berurutan dan menjadi acuan dokumen lain.</p>

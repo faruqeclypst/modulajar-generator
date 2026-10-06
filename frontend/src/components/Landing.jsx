@@ -42,10 +42,10 @@ const CARA_KERJA = [
 const DUA_CARA = [
   ['Sekaligus otomatis',
    'Isi satu formulir, satu klik. AI buatkan seluruh perangkat satu semester: perencanaan, modul ajar, LKPD, sampai bank soal. Cocok kalau mau cepat beres.',
-   'Generator Paket'],
+   'Generator Paket', 'paket'],
   ['Dipandu langkah demi langkah',
    'Disetir tahap per tahap — CP, ATP, Prota, Prosem, baru modul. Tiap tahap terkunci sampai sebelumnya selesai, jadi urutannya selalu benar.',
-   'Ruang Perencanaan'],
+   'Ruang Perencanaan', 'ruang'],
 ];
 
 const FAQ = [
@@ -88,10 +88,10 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
               Kamu yang memeriksa, mengedit, dan mengesahkan.
             </p>
             <div className="btn-row">
-              <button className="btn btn-primary" onClick={onStart}>Mulai Membuat</button>
+              <button className="btn btn-primary" onClick={() => onStart()}>Mulai Gratis</button>
               <a className="btn btn-ghost-light" href="#cara-kerja">Lihat Cara Kerja</a>
             </div>
-            <p className="hero-note">Gratis 10 kredit setiap minggu. Tanpa kartu kredit.</p>
+            <p className="hero-note">Gratis 10 kredit setiap minggu. Tanpa kartu kredit. Masuk dengan akun Google — diarahkan ke Google lalu kembali otomatis.</p>
             {onLogin && (
               <p className="hero-login">Sudah punya akun? <button type="button" onClick={onLogin}>Masuk</button></p>
             )}
@@ -158,12 +158,14 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
           bisa dibuka, diedit, dan diunduh kapan saja.
         </p>
         <div className="land-dua-cara">
-          {DUA_CARA.map(([t, d, tag]) => (
+          {DUA_CARA.map(([t, d, tag, target]) => (
             <div key={t} className="card land-cara">
               <span className="chip red">{tag}</span>
               <h3>{t}</h3>
               <p>{d}</p>
-              <button type="button" className="btn btn-primary" onClick={onStart}>Mulai gratis</button>
+              <button type="button" className="btn btn-primary" onClick={() => onStart(target)}>
+                {target === 'paket' ? 'Coba Generator Paket' : 'Coba Ruang Perencanaan'}
+              </button>
             </div>
           ))}
         </div>

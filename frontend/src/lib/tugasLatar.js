@@ -89,6 +89,7 @@ export function tugasSelesai(id, hasil) {
   t.state = 'selesai';
   for (const k of Object.keys(t.status)) t.status[k] = 'ok';
   t.hasil = hasil || null;
+  t.tersembunyi = false; // tampil lagi bila sempat disembunyikan saat jalan
   beriTahu();
 }
 
@@ -97,11 +98,20 @@ export function tugasGagal(id, error) {
   if (!t) return;
   t.state = 'gagal';
   t.error = error || 'Gagal.';
+  t.tersembunyi = false;
   beriTahu();
 }
 
 export function tutupTugas(id) {
   if (tugas.delete(id)) beriTahu();
+}
+
+// Sembunyikan kartu tanpa menghapus task (untuk task yang masih jalan).
+export function sembunyikanTugas(id) {
+  const t = dapat(id);
+  if (!t) return;
+  t.tersembunyi = true;
+  beriTahu();
 }
 
 export function tugasBerjalan(konteks) {
@@ -110,4 +120,12 @@ export function tugasBerjalan(konteks) {
 
 export function cariTugas(id) {
   return dapat(id);
+}
+
+// Gabungkan meta bebas pada task.
+export function tugasSetMeta(id, patch) {
+  const t = dapat(id);
+  if (!t) return;
+  t.meta = { ...(t.meta || {}), ...(patch || {}) };
+  beriTahu();
 }

@@ -6,6 +6,14 @@ import { useEffect, useRef, useState } from 'react';
 export default function MenuTitik({ opsi, label = 'Aksi lainnya' }) {
   const [buka, setBuka] = useState(false);
   const bungkusRef = useRef(null);
+  // Hint satu-kali: guru senior berisiko tak menemukan aksi di balik ⋯
+  const [tampilHint, setTampilHint] = useState(() => {
+    try { return !localStorage.getItem('ma-hint-menu-titik'); } catch { return false; }
+  });
+  const tutupHint = () => {
+    setTampilHint(false);
+    try { localStorage.setItem('ma-hint-menu-titik', '1'); } catch { /* abaikan */ }
+  };
 
   useEffect(() => {
     if (!buka) return;
@@ -36,6 +44,12 @@ export default function MenuTitik({ opsi, label = 'Aksi lainnya' }) {
       </button>
       {buka && (
         <span className="menu-titik-drop" role="menu">
+          {tampilHint && (
+            <span className="menu-titik-hint" role="note">
+              Ketuk untuk Ubah / Arsipkan / Hapus
+              <button type="button" onClick={tutupHint} aria-label="Tutup petunjuk">×</button>
+            </span>
+          )}
           {opsi.map((o, i) => (
             <button
               key={i}
