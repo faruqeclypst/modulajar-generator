@@ -251,7 +251,7 @@ async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = n
   const model = kunci.model || MODEL;
   const apiKey = kunci.apiKey;
   const body = { model, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], temperature, max_tokens: maxTokens };
-  if (onDelta) body.stream = true; // streaming SSE ala OpenAI: delta.content per chunk
+  if (onDelta) { body.stream = true; body.stream_options = { include_usage: true }; } // minta usage di chunk terakhir
   const r = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
@@ -262,13 +262,14 @@ async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = n
   if (!onDelta) {
     const data = await r.json();
     const text = data.choices?.[0]?.message?.content || '';
+    catatUsage(model, data.usage);
     if (!text.trim()) throw new Error('AI mengembalikan respons kosong.');
     return text;
   }
   // Jalur streaming: teruskan tiap delta ke pemanggil, kembalikan teks penuh
   const reader = r.body.getReader();
   const dec = new TextDecoder();
-  let buf = '', full = '';
+  let buf = '', full = '', usageStream = null;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -289,12 +290,24 @@ async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = n
             full += delta;
             try { await onDelta(delta); } catch { /* callback user, jangan gagalkan stream */ }
           }
+          if (d.usage) usageStream = d.usage; // chunk terakhir membawa usage
         } catch { /* baris rusak, abaikan */ }
       }
     }
   }
+  catatUsage(model, usageStream);
   if (!full.trim()) throw new Error('AI mengembalikan respons kosong.');
   return full;
+}
+
+// Catat pemakaian token per panggilan AI (termasuk cache hit bila provider melaporkannya).
+// Format: [ai] model=... prompt=2456 cached=1200 completion=1024
+function catatUsage(model, usage) {
+  if (!usage) return;
+  const prompt = usage.prompt_tokens ?? '?';
+  const completion = usage.completion_tokens ?? '?';
+  const cached = usage.prompt_tokens_details?.cached_tokens ?? usage.cached_tokens ?? 0;
+  console.log(`[ai] model=${model} prompt=${prompt} cached=${cached} completion=${completion}`);
 }
 
 // ================= REGULASI & ATURAN GLOBAL =================
@@ -509,12 +522,40 @@ Bahasa Indonesia formal. ${ISTILAH_BARU}`;
 }
 
 function promptTahap2(info, fondasi, budget, sintaks, materi, sumber) {
-  const daftarFase = sintaks.fase.map((f, i) => `${i + 1}. ${f}`).join('\n');
+  // System 100% statis (tanpa data dinamis) agar prefix prompt stabil dan
+  // context caching provider (DeepSeek) bisa hit. Semua angka/nama dinamis
+  // ada di user message.
   const system = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
 Tugasmu HANYA menyusun bagian KEGIATAN PEMBELAJARAN dalam markdown. ${ANTI_FIKSI}
 Terapkan prinsip pembelajaran mendalam: berkesadaran, bermakna, menggembirakan.
 
-BUDGET WAKTU (sudah dihitung, WAJIB dipatuhi tepat):
+BUDGET WAKTU, MODEL/SINTAKS, dan TUJUAN PEMBELAJARAN ada pada bagian DATA di pesan pengguna. WAJIB dipatuhi tepat.
+
+FORMAT WAJIB (penanda menit hanya dalam dua bentuk ini, jangan campur):
+- Sub-heading bagian: "#### a. Pendahuluan: [N] menit" (pakai titik dua, TANPA kurung)
+- Sub-heading fase: "**Fase N: [nama fase]**, alokasi Y menit" (pakai koma, TANPA kurung)
+- Setiap langkah kegiatan diakhiri "(X menit)" (WAJIB dalam kurung)
+
+#### a. Pendahuluan: [N] menit
+1. [langkah] (X menit)
+2. [langkah] (X menit)
+(jumlah semua (X menit) pada bagian ini HARUS TEPAT = N menit pendahuluan pada DATA)
+
+#### b. Kegiatan Inti: [N] menit
+Untuk SETIAP fase sintaks pada DATA, tulis sub-heading dengan format persis:
+**Fase N: [nama fase]**, alokasi Y menit
+lalu langkah-langkahnya, masing-masing diakhiri (X menit).
+Jumlah (X menit) dalam satu fase HARUS TEPAT = Y menit fase tersebut, dan jumlah seluruh fase HARUS TEPAT = N menit inti pada DATA.
+PENTING: angka menit fase hanya boleh muncul di sub-heading fase (format koma "alokasi Y menit", TANPA kurung), sedangkan angka menit langkah selalu dalam kurung "(X menit)". Jangan menulis angka menit dalam kurung di sub-heading bagian maupun fase.
+
+#### c. Penutup: [N] menit
+Langkah refleksi, umpan balik, tindak lanjut, masing-masing diakhiri (X menit), total TEPAT = N menit penutup pada DATA.
+
+Tulis langkah kegiatan yang konkret dan bisa langsung dilaksanakan (siapa berbuat apa, dengan bahan atau media apa), bukan instruksi umum seperti "Guru melaksanakan pembelajaran". ${ANTI_SLOP} ${KONSISTENSI}
+
+Kembalikan HANYA markdown kegiatan (tiga sub-bagian di atas), tanpa pembuka/penutup tambahan. Bahasa Indonesia formal.`;
+  const daftarFase = sintaks.fase.map((f, i) => `${i + 1}. ${f}`).join('\n');
+  const user = `BUDGET WAKTU (WAJIB dipatuhi tepat):
 - Total: ${budget.pendahuluan + budget.inti + budget.penutup} menit
 - Pendahuluan: TEPAT ${budget.pendahuluan} menit
 - Kegiatan Inti: TEPAT ${budget.inti} menit
@@ -523,30 +564,7 @@ BUDGET WAKTU (sudah dihitung, WAJIB dipatuhi tepat):
 MODEL: ${sintaks.nama}. Kegiatan inti WAJIB mengikuti fase-fase sintaks berikut secara berurutan:
 ${daftarFase}
 
-FORMAT WAJIB (penanda menit hanya dalam dua bentuk ini, jangan campur):
-- Sub-heading bagian: "#### a. Pendahuluan: ${budget.pendahuluan} menit" (pakai titik dua, TANPA kurung)
-- Sub-heading fase: "**Fase N: [nama fase]**, alokasi Y menit" (pakai koma, TANPA kurung)
-- Setiap langkah kegiatan diakhiri "(X menit)" (WAJIB dalam kurung)
-
-#### a. Pendahuluan: ${budget.pendahuluan} menit
-1. [langkah] (X menit)
-2. [langkah] (X menit)
-(jumlah semua (X menit) pada bagian ini HARUS TEPAT ${budget.pendahuluan})
-
-#### b. Kegiatan Inti: ${budget.inti} menit
-Untuk SETIAP fase sintaks di atas, tulis sub-heading dengan format persis:
-**Fase N: [nama fase]**, alokasi Y menit
-lalu langkah-langkahnya, masing-masing diakhiri (X menit).
-Jumlah (X menit) dalam satu fase HARUS TEPAT = Y menit fase tersebut, dan jumlah seluruh fase HARUS TEPAT ${budget.inti} menit.
-PENTING: angka menit fase hanya boleh muncul di sub-heading fase (format koma "alokasi Y menit", TANPA kurung), sedangkan angka menit langkah selalu dalam kurung "(X menit)". Jangan menulis angka menit dalam kurung di sub-heading bagian maupun fase.
-
-#### c. Penutup: ${budget.penutup} menit
-Langkah refleksi, umpan balik, tindak lanjut, masing-masing diakhiri (X menit), total TEPAT ${budget.penutup} menit.
-
-Tulis langkah kegiatan yang konkret dan bisa langsung dilaksanakan (siapa berbuat apa, dengan bahan atau media apa), bukan instruksi umum seperti "Guru melaksanakan pembelajaran". ${ANTI_SLOP} ${KONSISTENSI}
-
-Kembalikan HANYA markdown kegiatan (tiga sub-bagian di atas), tanpa pembuka/penutup tambahan. Bahasa Indonesia formal.`;
-  const user = `Susun kegiatan pembelajaran untuk modul "${fondasi.judul}".
+Susun kegiatan pembelajaran untuk modul "${fondasi.judul}".
 Data: ${IDENT(info)}
 - Materi Pokok/Topik: ${info.topik || '-'}
 - Tujuan Pembelajaran yang harus dicapai kegiatan ini:\n${fondasi.tp.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n${konteksSumber(materi, sumber)}`;
@@ -554,10 +572,11 @@ Data: ${IDENT(info)}
 }
 
 function promptTahap3(info, fondasi, materi, sumber) {
+  // System 100% statis agar prefix prompt stabil (context caching). Daftar TP
+  // dipindah ke user message.
   const system = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
 Tugasmu HANYA menyusun bagian ASESMEN, PENGAYAAN/REMEDIAL, REFLEKSI, dan LAMPIRAN dalam markdown. ${ANTI_FIKSI}
-Semua asesmen WAJIB diturunkan langsung dari Tujuan Pembelajaran berikut (jangan mengarang indikator baru):
-${fondasi.tp.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+Semua asesmen WAJIB diturunkan langsung dari Tujuan Pembelajaran pada bagian DATA di pesan pengguna (jangan mengarang indikator baru).
 
 Struktur WAJIB persis:
 ### 7. Asesmen
@@ -581,7 +600,7 @@ Pertanyaan refleksi untuk peserta didik dan untuk guru.
 ${ANTI_SLOP} ${KONSISTENSI}
 
 Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTILAH_BARU}`;
-  const user = `Susun asesmen dan pelengkap untuk modul "${fondasi.judul}".\nData: ${IDENT(info)}\n- Mata Pelajaran: ${info.mapel || '-'} | Materi: ${info.topik || '-'}\n\n${konteksSumber(materi, sumber)}`;
+  const user = `Susun asesmen dan pelengkap untuk modul "${fondasi.judul}".\nData: ${IDENT(info)}\n- Mata Pelajaran: ${info.mapel || '-'} | Materi: ${info.topik || '-'}\n- Tujuan Pembelajaran (rujukan asesmen):\n${fondasi.tp.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n${konteksSumber(materi, sumber)}`;
   return { system, user };
 }
 
@@ -590,18 +609,19 @@ Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTI
 function promptTahapMateri(info, fondasi, materi, sumber) {
   const nPG = info.jmlPG || 10;
   const nUraian = info.jmlUraian || 5;
+  // System 100% statis agar prefix prompt stabil (context caching). TP dan
+  // jumlah soal dipindah ke user message.
   const system = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
 Tugasmu HANYA menyusun bagian MATERI PEMBELAJARAN dan BANK SOAL dalam markdown. ${ANTI_FIKSI}
-Materi harus selaras dengan Tujuan Pembelajaran berikut:
-${fondasi.tp.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+Materi harus selaras dengan Tujuan Pembelajaran pada bagian DATA di pesan pengguna.
 
 Struktur WAJIB persis:
 ### 10. Materi Pembelajaran
 Uraian materi yang lengkap dan runtut per sub-topik: konsep kunci, penjelasan dengan contoh konkret yang dekat dengan kehidupan peserta didik Indonesia, dan (bila relevan) langkah atau mekanisme. Bahasa formal namun komunikatif. Minimal 400 kata.
 
 ### 11. Bank Soal
-- **Soal Pilihan Ganda** (${nPG} soal): tiap soal bernomor, 4 opsi (A-D). Opsi pengecoh harus masuk akal (miskonsepsi yang umum terjadi), bukan asal. Tulis kunci jawaban di akhir bagian ini dengan format: 1-B, 2-C, ...
-- **Soal Uraian** (${nUraian} soal): tiap soal bernomor beserta pedoman penskoran singkat.
+- **Soal Pilihan Ganda** (jumlah sesuai DATA): tiap soal bernomor, 4 opsi (A-D). Opsi pengecoh harus masuk akal (miskonsepsi yang umum terjadi), bukan asal. Tulis kunci jawaban di akhir bagian ini dengan format: 1-B, 2-C, ...
+- **Soal Uraian** (jumlah sesuai DATA): tiap soal bernomor beserta pedoman penskoran singkat.
 Soal harus mengukur TP di atas, bervariasi dari C1 sampai C4.
 
 ### 12. Rubrik Penilaian
@@ -610,7 +630,7 @@ Tabel rubrik: kolom Aspek | Skor 4 | Skor 3 | Skor 2 | Skor 1, untuk penilaian u
 ${ANTI_SLOP} ${KONSISTENSI}
 
 Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTILAH_BARU}`;
-  const user = `Susun materi pembelajaran dan bank soal untuk modul "${fondasi.judul}".\nData: ${IDENT(info)}\n- Mata Pelajaran: ${info.mapel || '-'} | Materi: ${info.topik || '-'}\n\n${konteksSumber(materi, sumber)}`;
+  const user = `Susun materi pembelajaran dan bank soal untuk modul "${fondasi.judul}".\nData: ${IDENT(info)}\n- Mata Pelajaran: ${info.mapel || '-'} | Materi: ${info.topik || '-'}\n- Jumlah soal: ${nPG} pilihan ganda, ${nUraian} uraian\n- Tujuan Pembelajaran (rujukan materi & soal):\n${fondasi.tp.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n${konteksSumber(materi, sumber)}`;
   return { system, user };
 }
 
@@ -2486,9 +2506,9 @@ app.post('/api/regen-block', requireAuth(async (req, res) => {
     if (!String(blockText).trim()) return kirimGagal(res, 400, 'Blok kosong.');
     const errPanjang = validasiPanjang(blockText, 20000, 'Blok');
     if (errPanjang) return kirimGagal(res, 400, errPanjang);
-    const system = `Kamu membantu guru menyunting ${docType} Kurikulum Merdeka. Tulis ulang BLOK berikut agar lebih baik: lebih jelas, lebih rinci, tetap sesuai Kurikulum Merdeka, dan tetap dalam Bahasa Indonesia formal. PERTAHANKAN format markdown blok ini (heading tetap heading, list tetap list, tabel tetap tabel). Jika blok berisi alokasi waktu per langkah (mis. "(2 menit)"), PERTAHANKAN alokasi tersebut dan pastikan totalnya tetap konsisten. Kembalikan HANYA isi blok yang sudah ditulis ulang, tanpa pembuka/penutup/pembahasan tambahan.`;
+    const system = `Kamu membantu guru menyunting dokumen Kurikulum Merdeka (jenis dokumen ada pada pesan pengguna). Tulis ulang BLOK berikut agar lebih baik: lebih jelas, lebih rinci, tetap sesuai Kurikulum Merdeka, dan tetap dalam Bahasa Indonesia formal. PERTAHANKAN format markdown blok ini (heading tetap heading, list tetap list, tabel tetap tabel). Jika blok berisi alokasi waktu per langkah (mis. "(2 menit)"), PERTAHANKAN alokasi tersebut dan pastikan totalnya tetap konsisten. Kembalikan HANYA isi blok yang sudah ditulis ulang, tanpa pembuka/penutup/pembahasan tambahan.`;
     const text = await aiKeyCtx.run(kunciUser, () =>
-      ai(system, `Konteks dokumen: "${docTitle}" - Topik: ${topic}\n\nBLOK (${blockType}):\n${blockText}`, 3000, 0.8));
+      ai(system, `Jenis dokumen: ${docType}\nKonteks dokumen: "${docTitle}" - Topik: ${topic}\n\nBLOK (${blockType}):\n${blockText}`, 3000, 0.8));
     res.json({ ok: true, text: text.trim() });
   } catch (e) {
     kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
