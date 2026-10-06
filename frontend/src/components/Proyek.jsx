@@ -3,6 +3,7 @@ import { DOC_TYPES, ALUR_PERENCANAAN } from '../lib/docs';
 import { saveProject, updateProject, deleteProject, getPaket, deleteModul, arsipkanProyek, batalArsipProyek, listProjects } from '../lib/db';
 import FormulirDasar from './FormulirDasar';
 import Konfirmasi from './Konfirmasi';
+import MenuTitik from './MenuTitik';
 
 function fmtDate(ts) {
   return new Date(ts).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric' });
@@ -263,9 +264,15 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
               {p.tahunAjaran && <time>Tahun ajaran {p.tahunAjaran}</time>}
               <div className="actions">
                 <button className="btn btn-sm btn-ink" onClick={() => onOpen(p.id)}>Buka</button>
-                <button className="btn btn-sm" onClick={() => { setEditId(p.id); setShowBaru(false); }}>Ubah</button>
-                <button className="btn btn-sm" onClick={() => arsipkan(p)} disabled={busy} title="Sembunyikan dari daftar & pilihan proyek">Arsipkan</button>
-                <button className="btn btn-sm btn-danger" onClick={() => hapus(p)} disabled={busy}>Hapus</button>
+                <span style={{ flex: 1 }} />
+                <MenuTitik
+                  label={'Aksi untuk ' + labelProyek(p)}
+                  opsi={[
+                    { label: 'Ubah', aksi: () => { setEditId(p.id); setShowBaru(false); } },
+                    { label: 'Arsipkan', aksi: () => arsipkan(p) },
+                    { label: 'Hapus', aksi: () => hapus(p), bahaya: true },
+                  ]}
+                />
               </div>
             </div>
           ))}

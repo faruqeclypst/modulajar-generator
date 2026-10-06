@@ -9,6 +9,7 @@ import FormulirDasar from './FormulirDasar';
 import ProsesLive from './ProsesLive';
 import Paywall from './Paywall';
 import Konfirmasi from './Konfirmasi';
+import MenuTitik from './MenuTitik';
 import { SkelKartu } from './Kerangka';
 
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
@@ -217,8 +218,14 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
                 </div>
                 <div className="actions">
                   <button className="btn btn-sm btn-ink" onClick={() => bukaProyek(p.id)}>Buka</button>
-                  <button className="btn btn-sm" onClick={() => arsipkan(p)} title="Sembunyikan dari daftar & pilihan proyek">Arsipkan</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => hapusProyek(p)}>Hapus</button>
+                  <span style={{ flex: 1 }} />
+                  <MenuTitik
+                    label={'Aksi untuk ' + namaProyek(p)}
+                    opsi={[
+                      { label: 'Arsipkan', aksi: () => arsipkan(p) },
+                      { label: 'Hapus', aksi: () => hapusProyek(p), bahaya: true },
+                    ]}
+                  />
                 </div>
               </div>
             ))}

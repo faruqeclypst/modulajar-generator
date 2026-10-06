@@ -573,6 +573,22 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .opsi-kartu.aktif { box-shadow: 4px 4px 0 var(--red); border-color: var(--ink); font-weight: 700; }
 .opsi-kartu input { width: 18px; height: 18px; accent-color: var(--red); flex: none; }
 
+/* Menu aksi "titik tiga": dropdown Warm Paper, rata kanan */
+.menu-titik { position: relative; display: inline-flex; }
+.menu-titik-drop {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 60;
+  min-width: 170px; background: var(--paper-2); border: var(--bd);
+  box-shadow: var(--sh); display: flex; flex-direction: column; padding: 6px;
+}
+.menu-titik-item {
+  display: block; width: 100%; text-align: left; background: none; border: 0;
+  padding: 10px 12px; font-size: 14.5px; font-weight: 700; color: var(--ink);
+  cursor: pointer; font-family: inherit;
+}
+.menu-titik-item:hover { background: var(--wash); }
+.menu-titik-item.bahaya { color: var(--red-dark); }
+.menu-titik-item.bahaya:hover { background: #fbe9e4; }
+
 /* Pratinjau layar penuh */
 .pratinjau-full {
   position: fixed; inset: 0; z-index: 120;
