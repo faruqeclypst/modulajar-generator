@@ -1334,7 +1334,7 @@ Contoh BENAR (ditiru polanya):
 
 Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — bukan judul bab yang umum.
 
-MINGGU NON-EFEKTIF: Lihat dokumen Analisis Minggu Efektif pada acuan. Catat SEMUA minggu yang TIDAK EFEKTIF (libur nasional/bersama, jeda tengah semester, pekan ujian di luar KBM, dll.) ke dalam \"nonEfektif_ganjil\" / \"nonEfektif_genap\" dengan format \"Jul-1\", \"Agu-3\", \"Des-5\" (singkatan: Jul Agu Sep Okt Nov Des Jan Feb Mar Apr Mei Jun + nomor minggu 1-5). Minggu-minggu ini akan dikosongkan otomatis (tidak diisi materi).
+MINGGU NON-EFEKTIF: Lihat dokumen Analisis Minggu Efektif pada acuan. Catat SEMUA minggu yang TIDAK EFEKTIF (libur nasional/bersama, jeda tengah semester, pekan ujian di luar KBM, dll.) ke dalam \"nonEfektif_ganjil\" / \"nonEfektif_genap\" dengan format \"Jul-1\", \"Agu-3\", \"Des-5\" (singkatan: Jul Agu Sep Okt Nov Des Jan Feb Mar Apr Mei Jun + nomor minggu 1-5). Minggu-minggu ini akan dikosongkan otomatis (tidak diisi materi). PENTING: Minggu non-efektif = NOL JP. Jangan hitung dalam total JP.
 
 ATURAN JSON:
 1. ACUAN WAJIB (JANGAN mengarang di luar ini):
@@ -1630,10 +1630,21 @@ function bangunMatriksProsem(md, info) {
     const clsKolom = (c) => kolomTanda[c] ? ' class="' + kolomTanda[c] + '"' : '';
     // Minggu non-efektif: abu-abu, dilewati saat pengisian materi
     const nonEfSet = new Set();
+    // Normalisasi kode minggu: "November-2", "Nov 2", "nov-2" -> "Nov-2"
+    const normKode = (k) => {
+      const s = String(k || '').trim();
+      const m = s.match(/([A-Za-z]+)\s*[-\s]?\s*(\d)/);
+      if (!m) return s;
+      const bln = m[1].slice(0, 3);
+      const key = bln.charAt(0).toUpperCase() + bln.slice(1).toLowerCase();
+      return key + '-' + m[2];
+    };
+    const petaKode = {};
+    kolomMinggu.forEach((k, i) => { petaKode[normKode(k)] = i; });
     if (Array.isArray(nonEfektif)) {
       nonEfektif.forEach((k) => {
-        const i = kolomMinggu.indexOf(String(k).trim());
-        if (i >= 0) { nonEfSet.add(i); kolomTanda[i] = 'td-nonefektif'; jumlah[i] = ''; }
+        const i = petaKode[normKode(k)];
+        if (i != null) { nonEfSet.add(i); kolomTanda[i] = 'td-nonefektif'; jumlah[i] = ''; }
       });
     }
     let mingguIdx = 0;
