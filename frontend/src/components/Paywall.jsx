@@ -39,12 +39,12 @@ export default function Paywall({ mode, detail, onClose, waLink }) {
             <h2 id="paywall-judul">Kredit harian habis</h2>
             <p>
               {typeof dipakai === 'number' && typeof batas === 'number'
-                ? `Kamu memakai ${dipakai} dari ${batas} kredit hari ini. `
+                ? `Kamu memakai ${dipakai} dari ${batas} kredit minggu ini. `
                 : 'Kredit harianmu sudah habis. '}
               {typeof butuh === 'number' && typeof sisa === 'number'
                 ? `Paket ini butuh ${butuh} dokumen, sisa kreditmu ${sisa}. `
                 : ''}
-              Kredit diperbarui setiap jam 15:00 WIB, atau upgrade untuk membuat tanpa batas.
+              Kredit diperbarui setiap Minggu jam 15:00 WIB, atau upgrade untuk membuat tanpa batas.
             </p>
             <div className="btn-row">
               <button ref={utamaRef} type="button" className="btn btn-primary" onClick={() => setLayar('upgrade')}>

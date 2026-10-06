@@ -383,7 +383,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
           {errJalan && <div className="alert" style={{ marginTop: 14 }}>{errJalan}</div>}
 
           {kuota && !kuota.admin && (
-            <p className="hint" style={{ margin: '0 0 4px' }}>Sisa kredit hari ini: <b>{kuota.sisa}</b> dari {kuota.batas}.</p>
+            <p className="hint" style={{ margin: '0 0 4px' }}>Sisa kredit minggu ini: <b>{kuota.sisa}</b> dari {kuota.batas}.</p>
           )}
           {kuota && kuota.admin && (
             <p className="hint" style={{ margin: '0 0 4px' }}>Kredit: tanpa batas (Admin).</p>

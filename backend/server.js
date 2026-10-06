@@ -16,7 +16,7 @@ const KENARI_URL = 'https://kenari.id/v1/chat/completions';
 const MODEL = 'agnes-3-0-flash:free';
 
 // ============ KUOTA HARIAN (disebut "Kredit" di UI) ============
-const KUOTA_HARIAN = parseInt(process.env.KUOTA_HARIAN || '20', 10);
+const KUOTA_MINGGUAN = parseInt(process.env.KUOTA_MINGGUAN || process.env.KUOTA_HARIAN || '20', 10);
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'faruq.blogger@gmail.com')
   .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
@@ -26,11 +26,18 @@ function isAdmin(user) {
 // Periode kuota berjalan 15:00 WIB s.d. 15:00 WIB berikutnya.
 // Key = tanggal WIB saat periode dimulai (bila sekarang < 15:00 WIB, pakai tanggal kemarin).
 function periodeKuota() {
-  const wib = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-  if (wib.getHours() < 15) wib.setDate(wib.getDate() - 1);
-  const y = wib.getFullYear();
-  const m = String(wib.getMonth() + 1).padStart(2, '0');
-  const d = String(wib.getDate()).padStart(2, '0');
+  // Kuota MINGGUAN: reset tiap Minggu jam 15:00 WIB.
+  // Anchor = Minggu 15:00 WIB terakhir (jika sekarang Minggu sebelum jam 15:00,
+  // masih dihitung minggu lalu). Key periode = tanggal Minggu anchor (YYYY-MM-DD),
+  // disimpan di kolom kuota_harian.tanggal seperti sebelumnya.
+  const kini = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  const anchor = new Date(kini);
+  anchor.setHours(15, 0, 0, 0);
+  anchor.setDate(anchor.getDate() - anchor.getDay()); // mundur ke hari Minggu
+  if (anchor > kini) anchor.setDate(anchor.getDate() - 7);
+  const y = anchor.getFullYear();
+  const m = String(anchor.getMonth() + 1).padStart(2, '0');
+  const d = String(anchor.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 // Awal window bonus referral 3-hari (anchor tetap dari epoch): YYYY-MM-DD
@@ -67,8 +74,8 @@ async function kuotaInfo(userId) {
       bonus = data?.bonus || 0;
     } catch { /* tabel bonus belum ada: abaikan */ }
   }
-  const sisa = Math.max(0, KUOTA_HARIAN - dipakai + bonus);
-  return { batas: KUOTA_HARIAN, dipakai, bonus, sisa, resetInfo: '15:00 WIB', periode };
+  const sisa = Math.max(0, KUOTA_MINGGUAN - dipakai + bonus);
+  return { batas: KUOTA_MINGGUAN, dipakai, bonus, sisa, resetInfo: 'Minggu 15:00 WIB', periode };
 }
 // Increment kuota diserialkan: langkah paralel (modul/LKPD, konkurensi 3)
 // tidak boleh baca-tulis bersamaan sampai ada increment yang hilang
@@ -1820,7 +1827,7 @@ app.get('/api/kuota', requireAuth(async (req, res) => {
       dipakai: admin ? 0 : info.dipakai,
       bonus: admin ? 0 : info.bonus,
       sisa: admin ? null : info.sisa,
-      resetInfo: 'Kredit diperbarui setiap jam 15:00 WIB.',
+      resetInfo: 'Kredit diperbarui setiap Minggu jam 15:00 WIB.',
       periode: info.periode,
     });
   } catch (e) {

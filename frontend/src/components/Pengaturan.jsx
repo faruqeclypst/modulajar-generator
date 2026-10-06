@@ -365,8 +365,8 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
         {kuota && !kuota.admin && (
           <>
             <p style={{ marginTop: 0 }}>
-              Sisa <b>{kuota.sisa}</b> dari <b>{kuota.batas}</b> kredit hari ini.
-              20 kredit/hari, diperbarui setiap jam 15:00 WIB.
+              Sisa <b>{kuota.sisa}</b> dari <b>{kuota.batas}</b> kredit minggu ini.
+              20 kredit/minggu, diperbarui setiap Minggu jam 15:00 WIB.
             </p>
             <div className="btn-row" style={{ marginTop: 12, marginBottom: 0 }}>
               <button type="button" className="btn btn-sm btn-primary" onClick={() => setPaywall({ mode: 'upgrade' })}>

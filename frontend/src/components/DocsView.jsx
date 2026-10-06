@@ -120,7 +120,7 @@ export default function DocsView({ onBack, onMasukan }) {
 
           <S id="kredit" kicker="Kuota" judul="Kredit & Langganan">
             <ul>
-              <li>Setiap akun mendapat <b>20 kredit gratis per hari</b>, diperbarui tiap <b>jam 15:00 WIB</b>.</li>
+              <li>Setiap akun mendapat <b>20 kredit gratis per minggu</b>, diperbarui setiap <b>Minggu jam 15:00 WIB</b>.</li>
               <li>Satu dokumen yang selesai dibuat memakai <b>1 kredit</b>. Paket mengecek kecukupan di awal.</li>
               <li>Sisa kredit tampil di bilah atas, halaman Pengaturan, dan di samping tombol Generate.</li>
               <li>Kredit habis? Paket berbayar tersedia via WhatsApp, atau pakai kunci AI sendiri (di bawah).</li>

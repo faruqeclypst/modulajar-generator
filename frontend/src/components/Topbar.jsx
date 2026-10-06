@@ -132,7 +132,7 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
             type="button"
             className={'kuota-pil' + (kuota.admin ? ' admin' : '')}
             onClick={onOpenSettings}
-            title={kuota.admin ? 'Akun admin: tanpa batas kredit' : `Sisa ${kuota.sisa} dari ${kuota.batas} kredit hari ini. Klik untuk buka Pengaturan.`}
+            title={kuota.admin ? 'Akun admin: tanpa batas kredit' : `Sisa ${kuota.sisa} dari ${kuota.batas} kredit minggu ini. Klik untuk buka Pengaturan.`}
             aria-label={kuota.admin ? 'Akun admin, tanpa batas kredit. Buka pengaturan.' : `Sisa kredit ${kuota.sisa} dari ${kuota.batas}. Buka pengaturan.`}
           >
             <span className="kuota-dot" aria-hidden="true" />

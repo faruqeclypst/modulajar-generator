@@ -41,7 +41,7 @@ const CARA_KERJA = [
 
 const FAQ = [
   ['Apakah ModulAjar gratis?',
-    'Ya. Setiap akun mendapat 20 kredit gratis setiap hari, diperbarui tiap jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Tidak ada kartu kredit, tidak ada masa coba yang tiba-tiba menagih.'],
+    'Ya. Setiap akun mendapat 20 kredit gratis setiap minggu, diperbarui setiap Minggu jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Tidak ada kartu kredit, tidak ada masa coba yang tiba-tiba menagih.'],
   ['Dokumen apa saja yang bisa dibuat?',
     'CP, ATP, Minggu Efektif, Prota, Prosem, Modul Ajar (lengkap dengan materi, bank soal, rubrik, dan lembar pengesahan), LKPD, Bank Soal, dan KKTP. Semuanya mengikuti alur Kurikulum Merdeka.'],
   ['Apakah saya harus menyusun CP dan ATP dulu?',
@@ -80,7 +80,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink }) {
           <button className="btn btn-primary" onClick={onStart}>Mulai Membuat</button>
           <a className="btn btn-ghost-light" href="#cara-kerja">Lihat Cara Kerja</a>
         </div>
-        <p className="hero-note">Gratis 20 kredit setiap hari. Tanpa kartu kredit.</p>
+        <p className="hero-note">Gratis 20 kredit setiap minggu. Tanpa kartu kredit.</p>
       </section>
 
       <div className="marquee" aria-hidden="true">
@@ -141,8 +141,8 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink }) {
           <div className="land-price-main">
             <b className="land-price-num">20</b>
             <div>
-              <b>kredit gratis setiap hari</b>
-              <p>Diperbarui tiap jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Cukup untuk perangkat satu kelas.</p>
+              <b>kredit gratis setiap minggu</b>
+              <p>Diperbarui setiap Minggu jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Cukup untuk perangkat satu kelas.</p>
             </div>
           </div>
           <ul className="land-price-list">
@@ -180,7 +180,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink }) {
               <b>ModulAjar</b>
               <span>Perangkat Ajar AI untuk Guru Indonesia</span>
             </div>
-            <p>Dari CP sampai bank soal — tersusun berurutan mengikuti Kurikulum Merdeka. Gratis 20 kredit setiap hari.</p>
+            <p>Dari CP sampai bank soal — tersusun berurutan mengikuti Kurikulum Merdeka. Gratis 20 kredit setiap minggu.</p>
           </div>
           <nav aria-label="Produk">
             <b>Produk</b>

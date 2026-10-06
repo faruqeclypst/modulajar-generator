@@ -668,7 +668,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           )}
           <div className="alert alert-info">Proses generate membutuhkan ±30–60 detik. Jangan tutup halaman ini.</div>
           {kuota && !kuota.admin && (
-            <p className="hint" style={{ margin: '0 0 4px' }}>Sisa kredit hari ini: <b>{kuota.sisa}</b> dari {kuota.batas}.</p>
+            <p className="hint" style={{ margin: '0 0 4px' }}>Sisa kredit minggu ini: <b>{kuota.sisa}</b> dari {kuota.batas}.</p>
           )}
           {kuota && kuota.admin && (
             <p className="hint" style={{ margin: '0 0 4px' }}>Kredit: tanpa batas (Admin).</p>
