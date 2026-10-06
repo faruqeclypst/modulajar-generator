@@ -267,6 +267,16 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
 
       {!stepKey && (
         <>
+          <div className="card" style={{ marginBottom: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <b>Susun semua otomatis</b>
+              <div className="hint">Generate 6 langkah berurutan sekaligus — tiap dokumen jadi acuan berikutnya.</div>
+              {autoProgress && <div className="hint" style={{ fontWeight: 700, marginTop: 4 }}>{autoProgress}</div>}
+            </div>
+            <button type="button" className="btn btn-primary" onClick={generateSemuaOtomatis} disabled={autoJalan}>
+              {autoJalan ? 'Menyusun...' : 'Generate Semua Otomatis'}
+            </button>
+          </div>
           {alasanKunci && (
             <div className="alert alert-info" role="status" style={{ margin: '0 0 14px' }}>
               <b>{alasanKunci.untuk} masih terkunci.</b> Selesaikan <b>{alasanKunci.butuh}</b> dulu — {alasanKunci.untuk} diturunkan darinya.
@@ -394,6 +404,8 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
       else localStorage.removeItem(kunciAkun('ma-draf-ruang-' + stepKey));
     } catch { /* abaikan */ }
   }, [teks, stepKey]);
+  const [autoJalan, setAutoJalan] = useState(false); // generate semua otomatis
+  const [autoProgress, setAutoProgress] = useState(''); // teks progress
   const [sumber, setSumber] = useState('');     // markdown dokumen acuan
   const [sumberJudul, setSumberJudul] = useState('');
   const [acuanHilang, setAcuanHilang] = useState([]); // K2: daftar acuan yang tidak ditemukan
@@ -492,6 +504,69 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
       return next;
     });
     if (tugasIdRef.current) tugasTulisan(tugasIdRef.current, key, delta, label);
+  }
+
+  // Generate semua langkah berurutan otomatis: CP → ATP → Minggu Efektif → Distribusi JP → Prota → Prosem
+  async function generateSemuaOtomatis() {
+    if (autoJalan) return;
+    setAutoJalan(true); setError(''); setPaywall(null);
+    const docsBaru = { ...(paket.docs || {}) };
+    const profile = getProfile();
+    const infoAuto = {
+      nama: profile.nama, nip: profile.nip, sekolah: profile.sekolah, tahunAjaran: paket.tahunAjaran || profile.tahunAjaran,
+      jenjang: paket.jenjang, fase: paket.fase, kelas: paket.kelas, semester: paket.semester, mapel: paket.mapel,
+      kepalaSekolah: profile.kepalaSekolah, nipKepalaSekolah: profile.nipKepalaSekolah,
+      personaGuru: profile.persona || '',
+      menitPerJP: profile.menitPerJP || 45,
+    };
+    try {
+      for (const s of ALUR_PERENCANAAN) {
+        const key = s.key;
+        if (docsBaru[key]) { setAutoProgress(s.nama + ' — sudah ada, lewati'); continue; }
+        setAutoProgress('Menyusun ' + s.nama + '...');
+        // Bangun sumber dari rantai (pakai docsBaru yang sudah terisi run ini)
+        const daftarAcuan = [BUTUH[key], ...(ACUAN_TAMBAHAN[key] || [])].filter(Boolean);
+        const bagian = [];
+        for (const kunci of daftarAcuan) {
+          if (docsBaru[kunci]) {
+            try {
+              const d = await getModul(docsBaru[kunci]);
+              if (d && d.markdown) bagian.push('\n\n===== ACUAN: ' + (d.judul || DOC_TYPES[kunci].nama).toUpperCase() + ' =====\n' + d.markdown);
+            } catch { /* abaikan */ }
+          }
+        }
+        const sumberAuto = bagian.join('\n');
+        let md = '';
+        await generateDocStream(key, infoAuto, '', key === 'cp' ? '' : sumberAuto, null, (ev) => {
+          if (ev.tipe === 'selesai') md = ev.markdown || '';
+          else if (ev.tipe === 'gagal') throw new Error(ev.error || 'Generate gagal.');
+        });
+        if (!md.trim()) throw new Error(s.nama + ': AI mengembalikan dokumen kosong.');
+        // Simpan
+        const payload = {
+          docType: key, judul: extractTitle(md),
+          jenjang: paket.jenjang, fase: paket.fase, kelas: paket.kelas, semester: paket.semester,
+          mapel: paket.mapel, topik: '', nama: profile.nama, sekolah: profile.sekolah,
+          tahunAjaran: paket.tahunAjaran || profile.tahunAjaran,
+          markdown: md, images: [], paketId: paket.id,
+          projectId: project?.id || undefined,
+        };
+        let docId = docsBaru[key];
+        if (docId) await updateModul(docId, payload);
+        else docId = await saveModul(payload);
+        docsBaru[key] = docId;
+        await updatePaket(paket.id, { docs: { ...docsBaru } });
+        setAutoProgress(s.nama + ' — selesai ✓');
+      }
+      setAutoProgress('Semua selesai ✓');
+      onKuotaChanged && onKuotaChanged();
+    } catch (e) {
+      if (e.code === 'kuota_habis') setPaywall({ mode: 'kuota_habis', detail: e.detail });
+      else setError('Otomatis berhenti: ' + (e.message || 'Generate gagal.'));
+      setAutoProgress('Berhenti — ' + (e.message || 'gagal'));
+    } finally {
+      setAutoJalan(false);
+    }
   }
 
   async function handleGenerate() {
