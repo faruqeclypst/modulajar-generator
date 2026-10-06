@@ -194,7 +194,7 @@ const GRUP_DETAIL = [
   { key: 'penilaian', judul: 'Penilaian', types: ['soal', 'kktp'] },
 ];
 
-export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, onRuang, onBuatModul, onChanged }) {
+export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, onRuang, onSesiModul, onBuatModul, onChanged }) {
   const [paketDocs, setPaketDocs] = useState(null);
   const [editNama, setEditNama] = useState(false);
   const [namaBaru, setNamaBaru] = useState(project.nama || '');
@@ -265,6 +265,7 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
       </div>
       <div className="btn-row" style={{ marginBottom: 8 }}>
         <button className="btn btn-primary" onClick={onRuang}>Buka Ruang Perencanaan</button>
+        <button className="btn" onClick={onSesiModul}>Sesi Modul Batch</button>
         <button className="btn" onClick={onBuatModul}>Buat Modul Ajar</button>
       </div>
 

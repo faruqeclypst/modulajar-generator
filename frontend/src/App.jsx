@@ -20,6 +20,7 @@ import { klaimReferal, sinkronProfil } from './lib/api';
 import { fetchKuota } from './lib/kuota';
 import TugasFloating from './components/TugasFloating';
 import { tutupTugas } from './lib/tugasLatar';
+import SesiModul from './components/SesiModul';
 
 const WA_LINK = 'https://wa.me/6285359907696?text=Halo%2C%20saya%20butuh%20bantuan%20ModulAjar';
 
@@ -214,7 +215,7 @@ function LayarTunggu({ pesan }) {
 // Posisi halaman tersimpan agar refresh tidak melempar ke halaman utama.
 // Format: {view, docId, projectId, ruangProjectId} (docId untuk 'detail', projectId untuk 'proyek', ruangProjectId untuk 'ruang').
 const VIEW_KEY = 'ma-view';
-const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek', 'docs', 'admin', 'masukan'];
+const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek', 'docs', 'admin', 'masukan', 'sesi-modul'];
 function bacaViewTersimpan() {
   try {
     const raw = localStorage.getItem(kunciAkun(VIEW_KEY));
@@ -257,6 +258,7 @@ export default function App() {
   const [tugasKembaliId, setTugasKembaliId] = useState(null); // id tugas untuk mode terlampir Wizard
   const [ruangTugas, setRuangTugas] = useState(null); // {tugasId, stepKey} untuk mode terlampir Ruang
   const [ruangStep, setRuangStep] = useState(null); // langkah Ruang yang sedang dibuka (persist saat refresh)
+  const [sesiModulProyek, setSesiModulProyek] = useState(null); // projectId untuk Sesi Modul Batch
   // Bersihkan id terlampir saat keluar dari wizard agar buka baru tidak menempel ke tugas lama.
   useEffect(() => {
     if (view !== 'wizard') setTugasKembaliId(null);
@@ -551,6 +553,7 @@ export default function App() {
   }
   const goApp = () => { setView('app'); refresh(); };
   const goRuang = (projectId) => { setRuangProyek(projectId || null); setView('ruang'); };
+  const goSesiModul = (projectId) => { setSesiModulProyek(projectId || null); setView('sesi-modul'); };
 
   async function signOut() {
     const sb = await getSupabase();
@@ -694,6 +697,15 @@ export default function App() {
         <GeneratorPaket onBack={goApp} onOpenDoc={openDoc} onChanged={refresh} waLink={WA_LINK} kuota={kuota} onKuotaChanged={muatKuota} />
       )}
 
+      {view === 'sesi-modul' && sesiModulProyek && (
+        <SesiModul
+          projectId={sesiModulProyek}
+          onBack={goApp}
+          onOpenDoc={(id) => openDoc(id, null)}
+          onKuotaChanged={muatKuota}
+        />
+      )}
+
       {view === 'detail' && active && (
         <DocView
           doc={active}
@@ -717,6 +729,7 @@ export default function App() {
           onOpenDoc={openDoc}
           onCatatAsal={catatAsal}
           onRuang={() => goRuang(projectAktif.id)}
+          onSesiModul={() => goSesiModul(projectAktif.id)}
           onBuatModul={() => startNew(null, projectAktif.id)}
           onChanged={refresh}
         />
@@ -787,7 +800,7 @@ export default function App() {
       )}
       {/* Kartu progress mengambang: generate yang berjalan di latar */}
       <TugasFloating
-        awalMinim={view === 'wizard' || view === 'ruang' || view === 'paket'}
+        awalMinim={view === 'wizard' || view === 'ruang' || view === 'paket' || view === 'sesi-modul'}
         onKembali={(t) => {
           if (t.konteks === 'wizard') {
             setTugasKembaliId(t.id);
@@ -795,6 +808,11 @@ export default function App() {
             setView('wizard');
           } else if (t.konteks === 'paket') {
             setView('paket');
+          } else if (t.konteks === 'sesi-modul') {
+            // Kembali ke Sesi Modul Batch yang sedang berjalan
+            const projectId = t.meta?.projectId || sesiModulProyek;
+            if (projectId) setSesiModulProyek(projectId);
+            setView('sesi-modul');
           } else if (t.konteks === 'ruang') {
             // Kembali ke Ruang Perencanaan, buka langkah yang sedang berjalan
             const projectId = t.meta?.projectId || null;

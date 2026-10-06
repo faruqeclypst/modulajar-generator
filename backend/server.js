@@ -462,6 +462,37 @@ const SINTAKS_DEFAULT = {
   fase: ['Eksplorasi konsep', 'Elaborasi dan penerapan', 'Konfirmasi dan penguatan'],
 };
 
+// Pilih model pembelajaran otomatis: AI memilih yang paling cocok untuk topik/materi.
+// Dipakai bila info.model === 'auto'.
+const DAFTAR_MODEL = [
+  'Problem Based Learning (PBL)',
+  'Project Based Learning (PjBL)',
+  'Discovery Learning',
+  'Inquiry Learning',
+  'Pembelajaran Kooperatif',
+  'Pembelajaran Langsung',
+  'Pembelajaran Berdiferensiasi',
+  'Contextual Teaching and Learning (CTL)',
+];
+async function pilihModelOtomatis(info, materi) {
+  const system = 'Kamu adalah ahli pedagogi Kurikulum Merdeka. Tugasmu HANYA memilih satu model pembelajaran yang paling cocok.';
+  const user = `Pilih SATU model pembelajaran yang paling cocok dari daftar berikut untuk materi ini:\n${DAFTAR_MODEL.map((m, i) => `${i + 1}. ${m}`).join('\n')}\n\nMata pelajaran: ${info.mapel || '-'}\nJenjang/Fase/Kelas: ${info.jenjang || '-'} / ${info.fase || '-'} / ${info.kelas || '-'}\nTopik/Materi: ${info.topik || '-'}\nRingkasan materi: ${(materi || '').slice(0, 1500)}\n\nBalas HANYA dengan nama model yang persis seperti di daftar (contoh: "Discovery Learning"). Tanpa penjelasan.`;
+  try {
+    const hasil = await ai(system, user, 100, 0.3, null);
+    const bersih = String(hasil || '').trim();
+    // Cocokkan dengan daftar (toleran variasi kecil)
+    const cocok = DAFTAR_MODEL.find((m) => bersih.toLowerCase().includes(m.toLowerCase().split(' (')[0].toLowerCase()) || m.toLowerCase().includes(bersih.toLowerCase().split(' (')[0]));
+    if (cocok) return cocok;
+    // Fallback: cari yang paling mirip
+    for (const m of DAFTAR_MODEL) {
+      if (bersih.toLowerCase().includes(m.split(' ')[0].toLowerCase())) return m;
+    }
+  } catch (e) {
+    console.warn('[modulajar] pilihModelOtomatis gagal:', e.message);
+  }
+  return 'Discovery Learning'; // fallback aman
+}
+
 export function deteksiSintaks(modelName) {
   const s = String(modelName || '').toLowerCase();
   if (/problem based|\(pbl\)|\bpbl\b/.test(s)) return SINTAKS_MODEL.pbl;
@@ -520,7 +551,7 @@ const IDENT = (info) => `
 - Tahun Ajaran: ${info.tahunAjaran || '-'}
 - Jenjang: ${info.jenjang || '-'} | Fase: ${info.fase || '-'} | Kelas: ${info.kelas || '-'} | Semester: ${info.semester || '-'}
 - Mata Pelajaran: ${info.mapel || '-'}
-- JP per Minggu: ${info.jpPerMinggu || '-'}`;
+- JP per Minggu: ${info.jpPerMinggu || '-'}${info.personaGuru ? '\n\n' + info.personaGuru : ''}`;
 
 function blokAcuan(sumber) {
   if (!(sumber && sumber.trim())) return '';
@@ -897,7 +928,15 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap 
   // Tahap 2 — kegiatan + validasi menit (retry 1x dengan koreksi)
   // budget sudah dihitung di tahap 0 (siapkanInfo), memakai pembagian guru bila valid
   await onTahap('kegiatan');
-  const sintaks = deteksiSintaks(info.model || (rekomendasi && rekomendasi.model) || '');
+  // Model 'auto': AI pilihkan yang paling cocok untuk topik ini
+  let modelEfektif = info.model || (rekomendasi && rekomendasi.model) || '';
+  if (String(modelEfektif).toLowerCase() === 'auto') {
+    await onTahap('pilih-model');
+    modelEfektif = await pilihModelOtomatis(info, materi);
+    // Simpan model terpilih agar tampil di dokumen & tahap berikutnya
+    info.model = modelEfektif;
+  }
+  const sintaks = deteksiSintaks(modelEfektif);
   const p2 = promptTahap2(info, fondasi, budgets, daftar, sintaks, materi, sumber);
   let kegiatanMd = await ai(p2.system, p2.user, multi ? 9000 : 6000, 0.7, (d) => onTeks('kegiatan', d));
   let totalKegiatan = jumlahMenit(kegiatanMd);
@@ -2027,6 +2066,7 @@ function validasiGenerate({ docType, infoRaw, materi, sumber }) {
 
 const TAHAP_LABEL = {
   pahami: 'Memahami maksud pengisian formulir',
+  'pilih-model': 'Memilih model pembelajaran yang cocok',
   fondasi: 'Menyusun fondasi: CP, TP, dan dimensi lulusan',
   kegiatan: 'Menyusun kegiatan inti mengikuti sintaks model',
   koreksi: 'Mengoreksi alokasi waktu',

@@ -726,6 +726,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
             {has('model') && (
               <div className="field"><label>Model Pembelajaran</label>
                 <select value={form.model} onChange={(e) => set('model', e.target.value)}>
+                  <option value="auto">Otomatis (AI pilihkan yang cocok)</option>
                   {MODEL.map((m) => <option key={m}>{m}</option>)}
                 </select></div>
             )}
