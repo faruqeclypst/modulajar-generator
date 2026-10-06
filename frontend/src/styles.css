@@ -241,6 +241,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .alert { border: var(--bd); border-radius: 0; padding: 14px 18px; font-size: 14px; margin: 14px 0; font-weight: 600; line-height: 1.6; }
 .alert-info { background: var(--paper-2); box-shadow: var(--sh-btn); }
 .alert-error { background: #FBE9E7; box-shadow: var(--sh-btn); color: var(--ink); }
+.alert-ok { background: #E8F3E4; box-shadow: var(--sh-btn); color: var(--ink); }
 .alert-error strong, .alert-error b { color: var(--red-dark); }
 
 /* ---------- status kosong / memuat ---------- */

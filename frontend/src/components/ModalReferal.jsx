@@ -1,13 +1,26 @@
 import { useEffect, useState } from 'react';
-import { getReferal } from '../lib/api';
+import { getReferal, klaimReferal } from '../lib/api';
 
-// Modal "Free Credit": link referal + penjelasan bonus kredit.
+// Modal "Free Credit": link referal + penjelasan bonus kredit + input kode manual.
 // Dibuka dari item "Free Credit" di menu pengguna (topbar).
-export default function ModalReferal({ onClose }) {
+export default function ModalReferal({ onClose, onKuotaChanged }) {
   const [status, setStatus] = useState('memuat'); // memuat | ok | gagal
   const [ref, setRef] = useState(null);
   const [err, setErr] = useState('');
   const [disalin, setDisalin] = useState(false);
+  const [kode, setKode] = useState('');
+  const [klaimState, setKlaimState] = useState('idle'); // idle | proses | ok | gagal
+  const [klaimMsg, setKlaimMsg] = useState('');
+
+  async function muat() {
+    setStatus('memuat');
+    try {
+      const d = await getReferal();
+      setRef(d); setStatus('ok');
+    } catch (e) {
+      setErr(e.message || 'Gagal memuat.'); setStatus('gagal');
+    }
+  }
 
   useEffect(() => {
     let stop = false;
@@ -45,6 +58,23 @@ export default function ModalReferal({ onClose }) {
     }
   }
 
+  async function klaim() {
+    const k = kode.trim().toUpperCase();
+    if (!k) { setKlaimState('gagal'); setKlaimMsg('Isi kode referral dulu.'); return; }
+    setKlaimState('proses'); setKlaimMsg('');
+    try {
+      const r = await klaimReferal(k);
+      setKlaimState('ok');
+      setKlaimMsg(`Berhasil! +${r.bonusDitambah || 3} kredit bonus ditambahkan ke akunmu.`);
+      setKode('');
+      muat();
+      if (onKuotaChanged) onKuotaChanged();
+    } catch (e) {
+      setKlaimState('gagal');
+      setKlaimMsg(e.message || 'Gagal mengklaim kode.');
+    }
+  }
+
   return (
     <div
       className="paywall-overlay"
@@ -77,6 +107,23 @@ export default function ModalReferal({ onClose }) {
             </p>
           </>
         )}
+        <div className="field" style={{ marginTop: 18 }}>
+          <label htmlFor="ref-kode-manual">Punya kode referral dari teman?</label>
+          <div className="ref-row">
+            <input
+              id="ref-kode-manual" value={kode} autoComplete="off" spellCheck={false}
+              onChange={(e) => setKode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32))}
+              onKeyDown={(e) => { if (e.key === 'Enter') klaim(); }}
+              placeholder="Ketik kodenya di sini"
+            />
+            <button type="button" className="btn btn-sm btn-ink" onClick={klaim} disabled={klaimState === 'proses'}>
+              {klaimState === 'proses' ? 'Memproses…' : 'Klaim'}
+            </button>
+          </div>
+          {klaimState === 'ok' && <div className="alert alert-ok" role="status" style={{ marginTop: 8 }}>{klaimMsg}</div>}
+          {klaimState === 'gagal' && <div className="alert alert-error" role="alert" style={{ marginTop: 8 }}>{klaimMsg}</div>}
+          <p className="hint" style={{ marginTop: 8, marginBottom: 0 }}>Tidak harus daftar lewat link — kode bisa dimasukkan manual di sini.</p>
+        </div>
         <div className="btn-row" style={{ marginTop: 20 }}>
           <button type="button" className="btn btn-sm" onClick={onClose}>Tutup</button>
         </div>

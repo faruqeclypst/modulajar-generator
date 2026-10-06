@@ -32,7 +32,7 @@ function avatarUrl(user) {
   return meta.avatar_url || meta.picture || null;
 }
 
-export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpenDocs, isAdmin, onSignOut, onLogin }) {
+export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpenDocs, isAdmin, onSignOut, onLogin, onKuotaChanged }) {
   const [open, setOpen] = useState(false); // menu pengguna
   const [mobileOpen, setMobileOpen] = useState(false); // panel navigasi mobile
   const [refModal, setRefModal] = useState(false); // modal Free Credit (referal)
@@ -217,7 +217,7 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
           </>
         )}
       </nav>
-      {refModal && <ModalReferal onClose={tutupRefModal} />}
+      {refModal && <ModalReferal onClose={tutupRefModal} onKuotaChanged={onKuotaChanged} />}
     </header>
   );
 }

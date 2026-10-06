@@ -506,6 +506,7 @@ export default function App() {
         onOpenDocs={() => setView('docs')}
         isAdmin={!!kuota?.admin}
         onSignOut={signOut}
+        onKuotaChanged={muatKuota}
       />
 
       <ErrorBoundary key={view} onBack={goApp}>
