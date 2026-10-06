@@ -445,6 +445,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
     jenjang: paket.jenjang, fase: paket.fase, kelas: paket.kelas, semester: paket.semester, mapel: paket.mapel,
     kepalaSekolah: profile.kepalaSekolah, nipKepalaSekolah: profile.nipKepalaSekolah,
     personaGuru: profile.persona || '',
+    menitPerJP: profile.menitPerJP || 45,
   };
 
   function tandaiTahap(key, label) {

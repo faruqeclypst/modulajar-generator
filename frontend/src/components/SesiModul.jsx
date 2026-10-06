@@ -149,6 +149,7 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
         model: model, // 'auto' atau nama model spesifik
         docType: 'modul',
         personaGuru: persona, // profil guru dari wawancara (opsional)
+        menitPerJP: getProfile().menitPerJP || 45,
       };
       // Gabungkan dokumen perencanaan sebagai sumber acuan
       const sumberParts = [];

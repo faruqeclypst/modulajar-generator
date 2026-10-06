@@ -354,6 +354,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
           nipKepalaSekolah: prof.nipKepalaSekolah || undefined,
           projectId: pid || undefined,
           personaGuru: prof.persona || undefined,
+          menitPerJP: prof.menitPerJP || 45,
         },
         materi: form.materi,
         topiks: daftarTopik(),

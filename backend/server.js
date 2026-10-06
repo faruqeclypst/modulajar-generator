@@ -551,7 +551,7 @@ const IDENT = (info) => `
 - Tahun Ajaran: ${info.tahunAjaran || '-'}
 - Jenjang: ${info.jenjang || '-'} | Fase: ${info.fase || '-'} | Kelas: ${info.kelas || '-'} | Semester: ${info.semester || '-'}
 - Mata Pelajaran: ${info.mapel || '-'}
-- JP per Minggu: ${info.jpPerMinggu || '-'}${info.personaGuru ? '\n\n' + info.personaGuru : ''}`;
+- JP per Minggu: ${info.jpPerMinggu || '-'} | Durasi 1 JP: ${info.menitPerJP || 45} menit (pakai untuk menghitung alokasi waktu, contoh: 2 JP = ${2 * (info.menitPerJP || 45)} menit)${info.personaGuru ? '\n\n' + info.personaGuru : ''}`;
 
 function blokAcuan(sumber) {
   if (!(sumber && sumber.trim())) return '';

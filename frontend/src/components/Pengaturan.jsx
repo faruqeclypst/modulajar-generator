@@ -380,7 +380,7 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
   const [paywall, setPaywall] = useState(null);
   const [pegawai, setPegawai] = useState(() => {
     const p = getProfile();
-    return { nip: p.nip || '', kepalaSekolah: p.kepalaSekolah || '', nipKepalaSekolah: p.nipKepalaSekolah || '' };
+    return { nip: p.nip || '', kepalaSekolah: p.kepalaSekolah || '', nipKepalaSekolah: p.nipKepalaSekolah || '', menitPerJP: p.menitPerJP || 45 };
   });
   const [catatanPegawai, setCatatanPegawai] = useState('');
   const [konf, setKonf] = useState(null); // {judul,pesan,teksYa,berbahaya,aksi}
@@ -392,7 +392,9 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
       nip: pegawai.nip.trim(),
       kepalaSekolah: pegawai.kepalaSekolah.trim(),
       nipKepalaSekolah: pegawai.nipKepalaSekolah.trim(),
+      menitPerJP: Number(pegawai.menitPerJP) || 45,
     });
+    setProfil(getProfile());
     setCatatanPegawai('Tersimpan. Dipakai di Lembar Pengesahan dokumen.');
   }
 
@@ -513,6 +515,15 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
           <div className="field">
             <label htmlFor="set-nip-kepsek">NIP Kepala Sekolah</label>
             <input id="set-nip-kepsek" value={pegawai.nipKepalaSekolah} onChange={(e) => setPegawai((p) => ({ ...p, nipKepalaSekolah: e.target.value }))} placeholder="cth: 197501012000031002" inputMode="numeric" />
+          </div>
+          <div className="field">
+            <label htmlFor="set-menit-jp">Durasi 1 JP (menit)</label>
+            <select id="set-menit-jp" value={pegawai.menitPerJP} onChange={(e) => setPegawai((p) => ({ ...p, menitPerJP: e.target.value }))}>
+              <option value={35}>35 menit</option>
+              <option value={40}>40 menit</option>
+              <option value={45}>45 menit</option>
+            </select>
+            <div className="hint">Dipakai AI saat menghitung alokasi waktu. Sesuaikan dengan sekolah Bapak/Ibu.</div>
           </div>
         </div>
         <div className="btn-row" style={{ marginTop: 12 }}>
