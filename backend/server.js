@@ -1308,9 +1308,9 @@ CONTOH:
 \`\`\`json
 {
   "ganjil": [
-    {"materi": "Berpikir Komputasional", "jp": 6, "ket": "TP 1-3"},
-    {"materi": "Algoritma dan Pemrograman", "jp": 6, "ket": "TP 4-6"},
-    {"materi": "Struktur Data", "jp": 6, "ket": "TP 7-9"},
+    {"materi": "Berpikir Komputasional", "jp": 4, "ket": "TP 1-2"},
+    {"materi": "Algoritma dan Pemrograman", "jp": 6, "ket": "TP 3-5"},
+    {"materi": "Struktur Data", "jp": 2, "ket": "TP 6"},
     {"materi": "Asesmen Sumatif", "jp": 2, "ket": ""},
     {"materi": "Cadangan", "jp": 2, "ket": "Buffer"}
   ],
@@ -1339,7 +1339,7 @@ Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — buk
 
 STRUKTUR MINGGU (WAJIB): Buka dokumen Analisis Minggu Efektif, baca TABEL 1 (Ganjil) dan TABEL 2 (Genap). Untuk tiap bulan, salin angka dari kolom "Jumlah Minggu". Susun ke dalam "struktur_bulan_ganjil" / "struktur_bulan_genap". ATURAN PENOMORAN: Jika jumlah minggu < 5, tulis DAFTAR EKSPLISIT minggu mana yang masuk. Konvensi: bulan di AWAL semester (Juli, Januari) -> minggu TERAKHIR (mis. Juli 3 minggu = {"Jul": [3,4,5]}); bulan di AKHIR semester (Desember, Juni) -> tulis angka saja (sistem tampilkan semua, minggu libur ditandai terpisah). Contoh: {"Jul": [3,4,5], "Agu": 4, "Sep": 4, "Okt": 5, "Nov": 4, "Des": 5}. SEMUA bulan wajib dicantumkan. JANGAN samakan semua jadi 4.\n1. ACUAN WAJIB (JANGAN mengarang di luar ini):
    a. PROTA (Program Tahunan) — SUMBER UTAMA. Prosem DITURUNKAN LANGSUNG dari PROTA: materi, urutan, dan alokasi bulan mengikuti PROTA persis.
-   b. Analisis Minggu Efektif — menentukan minggu mana yang efektif vs libur (untuk nonEfektif_ganjil/genap).
+   b. Analisis Minggu Efektif — menentukan minggu mana yang efektif vs libur (untuk libur_ganjil/genap).
    c. Distribusi Alokasi JP — acuan pembagian JP per pertemuan/topik.
    Alokasi JP per materi mengikuti acuan — bisa 1 JP, 2 JP, 5 JP, dst. Bersifat DINAMIS, bukan pola tetap.
 2. Nama "materi" harus KONKRET dan SPESIFIK sesuai rincian TP di ATP (contoh: "Sorting dan searching array", bukan "Struktur Data lanjutan"). Jika ATP mengelompokkan banyak TP dalam satu judul umum, pecah menjadi sub-topik yang lebih spesifik.
@@ -1347,15 +1347,13 @@ STRUKTUR MINGGU (WAJIB): Buka dokumen Analisis Minggu Efektif, baca TABEL 1 (Gan
 4. HITUNG TOTAL JP DENGAN BENAR (JANGAN asal):
    a. Dari dokumen Analisis Minggu Efektif, baca "Total JP Efektif" pada baris TOTAL (mis. Ganjil = 40 JP, Genap = 34 JP). Jika tidak ada, hitung: (kolom "Minggu Efektif" per bulan, dijumlahkan) × (JP per minggu).
    b. Total "jp" SEMUA objek per semester HARUS SAMA PERSIS dengan angka Total JP Efektif ini. DILARANG kurang.
-   d. Materi harus tersebar dari minggu efektif PERTAMA hingga minggu efektif TERAKHIR — DILARANG berhenti di tengah semester (mis. berakhir Oktober padahal semester sampai Desember).
-   e. Jika materi pokok tidak cukup mengisi semua minggu efektif, tambahkan objek {"materi": "Pengayaan / Remedial / Proyek", "jp": <selisih>, "ket": "Buffer"} atau {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}.
+   c. Materi harus tersebar dari minggu efektif PERTAMA hingga minggu efektif TERAKHIR — DILARANG berhenti di tengah semester (mis. berakhir Oktober padahal semester sampai Desember).
+   d. Jika materi pokok tidak cukup mengisi semua minggu efektif, tambahkan objek {"materi": "Pengayaan / Remedial / Proyek", "jp": <selisih>, "ket": "Buffer"} atau {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}.
 5. Jika satu semester saja, array semester lainnya = [].
 
 ## C. Pengesahan". DILARANG menambah section lain.
 
-## C. Pengesahan". DILARANG menambah section lain.
 
-## C. Pengesahan". DILARANG menambah section lain.
 
 ## C. Pengesahan
 Tulis blok tanda tangan: "Mengetahui, Kepala Sekolah" dan "[Kota], [Bulan Tahun] — Guru Mata Pelajaran", masing-masing dengan baris "Nama" dan "NIP".
@@ -1535,7 +1533,7 @@ Aturan: Bahasa Indonesia formal. Sebar level kognitif C1-C6. Soal HOTS (C4-C6) m
   },
 
   kktp: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
-Susun KRITERIA KETERCAPAIAN TUJUAN PEMBELAJARAN (KKTP): tolok ukur yang dipakai guru untuk menilai apakah peserta didik mencapai TP. Jika ada DOKUMEN ACUAN, WAJIB merujuk pada TP yang tercantum di acuan, jangan mengarang TP baru. Jika tidak ada acuan, turunkan TP dari materi pokok/topik pada data.
+Susun KRITERIA KETERCAPAIAN TUJUAN PEMBELAJARAN (KKTP): tolok ukur yang dipakai guru untuk menilai apakah peserta didik mencapai TP. ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN, WAJIB merujuk pada TP yang tercantum di acuan, jangan mengarang TP baru. Jika tidak ada acuan, turunkan TP dari materi pokok/topik pada data.
 
 # KKTP: [Mata Pelajaran] Kelas [X] Semester [X]
 
