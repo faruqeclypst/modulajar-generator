@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { DOC_TYPES, ALUR_PERENCANAAN } from '../lib/docs';
 import { saveProject, updateProject, deleteProject, getPaket, deleteModul, arsipkanProyek, batalArsipProyek, listProjects } from '../lib/db';
 import FormulirDasar from './FormulirDasar';
+import Konfirmasi from './Konfirmasi';
 
 function fmtDate(ts) {
   return new Date(ts).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric' });
@@ -66,6 +67,9 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
   const [showBaru, setShowBaru] = useState(false);
   const [editId, setEditId] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [konf, setKonf] = useState(null); // {judul, pesan, daftar, teksYa, berbahaya, aksi}
+  const [pilihMode, setPilihMode] = useState(false);
+  const [terpilih, setTerpilih] = useState(new Set());
   const formRef = useRef(null);
   const hitung = hitungDokumen(projects, docs);
   const tanpaProyek = docs.filter((d) => !d.projectId);
@@ -88,10 +92,49 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
     finally { setBusy(false); }
   }
   async function hapus(p) {
-    if (!confirm(`Hapus proyek "${labelProyek(p)}"? Dokumennya tidak ikut terhapus, pindah ke Tanpa proyek.`)) return;
+    setKonf({
+      judul: 'Hapus proyek ini?',
+      pesan: `Proyek "${labelProyek(p)}" akan dihapus. Dokumennya tidak ikut terhapus — pindah ke Tanpa proyek.`,
+      teksYa: 'Ya, hapus', berbahaya: true,
+      aksi: async () => { await deleteProject(p.id); },
+    });
+  }
+  async function hapusBatch() {
+    const daftar = projects.filter((p) => terpilih.has(String(p.id)));
+    if (!daftar.length) return;
+    setKonf({
+      judul: `Hapus ${daftar.length} proyek?`,
+      pesan: 'Proyek-proyek berikut akan dihapus. Dokumennya tidak ikut terhapus — pindah ke Tanpa proyek.',
+      daftar: daftar.map(labelProyek),
+      teksYa: `Ya, hapus ${daftar.length}`, berbahaya: true,
+      aksi: async () => { for (const p of daftar) await deleteProject(p.id); },
+    });
+  }
+  async function arsipBatch() {
+    const daftar = projects.filter((p) => terpilih.has(String(p.id)));
+    if (!daftar.length) return;
+    setKonf({
+      judul: `Arsipkan ${daftar.length} proyek?`,
+      pesan: 'Proyek yang diarsipkan disembunyikan dari daftar dan semua pilihan proyek. Bisa dipulihkan kapan saja.',
+      daftar: daftar.map(labelProyek),
+      teksYa: `Ya, arsipkan ${daftar.length}`,
+      aksi: async () => { for (const p of daftar) await arsipkanProyek(p.id); },
+    });
+  }
+  async function jalankanKonf() {
+    if (!konf || !konf.aksi) return;
     setBusy(true);
-    try { await deleteProject(p.id); onChanged && onChanged(); }
-    finally { setBusy(false); }
+    try {
+      await konf.aksi();
+      setKonf(null);
+      setPilihMode(false);
+      setTerpilih(new Set());
+      onChanged && onChanged();
+    } catch (e) {
+      alert('Gagal: ' + (e.message || e));
+    } finally {
+      setBusy(false);
+    }
   }
   async function arsipkan(p) {
     setBusy(true);
@@ -113,10 +156,12 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
   }, [projects]);
   async function hapusDokumen(m) {
     const nama = (DOC_TYPES[m.docType] || {}).nama || 'Dokumen';
-    if (!confirm(`Hapus ${nama} "${m.judul}"? Tindakan ini tidak bisa dibatalkan.`)) return;
-    setBusy(true);
-    try { await deleteModul(m.id); onChanged && onChanged(); }
-    finally { setBusy(false); }
+    setKonf({
+      judul: `Hapus ${nama} ini?`,
+      pesan: `"${m.judul}" akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.`,
+      teksYa: 'Ya, hapus', berbahaya: true,
+      aksi: async () => { await deleteModul(m.id); },
+    });
   }
 
   return (
@@ -124,11 +169,42 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '28px 0 4px', flexWrap: 'wrap' }}>
         <div className="flow-num sm" aria-hidden="true">02</div>
         <h2 className="sec" style={{ margin: 0, flex: 1 }}>Proyek Saya</h2>
+        {projects.length > 0 && !showBaru && !editId && (
+          <button
+            className={'btn btn-sm' + (pilihMode ? ' btn-ink' : '')}
+            onClick={() => { setPilihMode(!pilihMode); setTerpilih(new Set()); }}
+          >
+            {pilihMode ? 'Batal pilih' : 'Pilih'}
+          </button>
+        )}
         <button className="btn btn-sm btn-primary" onClick={() => { setShowBaru(!showBaru); setEditId(null); }}>
           {showBaru ? 'Tutup' : '+ Proyek Baru'}
         </button>
       </div>
       <p className="hint" style={{ marginTop: 0 }}>Satu proyek untuk satu mata pelajaran. Klik untuk melihat semua dokumennya.</p>
+
+      {pilihMode && (
+        <div className="card" style={{ marginBottom: 16, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 700 }}>
+            <input
+              type="checkbox"
+              checked={projects.length > 0 && terpilih.size === projects.length}
+              onChange={(e) => {
+                setTerpilih(e.target.checked ? new Set(projects.map((p) => String(p.id))) : new Set());
+              }}
+              style={{ width: 20, height: 20, accentColor: 'var(--red)' }}
+            />
+            {terpilih.size > 0 ? `${terpilih.size} dipilih` : 'Pilih semua'}
+          </label>
+          <span style={{ flex: 1 }} />
+          <button type="button" className="btn btn-sm" onClick={arsipBatch} disabled={busy || !terpilih.size}>
+            Arsipkan{terpilih.size ? ` (${terpilih.size})` : ''}
+          </button>
+          <button type="button" className="btn btn-sm btn-danger" onClick={hapusBatch} disabled={busy || !terpilih.size}>
+            Hapus{terpilih.size ? ` (${terpilih.size})` : ''}
+          </button>
+        </div>
+      )}
 
       {(showBaru || editId) && (
         <div ref={formRef} style={{ scrollMarginTop: 90 }}>
@@ -155,7 +231,26 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
       ) : (
         <div className="modul-grid">
           {projects.map((p) => (
-            <div className="card modul-card" key={p.id}>
+            <div className="card modul-card" key={p.id} style={terpilih.has(String(p.id)) ? { outline: '3px solid var(--red)' } : undefined}>
+              {pilihMode && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8, fontWeight: 700, fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={terpilih.has(String(p.id))}
+                    onChange={(e) => {
+                      setTerpilih((prev) => {
+                        const next = new Set(prev);
+                        if (e.target.checked) next.add(String(p.id));
+                        else next.delete(String(p.id));
+                        return next;
+                      });
+                    }}
+                    style={{ width: 20, height: 20, accentColor: 'var(--red)' }}
+                    aria-label={'Pilih ' + labelProyek(p)}
+                  />
+                  Pilih
+                </label>
+              )}
               <span className="chip red" style={{ alignSelf: 'flex-start' }}>
                 {hitung[p.id] || 0} dokumen
               </span>
@@ -228,6 +323,14 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
           </div>
         </>
       )}
+
+      {konf && (
+        <Konfirmasi
+          judul={konf.judul} pesan={konf.pesan} daftar={konf.daftar}
+          teksYa={konf.teksYa} berbahaya={konf.berbahaya}
+          sibuk={busy} onYa={jalankanKonf} onBatal={() => !busy && setKonf(null)}
+        />
+      )}
     </>
   );
 }
@@ -243,6 +346,7 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
   const [editNama, setEditNama] = useState(false);
   const [namaBaru, setNamaBaru] = useState(project.nama || '');
   const [busy, setBusy] = useState(false);
+  const [konf, setKonf] = useState(null);
 
   useEffect(() => { setNamaBaru(project.nama || ''); }, [project.id, project.nama]);
   // Muat dokumen perencanaan dari paket tertaut (bila ada)
@@ -278,9 +382,18 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
 
   async function hapusDokumen(m) {
     const nama = (DOC_TYPES[m.docType] || {}).nama || 'Dokumen';
-    if (!confirm(`Hapus ${nama} "${m.judul}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setKonf({
+      judul: `Hapus ${nama} ini?`,
+      pesan: `"${m.judul}" akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.`,
+      teksYa: 'Ya, hapus', berbahaya: true,
+      aksi: async () => { await deleteModul(m.id); onChanged && onChanged(); },
+    });
+  }
+  async function jalankanKonf() {
+    if (!konf || !konf.aksi) return;
     setBusy(true);
-    try { await deleteModul(m.id); onChanged && onChanged(); }
+    try { await konf.aksi(); setKonf(null); }
+    catch (e) { alert('Gagal: ' + (e.message || e)); }
     finally { setBusy(false); }
   }
 
@@ -374,6 +487,13 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
           <h3>Proyek ini masih kosong</h3>
           <p>Mulai dari Ruang Perencanaan, atau langsung buat Modul Ajar.</p>
         </div>
+      )}
+      {konf && (
+        <Konfirmasi
+          judul={konf.judul} pesan={konf.pesan}
+          teksYa={konf.teksYa} berbahaya={konf.berbahaya}
+          sibuk={busy} onYa={jalankanKonf} onBatal={() => !busy && setKonf(null)}
+        />
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import DocEditor from './DocEditor';
 import FormulirDasar from './FormulirDasar';
 import ProsesLive from './ProsesLive';
 import Paywall from './Paywall';
+import Konfirmasi from './Konfirmasi';
 import { SkelKartu } from './Kerangka';
 
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
@@ -82,15 +83,40 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
 
   function bukaProyek(id) { setProjectId(id); setStepKey(null); refresh(id); }
   function tutupProyek() { setProjectId(null); setProject(null); setPaket(null); refresh(); }
+  const [konf, setKonf] = useState(null);
+  const [sibukKonf, setSibukKonf] = useState(false);
+  const [pilihMode, setPilihMode] = useState(false);
+  const [terpilih, setTerpilih] = useState(new Set());
+  async function jalankanKonf() {
+    if (!konf || !konf.aksi) return;
+    setSibukKonf(true);
+    try { await konf.aksi(); setKonf(null); setPilihMode(false); setTerpilih(new Set()); refresh(); }
+    catch (e) { alert('Gagal: ' + (e.message || e)); }
+    finally { setSibukKonf(false); }
+  }
   async function arsipkan(p) {
     try { await arsipkanProyek(p.id); refresh(); }
     catch (e) { alert('Gagal mengarsipkan: ' + (e.message || e)); }
   }
+  function namaProyek(p) { return p.nama || [p.mapel, p.kelas].filter(Boolean).join(' ') || 'Proyek'; }
   async function hapusProyek(p) {
-    const nama = p.nama || [p.mapel, p.kelas].filter(Boolean).join(' ') || 'Proyek';
-    if (!confirm(`Hapus proyek "${nama}"? Dokumennya tidak ikut terhapus, pindah ke Tanpa proyek.`)) return;
-    try { await deleteProject(p.id); refresh(); }
-    catch (e) { alert('Gagal menghapus: ' + (e.message || e)); }
+    setKonf({
+      judul: 'Hapus proyek ini?',
+      pesan: `Proyek "${namaProyek(p)}" akan dihapus. Dokumennya tidak ikut terhapus — pindah ke Tanpa proyek.`,
+      teksYa: 'Ya, hapus', berbahaya: true,
+      aksi: async () => { await deleteProject(p.id); },
+    });
+  }
+  async function hapusBatch() {
+    const daftar = projects.filter((p) => terpilih.has(String(p.id)));
+    if (!daftar.length) return;
+    setKonf({
+      judul: `Hapus ${daftar.length} proyek?`,
+      pesan: 'Proyek-proyek berikut akan dihapus. Dokumennya tidak ikut terhapus — pindah ke Tanpa proyek.',
+      daftar: daftar.map(namaProyek),
+      teksYa: `Ya, hapus ${daftar.length}`, berbahaya: true,
+      aksi: async () => { for (const p of daftar) await deleteProject(p.id); },
+    });
   }
 
   if (!project || !paket) {
@@ -104,8 +130,33 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
         </p>
         <div className="btn-row" style={{ marginBottom: 20 }}>
           <button className="btn" onClick={onBack}>Kembali</button>
+          {projects.length > 0 && !showBaru && (
+            <button className={'btn' + (pilihMode ? ' btn-ink' : '')} onClick={() => { setPilihMode(!pilihMode); setTerpilih(new Set()); }}>
+              {pilihMode ? 'Batal pilih' : 'Pilih'}
+            </button>
+          )}
           <button className="btn btn-primary" onClick={() => setShowBaru(!showBaru)}>+ Proyek Baru</button>
         </div>
+
+        {pilihMode && projects.length > 0 && (
+          <div className="card" style={{ marginBottom: 16, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={terpilih.size === projects.length}
+                onChange={(e) => {
+                  setTerpilih(e.target.checked ? new Set(projects.map((p) => String(p.id))) : new Set());
+                }}
+                style={{ width: 20, height: 20, accentColor: 'var(--red)' }}
+              />
+              {terpilih.size > 0 ? `${terpilih.size} dipilih` : 'Pilih semua'}
+            </label>
+            <span style={{ flex: 1 }} />
+            <button type="button" className="btn btn-sm btn-danger" onClick={hapusBatch} disabled={sibukKonf || !terpilih.size}>
+              Hapus{terpilih.size ? ` (${terpilih.size})` : ''}
+            </button>
+          </div>
+        )}
 
         {showBaru && (
           <div className="card" style={{ marginBottom: 20 }}>
@@ -137,7 +188,26 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
         ) : (
           <div className="modul-grid">
             {projects.map((p) => (
-              <div className="card modul-card" key={p.id}>
+              <div className="card modul-card" key={p.id} style={terpilih.has(String(p.id)) ? { outline: '3px solid var(--red)' } : undefined}>
+                {pilihMode && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8, fontWeight: 700, fontSize: 14 }}>
+                    <input
+                      type="checkbox"
+                      checked={terpilih.has(String(p.id))}
+                      onChange={(e) => {
+                        setTerpilih((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(String(p.id));
+                          else next.delete(String(p.id));
+                          return next;
+                        });
+                      }}
+                      style={{ width: 20, height: 20, accentColor: 'var(--red)' }}
+                      aria-label={'Pilih ' + namaProyek(p)}
+                    />
+                    Pilih
+                  </label>
+                )}
                 <h3>{p.nama || [p.mapel, p.kelas].filter(Boolean).join(' ')}</h3>
                 <div className="meta">
                   <span className="chip fill">{p.jenjang}</span>
@@ -153,6 +223,13 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
               </div>
             ))}
           </div>
+        )}
+        {konf && (
+          <Konfirmasi
+            judul={konf.judul} pesan={konf.pesan} daftar={konf.daftar}
+            teksYa={konf.teksYa} berbahaya={konf.berbahaya}
+            sibuk={sibukKonf} onYa={jalankanKonf} onBatal={() => !sibukKonf && setKonf(null)}
+          />
         )}
       </div>
     );
