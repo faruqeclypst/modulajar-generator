@@ -138,12 +138,42 @@ function LayarLogin({ err, onBatal }) {
 }
 
 function LayarTunggu({ pesan }) {
+  const [lama, setLama] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setLama(true), 15000);
+    return () => clearTimeout(t);
+  }, []);
+  // Lewati pemulihan: hapus posisi tersimpan lalu muat ulang -> dashboard.
+  const lewati = () => {
+    try {
+      const hapus = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && /^ma-view(__.+)?$/.test(k)) hapus.push(k);
+      }
+      hapus.forEach((k) => { try { localStorage.removeItem(k); } catch { /* abaikan */ } });
+    } catch { /* abaikan */ }
+    window.location.reload();
+  };
   return (
     <div className="boot-screen">
       <div className="in">
         <div className="logo">MODULAJAR<small>PERANGKAT AJAR AI</small></div>
         <div className="spinner" role="status" aria-label="Memuat" />
         <p>{pesan || 'Memuat…'}</p>
+        {lama && (
+          <div style={{ marginTop: 18 }}>
+            <p className="hint" style={{ marginBottom: 10 }}>Masih memuat? Koneksi ke server mungkin lambat.</p>
+            <div className="btn-row" style={{ justifyContent: 'center', marginBottom: 0 }}>
+              <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>
+                Muat ulang
+              </button>
+              <button type="button" className="btn btn-sm btn-primary" onClick={lewati}>
+                Lewati &amp; buka dashboard
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
