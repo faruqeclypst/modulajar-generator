@@ -36,6 +36,7 @@ const TABS = [
   ['pengguna', 'Pengguna'],
   ['masukan', 'Masukan'],
   ['jobs', 'Job Terbaru'],
+  ['ai', 'Pengaturan AI'],
 ];
 
 // Kartu angka ringkasan: hanya dari data API, tanpa angka palsu.
@@ -56,7 +57,128 @@ function MuatUlang({ onClick }) {
   );
 }
 
-// Dashboard admin: ringkasan + pengguna + masukan + job. Prop: onBack.
+// Tab Pengaturan AI: toggle AI bawaan + key umum + key khusus admin.
+function PengaturanAI() {
+  const [cfg, setCfg] = useState(null);
+  const [err, setErr] = useState('');
+  const [simpanMsg, setSimpanMsg] = useState('');
+  const [menyimpan, setMenyimpan] = useState(false);
+  const [form, setForm] = useState({
+    bawaanAktif: true,
+    umumBaseUrl: '', umumApiKey: '', umumModel: '',
+    adminBaseUrl: '', adminApiKey: '', adminModel: '',
+  });
+
+  useEffect(() => {
+    apiAdmin('/api/admin/pengaturan-ai')
+      .then((d) => {
+        setCfg(d);
+        setForm({
+          bawaanAktif: d.bawaanAktif !== false,
+          umumBaseUrl: d.umum?.baseUrl || '', umumApiKey: '', umumModel: d.umum?.model || '',
+          adminBaseUrl: d.admin?.baseUrl || '', adminApiKey: '', adminModel: d.admin?.model || '',
+        });
+      })
+      .catch((e) => setErr(e.message || 'Gagal memuat pengaturan AI.'));
+  }, []);
+
+  const ubah = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setSimpanMsg(''); };
+
+  async function simpan() {
+    setMenyimpan(true); setErr(''); setSimpanMsg('');
+    try {
+      await apiAdmin('/api/admin/pengaturan-ai', 'POST', {
+        bawaanAktif: form.bawaanAktif,
+        umum: { baseUrl: form.umumBaseUrl, apiKey: form.umumApiKey, model: form.umumModel },
+        admin: { baseUrl: form.adminBaseUrl, apiKey: form.adminApiKey, model: form.adminModel },
+      });
+      setSimpanMsg('Pengaturan AI tersimpan.');
+      setForm((f) => ({ ...f, umumApiKey: '', adminApiKey: '' }));
+    } catch (e) {
+      setErr(e.message || 'Gagal menyimpan.');
+    } finally {
+      setMenyimpan(false);
+    }
+  }
+
+  if (err && !cfg) return <div className="alert alert-error">{err}</div>;
+  if (!cfg) return <p className="muted">Memuat…</p>;
+
+  const fieldKey = (label, name, masked) => (
+    <label className="f-field">
+      <span>{label}</span>
+      <input
+        type="password" autoComplete="new-password"
+        value={form[name]} onChange={(e) => ubah(name, e.target.value)}
+        placeholder={masked ? `Tersimpan (${masked}) — kosongkan bila tidak diubah` : 'Tempel API key di sini'}
+      />
+    </label>
+  );
+
+  return (
+    <section aria-label="Pengaturan AI" className="admin-ai">
+      <p className="lead" style={{ marginTop: 0 }}>
+        Atur kunci AI yang dipakai aplikasi. Kunci <b>umum</b> dipakai semua pengguna (memotong kredit harian).
+        Kunci <b>admin</b> hanya dipakai akun admin (tanpa potong kredit).
+      </p>
+
+      {err && <div className="alert alert-error">{err}</div>}
+      {simpanMsg && <div className="alert alert-ok">{simpanMsg}</div>}
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <label className="f-check" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <input
+            type="checkbox" checked={form.bawaanAktif}
+            onChange={(e) => ubah('bawaanAktif', e.target.checked)}
+            style={{ marginTop: 4 }}
+          />
+          <span>
+            <b>AI bawaan web aktif</b>
+            <br />
+            <span className="muted">Bila dimatikan, pengguna wajib memakai kunci AI sendiri (BYOK) — tombol generate akan menolak bila belum dipasang.</span>
+          </span>
+        </label>
+      </div>
+
+      <div className="admin-ai-grid">
+        <div className="card">
+          <h3 className="card-title">Kunci untuk umum</h3>
+          <label className="f-field">
+            <span>Base URL</span>
+            <input type="url" value={form.umumBaseUrl} onChange={(e) => ubah('umumBaseUrl', e.target.value)} placeholder="https://kenari.id/v1" />
+          </label>
+          {fieldKey('API key', 'umumApiKey', cfg.umum?.keyMasked)}
+          <label className="f-field">
+            <span>Model</span>
+            <input type="text" value={form.umumModel} onChange={(e) => ubah('umumModel', e.target.value)} placeholder="agnes-3-0-flash:free" />
+          </label>
+        </div>
+
+        <div className="card">
+          <h3 className="card-title">Kunci khusus admin</h3>
+          <label className="f-field">
+            <span>Base URL</span>
+            <input type="url" value={form.adminBaseUrl} onChange={(e) => ubah('adminBaseUrl', e.target.value)} placeholder="https://kenari.id/v1" />
+          </label>
+          {fieldKey('API key', 'adminApiKey', cfg.admin?.keyMasked)}
+          <label className="f-field">
+            <span>Model</span>
+            <input type="text" value={form.adminModel} onChange={(e) => ubah('adminModel', e.target.value)} placeholder="agnes-3-0-flash:free" />
+          </label>
+          <p className="muted" style={{ marginBottom: 0 }}>Kosongkan API key bila admin ingin memakai kunci umum.</p>
+        </div>
+      </div>
+
+      <div className="btn-row" style={{ marginTop: 16 }}>
+        <button type="button" className="btn btn-ink" onClick={simpan} disabled={menyimpan}>
+          {menyimpan ? 'Menyimpan…' : 'Simpan pengaturan AI'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// Dashboard admin: ringkasan + pengguna + masukan + job + pengaturan AI. Prop: onBack.
 export default function AdminDashboard({ onBack }) {
   const [tab, setTab] = useState('ringkasan');
   const [ringkasan, setRingkasan] = useState(null);
@@ -235,6 +357,8 @@ export default function AdminDashboard({ onBack }) {
           )}
         </section>
       )}
+
+      {tab === 'ai' && <PengaturanAI />}
 
       <div className="btn-row">
         <button type="button" className="btn" onClick={onBack}>Kembali</button>

@@ -137,15 +137,75 @@ async function emailOf(userId) {
 const aiKeyCtx = new AsyncLocalStorage(); // { baseUrl, apiKey, model } | null
 
 // Kunci AI milik user. null bila tidak ada / tabel belum ada. Tidak pernah throw.
+// Mengembalikan { baseUrl, apiKey, model, pakaiBawaan }.
 async function resolveKunciAI(userId) {
   if (!sb || !userId) return null;
   try {
     const { data } = await sb.from('kunci_ai')
-      .select('base_url, api_key, model').eq('user_id', userId).single();
-    if (!data?.api_key || !data?.base_url) return null;
-    return { baseUrl: String(data.base_url).replace(/\/+$/, ''), apiKey: data.api_key, model: data.model || null };
+      .select('base_url, api_key, model, pakai_bawaan').eq('user_id', userId).single();
+    if (!data?.api_key || !data?.base_url) return { pakaiBawaan: data?.pakai_bawaan !== false, kosong: true };
+    return { baseUrl: String(data.base_url).replace(/\/+$/, ''), apiKey: data.api_key, model: data.model || null, pakaiBawaan: data.pakai_bawaan !== false };
   } catch { return null; }
 }
+
+// ---------- Pengaturan AI global (diatur admin) ----------
+// Cache 5 menit agar tiap request AI tidak query DB.
+let cachePengaturanAI = { data: null, ts: 0 };
+function pengaturanAIDefault() {
+  return {
+    bawaanAktif: true,
+    umum: { baseUrl: 'https://kenari.id/v1', apiKey: process.env.KENARI_API_KEY || '', model: MODEL },
+    admin: { baseUrl: 'https://kenari.id/v1', apiKey: '', model: MODEL },
+  };
+}
+async function getPengaturanAI() {
+  if (Date.now() - cachePengaturanAI.ts < 5 * 60 * 1000 && cachePengaturanAI.data) return cachePengaturanAI.data;
+  let d = pengaturanAIDefault();
+  if (sb) {
+    try {
+      const { data } = await sb.from('pengaturan_ai').select('*').eq('id', 1).single();
+      if (data) {
+        d = {
+          bawaanAktif: data.bawaan_aktif !== false,
+          umum: { baseUrl: String(data.umum_base_url || 'https://kenari.id/v1').replace(/\/+$/, ''), apiKey: data.umum_api_key || '', model: data.umum_model || MODEL },
+          admin: { baseUrl: String(data.admin_base_url || 'https://kenari.id/v1').replace(/\/+$/, ''), apiKey: data.admin_api_key || '', model: data.admin_model || MODEL },
+        };
+      }
+    } catch { /* tabel belum ada → pakai default */ }
+  }
+  cachePengaturanAI = { data: d, ts: Date.now() };
+  return d;
+}
+function resetCachePengaturanAI() { cachePengaturanAI = { data: null, ts: 0 }; }
+
+// Resolusi kunci efektif untuk satu request/job.
+// Prioritas: 1) BYOK (bila user memilih "AI sendiri"),
+//            2) key khusus admin (bila user admin),
+//            3) key umum (bila toggle bawaan aktif),
+//            4) fallback env KENARI_API_KEY.
+// Mengembalikan { baseUrl, apiKey, model, sumber: 'sendiri'|'admin'|'umum'|'env' }.
+// Kuota hanya dipotong bila sumber = 'umum' atau 'env'.
+async function resolveKunciEfektif(userId, user) {
+  const admin = isAdmin(user);
+  const byok = await resolveKunciAI(userId);
+  if (byok && !byok.kosong && byok.pakaiBawaan === false) {
+    return { baseUrl: byok.baseUrl, apiKey: byok.apiKey, model: byok.model || MODEL, sumber: 'sendiri' };
+  }
+  const cfg = await getPengaturanAI();
+  if (admin && cfg.admin.apiKey) {
+    return { baseUrl: cfg.admin.baseUrl, apiKey: cfg.admin.apiKey, model: cfg.admin.model, sumber: 'admin' };
+  }
+  if (cfg.bawaanAktif && cfg.umum.apiKey) {
+    return { baseUrl: cfg.umum.baseUrl, apiKey: cfg.umum.apiKey, model: cfg.umum.model, sumber: 'umum' };
+  }
+  if (process.env.KENARI_API_KEY && !cfg.umum.apiKey) {
+    // Fallback kompatibilitas: env masih diisi tapi DB belum dikonfigurasi
+    return { baseUrl: 'https://kenari.id/v1', apiKey: process.env.KENARI_API_KEY, model: MODEL, sumber: 'env' };
+  }
+  throw new Error('AI bawaan sedang nonaktif. Pasang kunci AI sendiri di Pengaturan untuk tetap bisa memakai.');
+}
+// Kuota dipotong hanya bila memakai AI bawaan (umum/env), bukan BYOK/admin.
+function potongKuota(sumber) { return sumber === 'umum' || sumber === 'env'; }
 function maskKey(k) {
   const s = String(k || '');
   return s.length <= 4 ? '••••' : '••••' + s.slice(-4);
@@ -183,11 +243,13 @@ function requireAuth(handler) {
 }
 
 async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = null) {
-  // BYOK: bila request/job ini membawa kunci AI milik user, pakai itu (tidak memotong kuota)
+  // Kunci efektif sudah diresolusi per request/job via resolveKunciEfektif
+  // (prioritas: BYOK sendiri → key admin → key umum → env).
   const kunci = aiKeyCtx.getStore() || null;
-  const url = kunci ? kunci.baseUrl + '/chat/completions' : KENARI_URL;
-  const model = kunci?.model || MODEL;
-  const apiKey = kunci?.apiKey || process.env.KENARI_API_KEY;
+  if (!kunci?.apiKey) throw new Error('Kunci AI belum dikonfigurasi. Hubungi admin atau pasang kunci sendiri di Pengaturan.');
+  const url = (kunci.baseUrl || 'https://kenari.id/v1') + '/chat/completions';
+  const model = kunci.model || MODEL;
+  const apiKey = kunci.apiKey;
   const body = { model, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], temperature, max_tokens: maxTokens };
   if (onDelta) body.stream = true; // streaming SSE ala OpenAI: delta.content per chunk
   const r = await fetch(url, {
@@ -1215,13 +1277,17 @@ const workerAktif = new Set();
 
 async function jalankanJob(jobId) {
   if (!sb || workerAktif.has(jobId)) return;
-  // BYOK: resolve kunci milik user sekali di awal; konteks AsyncLocalStorage
+  // Resolusi kunci efektif sekali di awal; konteks AsyncLocalStorage
   // membuat tiap job yang berjalan paralel memakai kuncinya sendiri.
   let kunciJob = null;
   try {
     const j0 = await sbGetJob(jobId);
-    if (j0?.user_id) kunciJob = await resolveKunciAI(j0.user_id);
-  } catch { /* lanjut tanpa BYOK bila resolve gagal */ }
+    if (j0?.user_id) kunciJob = await resolveKunciEfektif(j0.user_id, { email: await emailOf(j0.user_id).catch(() => '') });
+  } catch (e) {
+    // Bila AI bawaan nonaktif & tanpa BYOK: gagalkan job dengan pesan jelas
+    try { await sbUpdateJob(jobId, { status: 'gagal', error: e.message || String(e) }); } catch {}
+    return;
+  }
   return aiKeyCtx.run(kunciJob, () => jalankanJobInti(jobId));
 }
 async function jalankanJobInti(jobId) {
@@ -1458,9 +1524,9 @@ app.post('/api/paket', requireAuth(async (req, res) => {
     if (errMateri) return kirimGagal(res, 400, errMateri);
     const langkah = rencanaJob(mode, daftarTopik);
     // Cek kuota SEBELUM job dibuat: estimasi = jumlah dokumen yang akan disusun.
-    // BYOK (kunci AI sendiri) = kuota tidak dipotong, cek dilewati.
-    const kunciUser = await resolveKunciAI(req.user.id);
-    if (!isAdmin(req.user) && !kunciUser) {
+    // Kuota hanya dipotong bila memakai AI bawaan (bukan BYOK/admin).
+    const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
+    if (potongKuota(kunciUser.sumber)) {
       const cek = await cekKuota(req.user.id, langkah.length);
       if (!cek.cukup) {
         return res.status(402).json({
@@ -1613,10 +1679,11 @@ app.post('/api/generate-doc', requireAuth(async (req, res) => {
     const errValid = validasiGenerate({ docType, infoRaw, materi, sumber });
     if (errValid) return kirimGagal(res, 400, errValid);
     const info = objekAman(infoRaw);
-    // BYOK: kunci sendiri = kuota tidak dipotong
-    const kunciUser = await resolveKunciAI(req.user.id);
-    const kunciSendiri = !!kunciUser;
-    if (sb && !isAdmin(req.user) && !kunciSendiri) {
+    // Kuota hanya dipotong bila memakai AI bawaan (bukan BYOK/admin)
+    const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
+    const kunciSendiri = kunciUser.sumber === 'sendiri';
+    const potong = potongKuota(kunciUser.sumber);
+    if (sb && potong) {
 
       const cek = await cekKuota(req.user.id, 1);
       if (!cek.cukup) {
@@ -1629,7 +1696,7 @@ app.post('/api/generate-doc', requireAuth(async (req, res) => {
     }
     const markdown = await aiKeyCtx.run(kunciUser, () =>
       generateDocInternal(docType, info, materi, sumber, rekomendasi));
-    if (sb && !isAdmin(req.user) && !kunciSendiri) await tambahKuota(req.user.id, 1);
+    if (sb && potong) await tambahKuota(req.user.id, 1);
     res.json({ ok: true, markdown, kunciSendiri });
   } catch (e) {
     kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
@@ -1669,9 +1736,9 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
     const errValid = validasiGenerate({ docType, infoRaw, materi, sumber });
     if (errValid) return kirimGagal(res, 400, errValid);
     const info = objekAman(infoRaw);
-    const kunciUser = await resolveKunciAI(req.user.id);
-    const kunciSendiri = !!kunciUser;
-    if (sb && !isAdmin(req.user) && !kunciSendiri) {
+    const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
+    const kunciSendiri = kunciUser.sumber === 'sendiri';
+    if (sb && potongKuota(kunciUser.sumber)) {
       const cek = await cekKuota(req.user.id, 1);
       if (!cek.cukup) {
         return res.status(402).json({
@@ -1708,7 +1775,7 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
         markdown = r.markdown;
         images = r.images;
       }
-      if (sb && !isAdmin(req.user) && !kunciSendiri) await tambahKuota(req.user.id, 1);
+      if (sb && potongKuota(kunciUser.sumber)) await tambahKuota(req.user.id, 1);
       kirim({ tipe: 'selesai', markdown, images, kunciSendiri });
     } catch (e) {
       kirim({ tipe: 'gagal', error: e.message || String(e) });
@@ -1743,15 +1810,58 @@ app.get('/api/kuota', requireAuth(async (req, res) => {
 
 // ============ BYOK: kunci AI milik user ============
 // Base URL adalah root API gaya OpenAI (tanpa /chat/completions), mis. https://api.openai.com/v1
+// Status AI untuk user: apakah AI bawaan aktif + pilihan user saat ini
+app.get('/api/ai-status', requireAuth(async (req, res) => {
+  try {
+    const cfg = await getPengaturanAI();
+    const k = await resolveKunciAI(req.user.id);
+    res.json({
+      ok: true,
+      bawaanAktif: cfg.bawaanAktif && !!cfg.umum.apiKey,
+      pakaiBawaan: k ? k.pakaiBawaan !== false : true,
+      adaByok: !!(k && !k.kosong),
+      isAdmin: isAdmin(req.user),
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
 app.get('/api/ai-config', requireAuth(async (req, res) => {
   try {
     if (!butuhSb(req, res)) return;
     const k = await resolveKunciAI(req.user.id);
     res.json({
-      ok: true, ada: !!k,
+      ok: true, ada: !!(k && !k.kosong),
       baseUrl: k?.baseUrl || '', model: k?.model || '',
-      keyMasked: k ? maskKey(k.apiKey) : '',
+      keyMasked: (k && !k.kosong) ? maskKey(k.apiKey) : '',
+      pakaiBawaan: k ? k.pakaiBawaan !== false : true,
     });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+// Pilihan user: pakai AI bawaan web atau kunci sendiri
+app.post('/api/ai-config/pilihan', requireAuth(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const pakaiBawaan = req.body?.pakaiBawaan !== false;
+    const k = await resolveKunciAI(req.user.id);
+    if (k && !k.kosong) {
+      const { error } = await sb.from('kunci_ai').update({ pakai_bawaan: pakaiBawaan }).eq('user_id', req.user.id);
+      if (error) return res.status(500).json({ ok: false, error: error.message });
+    } else {
+      // Belum ada BYOK: simpan preferensi saja
+      const { error } = await sb.from('kunci_ai').upsert({
+        user_id: req.user.id, base_url: '', api_key: '', model: null,
+        pakai_bawaan: pakaiBawaan, updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+      if (error && !/null|not-null|check/i.test(error.message || '')) {
+        return res.status(500).json({ ok: false, error: error.message });
+      }
+    }
+    res.json({ ok: true, pakaiBawaan });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });
   }
@@ -1774,7 +1884,7 @@ app.post('/api/ai-config', requireAuth(async (req, res) => {
       return res.status(400).json({ ok: false, error: 'API key terlalu pendek (minimal 8 karakter).' });
     const { error } = await sb.from('kunci_ai').upsert({
       user_id: req.user.id, base_url: baseUrl, api_key: apiKey,
-      model: model || null, updated_at: new Date().toISOString(),
+      model: model || null, pakai_bawaan: false, updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
     if (error) {
       const tabelHilang = /kunci_ai/i.test(error.message || '');
@@ -1978,6 +2088,64 @@ function requireAdmin(handler) {
   });
 }
 
+// ============ ADMIN: Pengaturan AI global ============
+// GET: baca konfigurasi (key dimask, kecuali 4 karakter terakhir)
+app.get('/api/admin/pengaturan-ai', requireAdmin(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const cfg = await getPengaturanAI();
+    res.json({
+      ok: true,
+      bawaanAktif: cfg.bawaanAktif,
+      umum: { baseUrl: cfg.umum.baseUrl, model: cfg.umum.model, keyMasked: cfg.umum.apiKey ? maskKey(cfg.umum.apiKey) : '' },
+      admin: { baseUrl: cfg.admin.baseUrl, model: cfg.admin.model, keyMasked: cfg.admin.apiKey ? maskKey(cfg.admin.apiKey) : '' },
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+// POST: simpan konfigurasi. Hanya field yang dikirim yang diubah;
+// kirim apiKey kosong = tidak mengubah key yang sudah tersimpan.
+app.post('/api/admin/pengaturan-ai', requireAdmin(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const b = req.body || {};
+    const patch = { updated_at: new Date().toISOString() };
+    if (typeof b.bawaanAktif === 'boolean') patch.bawaan_aktif = b.bawaanAktif;
+    const str = (v) => String(v || '').trim();
+    const urlOk = (u) => { try { const x = new URL(u); return x.protocol === 'http:' || x.protocol === 'https:'; } catch { return false; } };
+    if (b.umum) {
+      if (b.umum.baseUrl !== undefined) {
+        if (!urlOk(str(b.umum.baseUrl))) return res.status(400).json({ ok: false, error: 'Base URL umum tidak valid.' });
+        patch.umum_base_url = str(b.umum.baseUrl).replace(/\/+$/, '');
+      }
+      if (str(b.umum.apiKey)) patch.umum_api_key = str(b.umum.apiKey);
+      if (b.umum.model !== undefined) patch.umum_model = str(b.umum.model) || 'agnes-3-0-flash:free';
+    }
+    if (b.admin) {
+      if (b.admin.baseUrl !== undefined) {
+        if (!urlOk(str(b.admin.baseUrl))) return res.status(400).json({ ok: false, error: 'Base URL admin tidak valid.' });
+        patch.admin_base_url = str(b.admin.baseUrl).replace(/\/+$/, '');
+      }
+      if (str(b.admin.apiKey)) patch.admin_api_key = str(b.admin.apiKey);
+      if (b.admin.model !== undefined) patch.admin_model = str(b.admin.model) || 'agnes-3-0-flash:free';
+    }
+    const { error } = await sb.from('pengaturan_ai').upsert({ id: 1, ...patch }, { onConflict: 'id' });
+    if (error) {
+      const tabelHilang = /pengaturan_ai/i.test(error.message || '');
+      return res.status(tabelHilang ? 503 : 500).json({
+        ok: false,
+        error: tabelHilang ? 'Tabel pengaturan_ai belum ada. Jalankan supabase-bundle.sql terbaru di Supabase Dashboard.' : error.message,
+      });
+    }
+    resetCachePengaturanAI();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
 // (kunciPeriodeAdmin disatukan ke periodeKuota() saat integrasi)
 
 app.get('/api/admin/ringkasan', requireAdmin(async (req, res) => {
@@ -2112,8 +2280,7 @@ app.get('/api/admin/jobs', requireAdmin(async (req, res) => {
 // Regenerate satu blok ala Gutenberg
 app.post('/api/regen-block', requireAuth(async (req, res) => {
   try {
-    const kunciUser = await resolveKunciAI(req.user.id);
-    if (!process.env.KENARI_API_KEY && !kunciUser) return kirimGagal(res, 500, 'Kunci AI belum dikonfigurasi di server.');
+    const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
     const { docType = 'modul', blockType = 'p', blockText = '', docTitle = '', topic = '' } = req.body || {};
     if (!String(blockText).trim()) return kirimGagal(res, 400, 'Blok kosong.');
     const errPanjang = validasiPanjang(blockText, 20000, 'Blok');

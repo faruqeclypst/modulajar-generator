@@ -76,3 +76,24 @@ create index if not exists masukan_dibuat_idx on masukan(created_at desc);
 
 alter table masukan enable row level security;
 -- Sengaja tanpa policy untuk user: hanya service_role (backend) yang baca/tulis.
+
+-- 6) Pengaturan AI global (diatur admin via Dashboard Admin)
+--    Satu baris (id=1): toggle AI bawaan + key umum + key khusus admin.
+create table if not exists pengaturan_ai (
+  id int primary key,
+  bawaan_aktif boolean not null default true,
+  umum_base_url text not null default 'https://kenari.id/v1',
+  umum_api_key text not null default '',
+  umum_model text not null default 'agnes-3-0-flash:free',
+  admin_base_url text not null default 'https://kenari.id/v1',
+  admin_api_key text not null default '',
+  admin_model text not null default 'agnes-3-0-flash:free',
+  updated_at timestamptz not null default now(),
+  constraint pengaturan_ai_satu_baris check (id = 1)
+);
+insert into pengaturan_ai (id) values (1) on conflict (id) do nothing;
+alter table pengaturan_ai enable row level security;
+-- Sengaja tanpa policy untuk user: hanya service_role (backend) yang baca/tulis.
+
+-- 7) Pilihan AI per user: pakai AI bawaan web atau kunci sendiri (BYOK)
+alter table kunci_ai add column if not exists pakai_bawaan boolean not null default true;

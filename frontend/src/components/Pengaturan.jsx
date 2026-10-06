@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import Paywall from './Paywall';
-import { getAiConfig, saveAiConfig, deleteAiConfig, getReferal } from '../lib/api';
+import { getAiConfig, saveAiConfig, deleteAiConfig, getAiStatus, setAiPilihan, getReferal } from '../lib/api';
 
-// Kunci AI sendiri (BYOK): simpan base URL + API key milik user.
-// Generate dengan kunci sendiri tidak memotong kuota harian.
+// Sumber AI: pilih "AI bawaan web" atau "AI sendiri (BYOK)".
+// AI bawaan memotong kuota harian; AI sendiri tidak.
 function KunciAISendiri() {
   const [status, setStatus] = useState('memuat'); // memuat | aktif | kosong | gagal
   const [cfg, setCfg] = useState(null);
@@ -14,20 +14,44 @@ function KunciAISendiri() {
   const [model, setModel] = useState('');
   const [menyimpan, setMenyimpan] = useState(false);
   const [ganti, setGanti] = useState(false);
+  const [pilihan, setPilihan] = useState(true); // true = AI bawaan web
+  const [bawaanAktif, setBawaanAktif] = useState(true);
+  const [menggantiPilihan, setMenggantiPilihan] = useState(false);
 
   async function muat() {
     setStatus('memuat');
     setErr('');
     try {
-      const d = await getAiConfig();
+      const [d, s] = await Promise.all([getAiConfig(), getAiStatus().catch(() => null)]);
       if (d && d.ada) { setCfg(d); setStatus('aktif'); }
       else setStatus('kosong');
+      if (s) {
+        setPilihan(s.pakaiBawaan !== false);
+        setBawaanAktif(s.bawaanAktif !== false);
+      } else if (d) {
+        setPilihan(d.pakaiBawaan !== false);
+      }
     } catch (e) {
       setErr((e.message || 'Gagal memuat.') + ' Periksa koneksi, lalu muat ulang halaman.');
       setStatus('gagal');
     }
   }
   useEffect(() => { muat(); }, []);
+
+  async function gantiPilihan(keBawaan) {
+    if (keBawaan === pilihan || menggantiPilihan) return;
+    setMenggantiPilihan(true);
+    setErr(''); setCatatan('');
+    try {
+      await setAiPilihan(keBawaan);
+      setPilihan(keBawaan);
+      setCatatan(keBawaan ? 'Sekarang memakai AI bawaan web (memotong kredit harian).' : 'Sekarang memakai kunci AI sendiri (tanpa potong kredit).');
+    } catch (e) {
+      setErr('Gagal mengganti pilihan: ' + (e.message || 'coba lagi.'));
+    } finally {
+      setMenggantiPilihan(false);
+    }
+  }
 
   async function simpan(e) {
     e.preventDefault();
@@ -71,8 +95,39 @@ function KunciAISendiri() {
 
   return (
     <section className="card" aria-labelledby="set-aikey">
-      <h2 className="sec" id="set-aikey" style={{ marginTop: 0 }}>Kunci AI Sendiri</h2>
-      <p style={{ marginTop: 0 }}>Pakai API key milikmu sendiri, generate tidak memotong kuota harian.</p>
+      <h2 className="sec" id="set-aikey" style={{ marginTop: 0 }}>Sumber AI</h2>
+      <p style={{ marginTop: 0 }}>Pilih AI yang dipakai untuk generate dokumen.</p>
+
+      <div className="ai-pilih" role="radiogroup" aria-label="Pilih sumber AI">
+        <label className={'ai-pilih-opsi' + (pilihan ? ' aktif' : '')}>
+          <input
+            type="radio" name="sumber-ai" checked={pilihan}
+            onChange={() => gantiPilihan(true)} disabled={menggantiPilihan || !bawaanAktif}
+          />
+          <span>
+            <b>AI bawaan web</b>
+            <br />
+            <span className="muted">
+              {bawaanAktif ? 'Memakai kunci yang disediakan web. Generate memotong kredit harian.' : 'Saat ini dimatikan admin — wajib pakai AI sendiri.'}
+            </span>
+          </span>
+        </label>
+        <label className={'ai-pilih-opsi' + (!pilihan ? ' aktif' : '')}>
+          <input
+            type="radio" name="sumber-ai" checked={!pilihan}
+            onChange={() => gantiPilihan(false)} disabled={menggantiPilihan}
+          />
+          <span>
+            <b>AI sendiri</b>
+            <br />
+            <span className="muted">Pakai API key milikmu. Generate tidak memotong kredit harian.</span>
+          </span>
+        </label>
+      </div>
+
+      {!pilihan && (
+        <>
+      <h3 className="sec" style={{ fontSize: 16 }}>Kunci AI Sendiri</h3>
       {status === 'memuat' && <p>Memuat…</p>}
       {err && <div className="alert alert-error" role="alert">{err}</div>}
       {status === 'aktif' && cfg && !ganti && (
@@ -124,6 +179,8 @@ function KunciAISendiri() {
         </form>
       )}
       {catatan && <p className="hint" role="status" style={{ marginBottom: 0 }}>{catatan}</p>}
+        </>
+      )}
     </section>
   );
 }

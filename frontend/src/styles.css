@@ -753,6 +753,13 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .admin-masukan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
 .admin-masukan-item { background: var(--paper-2); border: var(--bd); box-shadow: var(--sh); padding: 18px 20px; }
 .admin-masukan-item.baru { border-left: 6px solid var(--red); }
+.admin-ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .admin-ai-grid { grid-template-columns: 1fr; } }
+.ai-pilih { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+@media (max-width: 560px) { .ai-pilih { grid-template-columns: 1fr; } }
+.ai-pilih-opsi { display: flex; gap: 10px; align-items: flex-start; border: var(--bd); background: var(--paper-2); padding: 14px; cursor: pointer; }
+.ai-pilih-opsi.aktif { border-color: var(--red); box-shadow: var(--sh); }
+.ai-pilih-opsi input { margin-top: 3px; }
 .admin-masukan-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .admin-masukan-isi { margin: 0; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
 @media (max-width: 720px) {

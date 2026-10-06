@@ -260,5 +260,8 @@ export const getAiConfig = () => apiAuthed('/api/ai-config', 'GET');
 export const saveAiConfig = ({ baseUrl, apiKey, model }) =>
   apiAuthed('/api/ai-config', 'POST', { baseUrl, apiKey, ...(model ? { model } : {}) });
 export const deleteAiConfig = () => apiAuthed('/api/ai-config', 'DELETE');
+export const getAiStatus = () => apiAuthed('/api/ai-status', 'GET');
+export const setAiPilihan = (pakaiBawaan) =>
+  apiAuthed('/api/ai-config/pilihan', 'POST', { pakaiBawaan });
 export const getReferal = () => apiAuthed('/api/referal', 'GET');
 export const klaimReferal = (kode) => apiAuthed('/api/referal/klaim', 'POST', { kode });
