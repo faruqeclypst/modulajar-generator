@@ -14,7 +14,7 @@ import MenuTitik from './MenuTitik';
 import { SkelKartu } from './Kerangka';
 
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
-const BUTUH = { cp: null, atp: 'cp', minggu_efektif: 'atp', prota: 'minggu_efektif', prosem: 'prota' };
+const BUTUH = { cp: null, analisis_cp: 'cp', tp: 'analisis_cp', atp: 'tp', minggu_efektif: 'atp', distribusi_jp: 'minggu_efektif', prota: 'distribusi_jp', prosem: 'prota' };
 
 export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBuatModul, preselectProjectId, waLink, onKuotaChanged, bukaStep, tugasId, onStepChange }) {
   const [projects, setProjects] = useState([]);
@@ -592,7 +592,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
           ) : (
             <>
               <div className="alert alert-info">
-                <strong>Acuan:</strong> {sumberJudul || DOC_TYPES[need].nama}.{' '}{dt.nama}{' '}akan <strong>diturunkan langsung</strong> dari acuan ini. AI dilarang mengarang di luar acuan.
+                <strong>Acuan:</strong> {sumberJudul || (need && DOC_TYPES[need] ? DOC_TYPES[need].nama : 'dokumen sebelumnya')}.{' '}{dt.nama}{' '}akan <strong>diturunkan langsung</strong> dari acuan ini. AI dilarang mengarang di luar acuan.
               </div>
               {sumber && (
                 <details style={{ marginBottom: 14 }}>
