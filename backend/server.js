@@ -1319,11 +1319,25 @@ CONTOH:
 }
 \`\`\`
 
+CARA MENGISI (PENTING — BACA DULU):
+Lihat dokumen ATP acuan. Setiap kelompok TP yang besar WAJIB dipecah menjadi sub-topik SPESIFIK dengan nama yang bermakna. JANGAN menulis ulang judul kelompoknya.
+
+Contoh SALAH (jangan ditiru):
+{"materi": "Pengantar Informatika: Komputasi, Algoritma, dan Struktur Data (TP 1-9)", "jp": 18}
+
+Contoh BENAR (ditiru polanya):
+{"materi": "Berpikir Komputasional: dekomposisi dan pengenalan pola", "jp": 6, "ket": "TP 1-3"},
+{"materi": "Algoritma dan Pemrograman Python dasar", "jp": 6, "ket": "TP 4-6"},
+{"materi": "Struktur Data: array, list, dan dictionary", "jp": 6, "ket": "TP 7-9"}
+
+Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — bukan judul bab yang umum.
+
 ATURAN JSON:
-1. SETIAP TP/topik = SATU objek. DILARANG menggabungkan banyak TP dalam satu objek. Ikuti rincian TP di dokumen ATP, maksimal 2-4 TP per objek.
-2. Urutan array = urutan pengajaran.
-3. Total "jp" per semester HARUS sama dengan total JP efektif semester itu. Jika kurang, tambahkan {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}.
-4. Jika satu semester saja, array semester lainnya = [].
+1. MAKSIMAL 6 JP per objek. Jika satu topik butuh lebih, pecah menjadi sub-topik yang LEBIH SPESIFIK (bukan "bagian 1/2").
+2. Nama "materi" harus KONKRET dan SPESIFIK (contoh: "Sorting dan searching array", bukan "Struktur Data lanjutan").
+3. Urutan array = urutan pengajaran.
+4. Total "jp" per semester HARUS sama dengan total JP efektif semester itu. Jika kurang, tambahkan {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}.
+5. Jika satu semester saja, array semester lainnya = [].
 
 ## C. Pengesahan". DILARANG menambah section lain.
 
