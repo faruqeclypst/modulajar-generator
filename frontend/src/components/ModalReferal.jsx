@@ -84,8 +84,7 @@ export default function ModalReferal({ onClose, onKuotaChanged }) {
       <div className="paywall-card">
         <h2 id="ref-modal-judul">Free Credit</h2>
         <p>
-          Bagikan link referalmu ke teman guru. Setiap teman yang bergabung lewat
-          link ini memberimu <b>+3 kredit bonus</b> (maksimal 5 klaim per minggu).
+          Bagikan link referalmu ke teman guru. Kamu dapat <b>+3 kredit</b> untuk tiap teman yang bergabung, dan temanmu juga dapat <b>+3 kredit</b> (maksimal 5 klaim per minggu).
           Bonus direset tiap Minggu 15:00 WIB dan otomatis menambah sisa kredit
           mingguanmu.
         </p>

@@ -2289,6 +2289,7 @@ async function klaimReferalBaruInner(kode, pemilikId, olehId) {
     throw error;
   }
   await tambahBonus(pemilikId, 3);
+  await tambahBonus(olehId, 3); // yang memakai kode juga dapat +3
   return { ok: true };
 }
 
@@ -2365,6 +2366,7 @@ app.post('/api/referal/klaim', requireAuth(async (req, res) => {
     if (cek?.dipakai_oleh_id !== uid)
       return res.status(409).json({ ok: false, code: 'kode_terpakai', error: 'Kode ini sudah dipakai.' });
     await tambahBonus(baris.pemilik_id, 3);
+    await tambahBonus(uid, 3); // yang memakai kode juga dapat +3
     res.json({ ok: true, bonusDitambah: 3 });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });

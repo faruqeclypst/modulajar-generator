@@ -139,7 +139,7 @@ export default function DocsView({ onBack, onMasukan }) {
           <S id="bonus" kicker="Bonus" judul="Bagikan & Bonus">
             <p>
               Di <b>Pengaturan → Bagikan & Bonus</b> ada link referral pribadimu.
-              Tiap teman yang bergabung lewat link itu memberimu <b>+3 kredit bonus</b>
+              Tiap teman yang bergabung lewat link itu memberimu dan temanmu masing-masing <b>+3 kredit bonus</b>
               (maks 5 teman per minggu). Bonus direset tiap <b>Minggu 15:00 WIB</b>.
             </p>
           </S>

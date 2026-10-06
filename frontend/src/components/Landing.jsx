@@ -185,7 +185,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
           </div>
           <ul className="land-price-list">
             <li><b>Kunci AI sendiri.</b> Punya API key? Isi di Pengaturan. Selama aktif, generate tidak memotong kredit mingguan.</li>
-            <li><b>Bagikan, dapat bonus.</b> Tiap teman yang bergabung lewat link-mu memberimu +3 kredit (maks 5 per minggu).</li>
+            <li><b>Bagikan, dapat bonus.</b> Tiap teman yang bergabung lewat link-mu: kamu +3 kredit, temanmu +3 kredit (maks 5 per minggu).</li>
             {waLink && <li><b>Butuh lebih banyak?</b> <a href={waLink} target="_blank" rel="noreferrer">Hubungi kami via WhatsApp</a> untuk paket khusus sekolah.</li>}
           </ul>
         </div>
