@@ -225,7 +225,7 @@ function BagikanBonus() {
   return (
     <section className="card" aria-labelledby="set-referal">
       <h2 className="sec" id="set-referal" style={{ marginTop: 0 }}>Bagikan &amp; Bonus</h2>
-      <p style={{ marginTop: 0 }}>+3 kredit bonus untuk tiap teman yang bergabung lewat linkmu (maks 5 per 3 hari). Bonus dihitung ulang tiap 3 hari.</p>
+      <p style={{ marginTop: 0 }}>+3 kredit bonus untuk tiap teman yang bergabung lewat linkmu (maks 5 per minggu). Bonus direset tiap Minggu 15:00 WIB.</p>
       {status === 'memuat' && <><Skel tinggi={14} lebar="100%" gaya={{ marginBottom: 10 }} /><Skel tinggi={44} lebar="100%" /></>}
       {err && <div className="alert alert-error" role="alert">{err}</div>}
       {ref && (

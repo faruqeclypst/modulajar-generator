@@ -16,7 +16,7 @@ const KENARI_URL = 'https://kenari.id/v1/chat/completions';
 const MODEL = 'agnes-3-0-flash:free';
 
 // ============ KUOTA HARIAN (disebut "Kredit" di UI) ============
-const KUOTA_MINGGUAN = parseInt(process.env.KUOTA_MINGGUAN || process.env.KUOTA_HARIAN || '20', 10);
+const KUOTA_MINGGUAN = parseInt(process.env.KUOTA_MINGGUAN || process.env.KUOTA_HARIAN || '10', 10);
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'faruq.blogger@gmail.com')
   .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
@@ -40,13 +40,10 @@ function periodeKuota() {
   const d = String(anchor.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
-// Awal window bonus referral 3-hari: hari kalender WIB (bukan epoch UTC yang
-// selisih 7 jam). Anchor = kelipatan 3 hari dari epoch-day WIB.
 function windowStart() {
-  const kiniWIB = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-  const tengahMalamWIB = Date.UTC(kiniWIB.getFullYear(), kiniWIB.getMonth(), kiniWIB.getDate()) - 7 * 3600 * 1000;
-  const hariWIB = Math.floor(tengahMalamWIB / 86400000);
-  return new Date(Math.floor(hariWIB / 3) * 3 * 86400000).toISOString().slice(0, 10);
+  // Window bonus & referral DISELARASKAN dengan reset kuota mingguan (Minggu 15:00 WIB):
+  // memakai anchor periode yang sama dengan periodeKuota().
+  return periodeKuota();
 }
 // Peringatan kuota dibatasi agar log tidak kebanjiran saat tabel hilang
 let kuotaWarnAt = 0;
@@ -2251,11 +2248,12 @@ async function adaTabelKlaim() {
   return klaimTabelAda;
 }
 
-// Jumlah klaim milik pemilik dalam window 3-hari berjalan (WIB).
+// Jumlah klaim milik pemilik dalam periode mingguan berjalan (reset Minggu 15:00 WIB,
+// selaras dengan kuota mingguan).
 async function hitungKlaimWindow(pemilikId) {
   const r = await sb.from('klaim_referal')
     .select('id', { head: true, count: 'exact' })
-    .eq('pemilik_id', pemilikId).gte('created_at', windowStart() + 'T00:00:00+07:00');
+    .eq('pemilik_id', pemilikId).gte('created_at', windowStart() + 'T15:00:00+07:00');
   if (r.error) throw r.error;
   return r.count ?? 0;
 }
@@ -2341,7 +2339,7 @@ app.post('/api/referal/klaim', requireAuth(async (req, res) => {
     if (baris.pemilik_id === uid)
       return res.status(400).json({ ok: false, code: 'kode_sendiri', error: 'Tidak bisa memakai kode referral milik sendiri.' });
     if (await adaTabelKlaim()) {
-      // Skema baru: tiap teman bisa klaim; maks 5 klaim per 3 hari per pemilik kode
+      // Skema baru: tiap teman bisa klaim; maks 5 klaim per minggu per pemilik kode
       const hasil = await klaimReferalBaru(kode, baris.pemilik_id, uid);
       if (!hasil.ok) return res.status(hasil.status).json({ ok: false, code: hasil.code, error: hasil.error });
       return res.json({ ok: true, bonusDitambah: 3 });

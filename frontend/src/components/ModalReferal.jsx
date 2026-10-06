@@ -55,8 +55,8 @@ export default function ModalReferal({ onClose }) {
         <h2 id="ref-modal-judul">Free Credit</h2>
         <p>
           Bagikan link referalmu ke teman guru. Setiap teman yang bergabung lewat
-          link ini memberimu <b>+3 kredit bonus</b> (maksimal 5 klaim per 3 hari).
-          Bonus dihitung ulang tiap 3 hari dan otomatis menambah sisa kredit
+          link ini memberimu <b>+3 kredit bonus</b> (maksimal 5 klaim per minggu).
+          Bonus direset tiap Minggu 15:00 WIB dan otomatis menambah sisa kredit
           mingguanmu.
         </p>
         {status === 'memuat' && <p className="hint">Memuat link referal…</p>}

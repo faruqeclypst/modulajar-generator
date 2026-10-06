@@ -41,7 +41,7 @@ const CARA_KERJA = [
 
 const FAQ = [
   ['Apakah ModulAjar gratis?',
-    'Ya. Setiap akun mendapat 20 kredit gratis setiap minggu, diperbarui setiap Minggu jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Tidak ada kartu kredit, tidak ada masa coba yang tiba-tiba menagih.'],
+    'Ya. Setiap akun mendapat 10 kredit gratis setiap minggu, diperbarui setiap Minggu jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Tidak ada kartu kredit, tidak ada masa coba yang tiba-tiba menagih.'],
   ['Dokumen apa saja yang bisa dibuat?',
     'CP, ATP, Minggu Efektif, Prota, Prosem, Modul Ajar (lengkap dengan materi, bank soal, rubrik, dan lembar pengesahan), LKPD, Bank Soal, dan KKTP. Semuanya mengikuti alur Kurikulum Merdeka.'],
   ['Apakah saya harus menyusun CP dan ATP dulu?',
@@ -80,7 +80,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
           <button className="btn btn-primary" onClick={onStart}>Mulai Membuat</button>
           <a className="btn btn-ghost-light" href="#cara-kerja">Lihat Cara Kerja</a>
         </div>
-        <p className="hero-note">Gratis 20 kredit setiap minggu. Tanpa kartu kredit.</p>
+        <p className="hero-note">Gratis 10 kredit setiap minggu. Tanpa kartu kredit.</p>
         {onLogin && (
           <p className="hero-login">Sudah punya akun? <button type="button" onClick={onLogin}>Masuk</button></p>
         )}
@@ -150,7 +150,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
           </div>
           <ul className="land-price-list">
             <li><b>Kunci AI sendiri.</b> Punya API key? Isi di Pengaturan. Selama aktif, generate tidak memotong kredit mingguan.</li>
-            <li><b>Bagikan, dapat bonus.</b> Tiap teman yang bergabung lewat link-mu memberimu +3 kredit (maks 5 per 3 hari).</li>
+            <li><b>Bagikan, dapat bonus.</b> Tiap teman yang bergabung lewat link-mu memberimu +3 kredit (maks 5 per minggu).</li>
             {waLink && <li><b>Butuh lebih banyak?</b> <a href={waLink} target="_blank" rel="noreferrer">Hubungi kami via WhatsApp</a> untuk paket khusus sekolah.</li>}
           </ul>
         </div>
@@ -183,7 +183,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
               <b>ModulAjar</b>
               <span>Perangkat Ajar AI untuk Guru Indonesia</span>
             </div>
-            <p>Dari CP sampai bank soal — tersusun berurutan mengikuti Kurikulum Merdeka. Gratis 20 kredit setiap minggu.</p>
+            <p>Dari CP sampai bank soal — tersusun berurutan mengikuti Kurikulum Merdeka. Gratis 10 kredit setiap minggu.</p>
           </div>
           <nav aria-label="Produk">
             <b>Produk</b>

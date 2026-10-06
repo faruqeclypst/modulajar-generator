@@ -120,7 +120,7 @@ export default function DocsView({ onBack, onMasukan }) {
 
           <S id="kredit" kicker="Kuota" judul="Kredit & Langganan">
             <ul>
-              <li>Setiap akun mendapat <b>20 kredit gratis per minggu</b>, diperbarui setiap <b>Minggu jam 15:00 WIB</b>.</li>
+              <li>Setiap akun mendapat <b>10 kredit gratis per minggu</b>, diperbarui setiap <b>Minggu jam 15:00 WIB</b>.</li>
               <li>Satu dokumen yang selesai dibuat memakai <b>1 kredit</b>. Paket mengecek kecukupan di awal.</li>
               <li>Sisa kredit tampil di bilah atas, halaman Pengaturan, dan di samping tombol Generate.</li>
               <li>Kredit habis? Paket berbayar tersedia via WhatsApp, atau pakai kunci AI sendiri (di bawah).</li>
@@ -140,7 +140,7 @@ export default function DocsView({ onBack, onMasukan }) {
             <p>
               Di <b>Pengaturan → Bagikan & Bonus</b> ada link referral pribadimu.
               Tiap teman yang bergabung lewat link itu memberimu <b>+3 kredit bonus</b>
-              (maks 5 teman per periode). Bonus dihitung ulang tiap <b>3 hari</b>.
+              (maks 5 teman per minggu). Bonus direset tiap <b>Minggu 15:00 WIB</b>.
             </p>
           </S>
 
