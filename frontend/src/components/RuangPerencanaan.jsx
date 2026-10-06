@@ -171,8 +171,12 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
                   <div className="btn-row" style={{ margin: 0 }}>
                     {done && (
                       <a
-                        className="btn btn-sm" href={'#/dokumen/' + docs[s.key]}
-                        onClick={() => onCatatAsal && onCatatAsal({ view: 'ruang', ruangProjectId: projectId })}
+                        className="btn btn-sm" href={'/dokumen/' + docs[s.key]}
+                        onClick={(e) => {
+                          e.preventDefault(); // navigasi SPA tanpa reload; href tetap mendukung klik kanan > tab baru
+                          if (onCatatAsal) onCatatAsal({ view: 'ruang', ruangProjectId: projectId });
+                          if (onOpenDoc) onOpenDoc(docs[s.key], { view: 'ruang', ruangProjectId: projectId });
+                        }}
                       >
                         Lihat
                       </a>

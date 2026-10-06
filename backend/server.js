@@ -2603,6 +2603,8 @@ app.get('/api/gambar-proxy', async (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+// API yang tidak dikenal -> 404 JSON (jangan jatuh ke index.html)
+app.use('/api', (req, res) => res.status(404).json({ ok: false, error: 'API tidak ditemukan.' }));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

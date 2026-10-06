@@ -283,8 +283,12 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
               <div className="btn-row" style={{ margin: 0 }}>
                 {dok && (
                   <a
-                    className="btn btn-sm" href={'#/dokumen/' + dok.id}
-                    onClick={() => onCatatAsal && onCatatAsal({ view: 'proyek', projectId: project.id })}
+                    className="btn btn-sm" href={'/dokumen/' + dok.id}
+                    onClick={(e) => {
+                      e.preventDefault(); // navigasi SPA tanpa reload; href tetap mendukung klik kanan > tab baru
+                      if (onCatatAsal) onCatatAsal({ view: 'proyek', projectId: project.id });
+                      if (onOpenDoc) onOpenDoc(dok.id, { view: 'proyek', projectId: project.id });
+                    }}
                   >
                     Lihat
                   </a>

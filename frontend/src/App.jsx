@@ -165,7 +165,7 @@ export default function App() {
   const [authErr, setAuthErr] = useState('');
   const [mintaLogin, setMintaLogin] = useState(false); // belum login: tampilkan form login di atas landing
   // Lazy dari localStorage agar tidak ada flash halaman utama saat refresh
-  const [view, setView] = useState(() => bacaViewTersimpan()?.view || 'landing'); // landing | app | wizard | detail | ruang | paket | pengaturan | proyek | docs | admin
+  const [view, setView] = useState(() => bacaViewTersimpan()?.view || 'landing'); // landing | app | wizard | detail | ruang | paket | pengaturan | proyek | docs | admin | masukan | tidak-ditemukan
   const [restoring, setRestoring] = useState(() => {
     const d = bacaViewTersimpan();
     return (d?.view === 'detail' && !!d.docId) || (d?.view === 'proyek' && !!d.projectId);
@@ -316,41 +316,75 @@ export default function App() {
   function startTurunan(docType, modulId) { setWizardTurunan({ docType, modulId }); setWizardPaket(null); setWizardProyek(null); setWizardKey((k) => k + 1); setView('wizard'); }
   async function openDoc(id, asal) {
     const d = await getModul(id);
-    if (d && !d.docType) d.docType = 'modul';
+    if (!d) {
+      // Dokumen tidak ada / sudah dihapus -> halaman 404
+      setActive(null);
+      setView('tidak-ditemukan');
+      const p = '/dokumen/' + id;
+      if (window.location.pathname !== p) history.pushState(null, '', p);
+      return;
+    }
+    if (!d.docType) d.docType = 'modul';
     // asal === undefined: pertahankan asal yang sudah dicatat (mis. via klik link)
     if (asal !== undefined) setAsalDoc(asal || null);
     setActive(d); setView('detail');
-    const h = '#/dokumen/' + id;
-    if (window.location.hash !== h) window.location.hash = h;
+    const p = '/dokumen/' + id;
+    if (window.location.pathname !== p) history.pushState(null, '', p);
   }
   // Catat halaman asal sebelum buka dokumen (untuk tombol Kembali)
   const catatAsal = (asal) => setAsalDoc(asal || null);
   function kembaliDariDoc() {
-    if (window.location.hash.startsWith('#/dokumen/')) {
-      history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (window.location.pathname.startsWith('/dokumen/')) {
+      history.replaceState(null, '', '/');
     }
     const a = asalDoc; setAsalDoc(null);
     if (a?.view === 'proyek' && a.projectId) openProyek(a.projectId);
     else if (a?.view === 'ruang' && a.ruangProjectId) goRuang(a.ruangProjectId);
     else goApp();
   }
-  // Hash routing: #/dokumen/<id> -> buka dokumen (dukung klik kanan "buka di tab baru").
-  // Hash kosong saat di detail -> anggap tombol back browser -> kembali ke asal.
+  // Routing dokumen via path /dokumen/<id> (bukan hash, agar tautan rapi dan
+  // tidak rusak saat dibagikan). Mendukung: tombol Lihat, klik kanan > buka di
+  // tab baru, tombol back browser, dan link hash lama (#/dokumen/<id>) yang
+  // otomatis dikonversi ke path baru.
   useEffect(() => {
     if (auth !== 'app') return;
-    const onHash = () => {
-      const m = window.location.hash.match(/^#\/dokumen\/([\w-]+)/);
-      if (m) {
-        if (view !== 'detail' || active?.id !== m[1]) openDoc(m[1]);
-      } else if (view === 'detail') {
-        kembaliDariDoc();
+    const idDokumenDariUrl = () => {
+      const hm = window.location.hash.match(/^#\/dokumen\/([\w-]+)/);
+      if (hm) {
+        history.replaceState(null, '', '/dokumen/' + hm[1]);
+        return hm[1];
+      }
+      const pm = window.location.pathname.match(/^\/dokumen\/([\w-]+)\/?$/);
+      return pm ? pm[1] : null;
+    };
+    const bukaDariUrl = () => {
+      const id = idDokumenDariUrl();
+      if (!id) return false;
+      if (view !== 'detail' || active?.id !== id) openDoc(id);
+      return true;
+    };
+    const tandai404 = () => {
+      const path = window.location.pathname;
+      if (path !== '/' && !path.startsWith('/dokumen/') && view !== 'tidak-ditemukan') {
+        setView('tidak-ditemukan');
       }
     };
-    onHash(); // tab baru dibuka langsung dengan hash
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
+    bukaDariUrl();
+    tandai404();
+    // Tombol back/forward browser: kembali dari dokumen ke halaman asal
+    const onPop = () => {
+      if (!bukaDariUrl() && (view === 'detail' || view === 'tidak-ditemukan')) kembaliDariDoc();
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth, view, active]);
+  // Bersihkan hash kosong ("#") dari URL agar tidak tampil aneh di address bar
+  useEffect(() => {
+    if (window.location.hash === '#') {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, []);
   async function openProyek(id) {
     const p = await getProject(id);
     if (!p) return;
@@ -427,6 +461,25 @@ export default function App() {
       )}
 
       {view === 'docs' && <DocsView onBack={goApp} onMasukan={() => setView('masukan')} />}
+
+      {view === 'tidak-ditemukan' && (
+        <div className="wrap narrow" style={{ textAlign: 'center', paddingTop: 72 }}>
+          <span className="kicker">404</span>
+          <h1 className="page">Halaman tidak ditemukan</h1>
+          <p className="lead" style={{ maxWidth: '52ch', marginLeft: 'auto', marginRight: 'auto' }}>
+            Dokumen atau halaman yang kamu cari tidak ada, sudah dihapus,
+            atau tautannya salah ketik.
+          </p>
+          <div className="btn-row" style={{ justifyContent: 'center' }}>
+            <button
+              type="button" className="btn btn-primary"
+              onClick={() => { history.replaceState(null, '', '/'); goApp(); }}
+            >
+              Kembali ke beranda
+            </button>
+          </div>
+        </div>
+      )}
 
       {view === 'admin' && kuota?.admin && <AdminDashboard onBack={goApp} />}
 
