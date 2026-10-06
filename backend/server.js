@@ -1659,6 +1659,39 @@ function bangunMatriksProsem(md, info) {
   return hasil + '\n' + sesudahC;
 }
 
+// Pembangun Pengesahan: gantikan section pengesahan tulisan AI (sering berantakan,
+// placeholder tidak terisi) dengan tabel baku yang dikenali parser frontend.
+// Nama guru & tanggal diisi otomatis dari data; kolom KS dikosongkan untuk ttd basah.
+const BULAN_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+function tanggalID(d) {
+  d = d || new Date();
+  return d.getDate() + ' ' + BULAN_ID[d.getMonth()] + ' ' + d.getFullYear();
+}
+function bangunPengesahan(md, info) {
+  if (!md || typeof md !== 'string') return md;
+  const idx = md.search(/^#{1,4}\s+.*pengesahan.*$/im);
+  if (idx < 0) return md;
+  // Cari akhir section (heading ## berikutnya atau akhir dokumen)
+  const setelah = md.slice(idx);
+  const lines = setelah.split('\n');
+  let endLine = lines.length;
+  for (let i = 1; i < lines.length; i++) {
+    if (/^##\s+/.test(lines[i])) { endLine = i; break; }
+  }
+  const sebelum = md.slice(0, idx);
+  const sesudah = lines.slice(endLine).join('\n');
+  const namaGuru = (info && info.nama ? String(info.nama).trim() : '').replace(/^\(+|\)+$/g, '') || '(................................)';
+  const namaFmt = namaGuru.startsWith('(') ? namaGuru : '(' + namaGuru + ')';
+  const g = '................................';
+  const tabel =
+    '## C. Pengesahan\n\n' +
+    '| Mengetahui, | ' + tanggalID() + ' |\n' +
+    '| Kepala Sekolah | Guru Mata Pelajaran |\n' +
+    '| (' + g + ') | ' + namaFmt + ' |\n' +
+    '| NIP. ' + g + ' | NIP. ' + g + ' |';
+  return (sebelum.trimEnd() + '\n\n' + tabel + '\n\n' + sesudah.trimStart()).trim() + '\n';
+}
+
 async function generateDocInternal(docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null, onTahap = () => {}, onTeks = () => {}) {
   // (Gate KENARI_API_KEY dihapus: ai() sudah melempar error yang benar bila
   // konteks kunci kosong, dan gate itu mematikan BYOK/key-admin saat env kosong.)
@@ -1680,6 +1713,7 @@ async function generateDocInternal(docType = 'modul', info = {}, materi = '', su
   const userMsg = `Susun dokumen dengan data berikut:\n${IDENT(info)}\n- Materi Pokok/Topik: ${info.topik || '-'}\n- Alokasi Waktu: ${info.alokasi || '-'}\n- Model Pembelajaran: ${info.model || '-'}\n- Jumlah Soal PG: ${info.jmlPG || '-'} | Uraian: ${info.jmlUraian || '-'}\n\n${konteksSumber(materi, sumber)}`;
   let hasil = await ai(system, userMsg, 8000, 0.7, (d) => onTeks('susun', d));
   if (docType === 'prosem') hasil = bangunMatriksProsem(hasil, info);
+  hasil = bangunPengesahan(hasil, info);
   return hasil;
 }
 
