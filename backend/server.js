@@ -1600,7 +1600,9 @@ function bangunMatriksProsem(md, info) {
   const jpPerMinggu = Number(info?.jpPerMinggu) || 2;
 
   const bangunTabel = (daftar, bulan, tanda, daftarMinggu, libur) => {
-    if (!Array.isArray(daftar) || daftar.length === 0) return '';
+    if (!Array.isArray(daftar)) return '';
+    daftar = daftar.filter((it) => it && typeof it === 'object' && it.materi);
+    if (daftar.length === 0) return '';
 
     // Kolom minggu DINAMIS dari daftar minggu efektif (AI).
     // Fallback: 5 minggu per bulan jika AI tidak menyediakan.
@@ -1659,7 +1661,8 @@ function bangunMatriksProsem(md, info) {
     const kolomTanda = {};
     if (tanda && typeof tanda === 'object') {
       Object.entries(tanda).forEach(([k, v]) => {
-        const i = kolomMinggu.indexOf(k);
+        const nk = normKode(k);
+        const i = nk ? kolomMinggu.indexOf(nk.kode) : -1;
         if (i >= 0) {
           const kode = String(v).toUpperCase().slice(0, 3);
           jumlah[i] = kode;
@@ -1670,6 +1673,8 @@ function bangunMatriksProsem(md, info) {
     const clsKolom = (c) => kolomTanda[c] ? ' class="' + kolomTanda[c] + '"' : '';
     // Minggu libur/tidak efektif: tetap tampil dengan warna, tidak diisi materi
     const liburSet = new Set();
+    // S4: minggu bertanda LBR ikut dilewati
+    Object.entries(kolomTanda).forEach(([idx, cls]) => { if (cls === 'td-lbr') liburSet.add(Number(idx)); });
     const liburAlasan = {}; // idx -> alasan
     if (libur && typeof libur === 'object') {
       Object.entries(libur).forEach(([k, alasan]) => {
@@ -1679,7 +1684,6 @@ function bangunMatriksProsem(md, info) {
         if (i >= 0) { liburSet.add(i); kolomTanda[i] = 'td-libur'; liburAlasan[i] = String(alasan || 'Tidak efektif'); jumlah[i] = ''; }
       });
     }
-    let mingguIdx = 0;
     const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     // Bin-packing: satu minggu bisa diisi beberapa materi (mis. 1 JP A + 1 JP B).
     // Setiap materi mengisi sisa kapasitas minggu berjalan sebelum pindah ke minggu berikut.
@@ -1694,7 +1698,8 @@ function bangunMatriksProsem(md, info) {
         if (mingguAktif >= kolomMinggu.length) break;
         const ambil = Math.min(sisaKap, sisa);
         sel[mingguAktif] = (sel[mingguAktif] || 0) + ambil;
-        jumlah[mingguAktif] = String((Number(jumlah[mingguAktif]) || 0) + ambil);
+        // S3: jangan timpa label tanda (PTS/LBR) dengan angka
+        if (!kolomTanda[mingguAktif]) jumlah[mingguAktif] = String((Number(jumlah[mingguAktif]) || 0) + ambil);
         sisa -= ambil; sisaKap -= ambil;
         if (sisaKap <= 0) { mingguAktif++; sisaKap = jpPerMinggu; }
       }
