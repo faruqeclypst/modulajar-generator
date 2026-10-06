@@ -1300,27 +1300,30 @@ ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (PROTA), materi dan alokasi JP WAJIB mengik
 - **Alokasi Waktu**: [JP per minggu] JP/minggu
 
 ## B. Matriks Program Semester
-Dokumen tetap memiliki section A (Informasi Umum) dan C (Pengesahan) seperti biasa. UNTUK SECTION B INI, tulis SATU tabel HTML <table> untuk SETIAP semester — format seperti dokumen Prosem resmi: baris = materi, kolom = bulan yang dipecah per minggu. Tabel dicetak LANDSCAPE.
 
-### Semester Ganjil
+PERHATIAN: Untuk section B ini, JANGAN tulis tabel apapun. JANGAN tulis kalimat penjelasan. Tulis HANYA satu blok kode JSON persis seperti contoh berikut (sistem akan mengubahnya menjadi tabel otomatis):
 
-<table>
-<tr><th rowspan="2">Materi Pokok</th><th rowspan="2">JP</th><th colspan="5">Juli</th><th colspan="5">Agustus</th><th colspan="5">September</th><th colspan="5">Oktober</th><th colspan="5">November</th><th colspan="5">Desember</th><th rowspan="2">Ket</th></tr>
-<tr><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
-<tr><td>Berpikir Komputasional</td><td>6</td><td>2</td><td>2</td><td>2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>TP 1-3</td></tr>
-<tr><td>Jumlah</td><td>6</td><td>2</td><td>2</td><td>2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-</table>
+CONTOH:
+\`\`\`json
+{
+  "ganjil": [
+    {"materi": "Berpikir Komputasional", "jp": 6, "ket": "TP 1-3"},
+    {"materi": "Algoritma dan Pemrograman", "jp": 6, "ket": "TP 4-6"},
+    {"materi": "Struktur Data", "jp": 6, "ket": "TP 7-9"},
+    {"materi": "Asesmen Sumatif", "jp": 2, "ket": ""},
+    {"materi": "Cadangan", "jp": 2, "ket": "Buffer"}
+  ],
+  "genap": [
+    {"materi": "Proyek Sistem Digital", "jp": 12, "ket": "Proyek"}
+  ]
+}
+\`\`\`
 
-### Semester Genap
-[tabel HTML yang sama persis, bulan: Januari, Februari, Maret, April, Mei, Juni]
-
-ATURAN (WAJIB):
-1. SETIAP TP/topik individual = SATU BARIS <tr> TERSENDIRI. DILARANG menggabungkan banyak TP dalam satu baris. Contoh SALAH: satu baris "Pengantar Informatika (TP 1-9)" 18 JP. Contoh BENAR: dipecah menjadi "Berpikir Komputasional (TP 1-3)", "Algoritma dan Pemrograman (TP 4-6)", "Struktur Data (TP 7-9)" sebagai 3 baris terpisah. Ikuti rincian TP pada dokumen ATP acuan, maksimal 2-4 TP per baris.
-2. Jika Semester = 'Ganjil + Genap', buat DUA tabel dengan heading "### Semester Ganjil" dan "### Semester Genap".
-3. Isi sel minggu dengan angka JP hanya pada minggu diajarkan; sel kosong dibiarkan kosong (<td></td>), JANGAN tulis 0.
-4. Minggu libur/PTS/PAS: tulis LBR/PTS/PAS di baris Jumlah pada kolom minggu itu.
-5. Baris "Jumlah" selalu ada. Baris "Cadangan" hanya bila ada JP cadangan.
-6. DILARANG menulis analisis, perhitungan, "perbaikan tabel", atau teks curhat di luar tabel. Hanya section A, tabel-tabel section B, dan section C.
+ATURAN JSON:
+1. SETIAP TP/topik = SATU objek. DILARANG menggabungkan banyak TP dalam satu objek. Ikuti rincian TP di dokumen ATP, maksimal 2-4 TP per objek.
+2. Urutan array = urutan pengajaran.
+3. Total "jp" per semester HARUS sama dengan total JP efektif semester itu. Jika kurang, tambahkan {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}.
+4. Jika satu semester saja, array semester lainnya = [].
 
 ## C. Pengesahan". DILARANG menambah section lain.
 
@@ -1548,10 +1551,28 @@ const BULAN_GENAP = [['Januari', 'Jan'], ['Februari', 'Feb'], ['Maret', 'Mar'], 
 
 function bangunMatriksProsem(md, info) {
   if (!md || typeof md !== 'string') return md;
-  const m = md.match(/```json\s*([\s\S]*?)\s*```/);
-  if (!m) return md; // tidak ada JSON — kembalikan apa adanya
+  // Cari JSON dengan beberapa pola (toleran terhadap format AI)
+  let jsonStr = null;
+  let m = md.match(/```json\s*([\s\S]*?)\s*```/);
+  if (m) jsonStr = m[1];
+  else {
+    m = md.match(/```\s*([\s\S]*?"ganjil"[\s\S]*?)\s*```/);
+    if (m) jsonStr = m[1];
+    else {
+      // JSON mentah tanpa fence: cari objek yang memuat "ganjil"
+      m = md.match(/\{[\s\S]*?"ganjil"\s*:\s*\[[\s\S]*?\]\s*,?\s*"genap"[\s\S]*?\}/);
+      if (m) jsonStr = m[0];
+    }
+  }
+  if (!jsonStr) return md; // tidak ada JSON — kembalikan apa adanya
   let data;
-  try { data = JSON.parse(m[1]); } catch { return md; }
+  try { data = JSON.parse(jsonStr); }
+  catch {
+    // Coba perbaiki: buang trailing comma
+    try { data = JSON.parse(jsonStr.replace(/,\s*([}\]])/g, '$1')); }
+    catch { return md; }
+  }
+  if (!data || (!Array.isArray(data.ganjil) && !Array.isArray(data.genap))) return md;
   const jpPerMinggu = Number(info?.jpPerMinggu) || 2;
 
   const bangunTabel = (daftar, bulan, tanda) => {
@@ -1566,6 +1587,19 @@ function bangunMatriksProsem(md, info) {
     html += '</tr>\n';
     // Baris jumlah per minggu (untuk LBR/PTS/PAS dan total)
     const jumlah = new Array(kolomMinggu.length).fill('');
+    // Tandai kolom minggu tidak efektif lebih dulu (dipakai saat bangun sel)
+    const kolomTanda = {};
+    if (tanda && typeof tanda === 'object') {
+      Object.entries(tanda).forEach(([k, v]) => {
+        const i = kolomMinggu.indexOf(k);
+        if (i >= 0) {
+          const kode = String(v).toUpperCase().slice(0, 3);
+          jumlah[i] = kode;
+          kolomTanda[i] = kode === 'LBR' ? 'td-lbr' : kode === 'PTS' ? 'td-pts' : kode === 'PAS' ? 'td-pas' : 'td-tanda';
+        }
+      });
+    }
+    const clsKolom = (c) => kolomTanda[c] ? ' class="' + kolomTanda[c] + '"' : '';
     let mingguIdx = 0;
     const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     daftar.forEach((it) => {
@@ -1584,20 +1618,6 @@ function bangunMatriksProsem(md, info) {
       html += '<td>' + esc(it.ket) + '</td></tr>\n';
       mingguIdx += jmlMinggu;
     });
-    // Tandai kolom minggu tidak efektif: seluruh sel di kolom itu dapat class
-    // (td-lbr / td-pts / td-pas) agar terwarnai seperti dokumen Prosem resmi.
-    const kolomTanda = {};
-    if (tanda && typeof tanda === 'object') {
-      Object.entries(tanda).forEach(([k, v]) => {
-        const i = kolomMinggu.indexOf(k);
-        if (i >= 0) {
-          const kode = String(v).toUpperCase().slice(0, 3);
-          jumlah[i] = kode;
-          kolomTanda[i] = kode === 'LBR' ? 'td-lbr' : kode === 'PTS' ? 'td-pts' : kode === 'PAS' ? 'td-pas' : 'td-tanda';
-        }
-      });
-    }
-    const clsKolom = (c) => kolomTanda[c] ? ' class="' + kolomTanda[c] + '"' : '';
     const totalJP = daftar.reduce((a, it) => a + (Number(it.jp) || 0), 0);
     html += '<tr><td>Jumlah</td><td>' + totalJP + '</td>';
     jumlah.forEach((j, c) => { html += '<td' + clsKolom(c) + '>' + j + '</td>'; });
