@@ -269,6 +269,7 @@ export default function App() {
   const [ruangProyek, setRuangProyek] = useState(() => bacaViewTersimpan()?.ruangProjectId || null);
   const [wizardTurunan, setWizardTurunan] = useState(null); // { docType, modulId }
   const [wizardDocType, setWizardDocType] = useState(null); // preselect jenis dokumen satuan dari beranda
+  const [satuanDocType, setSatuanDocType] = useState('modul'); // pilihan jenis dokumen di kartu "Satu Dokumen"
   const [kuota, setKuota] = useState(null); // { admin, batas, dipakai, sisa, tanggal } | null
 
   // Terapkan preferensi ukuran teks sesegera mungkin
@@ -738,46 +739,42 @@ export default function App() {
       {view === 'app' && (
         <div className="wrap">
           <span className="kicker">Beranda</span>
-          <h1 className="page">Proyek Perangkat Ajar</h1>
-          <p className="lead">Satu proyek untuk satu mata pelajaran. Semua dokumennya terkumpul rapi di satu tempat.</p>
+          <h1 className="page">Mau buat perangkat apa?</h1>
+          <p className="lead">Pilih salah satu cara di bawah. Keduanya memakai 1 kredit per dokumen jadi.</p>
 
-          <div className="card flow-hero">
-            <div className="flow-num" aria-hidden="true">01</div>
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <h3 style={{ margin: '0 0 4px' }}>Ruang Perencanaan</h3>
+          <div className="pilih-cara">
+            <div className="card pilih-cara-kartu">
+              <span className="chip red" style={{ alignSelf: 'flex-start' }}>Disarankan</span>
+              <h3 style={{ margin: '8px 0 4px' }}>Perangkat Lengkap</h3>
               <p style={{ margin: '0 0 12px', fontSize: 14 }}>
-                Susun CP, ATP, Prota, Prosem di dalam proyek. Dari proyek yang jadi, buat Modul Ajar,
-                lalu LKPD, Bank Soal, dan KKTP. Semua saling merujuk.
+                Susun perangkat satu semester dalam satu proyek: CP, ATP, Prota, Prosem,
+                lalu Modul Ajar. Semua dokumen saling merujuk.
               </p>
-              {projects.length > 0 && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                  {projects.slice(0, 4).map((p) => (
-                    <span key={p.id} className="chip">
-                      {[p.mapel, p.kelas].filter(Boolean).join(' ') || p.nama}
-                    </span>
-                  ))}
-                </div>
-              )}
               <button className="btn btn-primary" onClick={() => goRuang()}>
-                {projects.length === 0 ? 'Mulai Perencanaan' : 'Buka Ruang Perencanaan'}
+                Buka Ruang Perencanaan
               </button>
             </div>
-          </div>
 
-          <div className="card">
-            <div className="flow-num" aria-hidden="true">02</div>
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <h3 style={{ margin: '0 0 4px' }}>Buat Satu Dokumen</h3>
+            <div className="card pilih-cara-kartu">
+              <h3 style={{ margin: '0 0 4px' }}>Satu Dokumen</h3>
               <p style={{ margin: '0 0 12px', fontSize: 14 }}>
-                Butuh satu saja? Pilih jenis dokumen — modul ajar 1 unit, KKTP saja, CP saja, dan lainnya.
-                Memakai 1 kredit per dokumen jadi.
+                Butuh cepat? Buat satu dokumen saja tanpa proyek.
+                Hasilnya tersimpan di Tanpa Proyek.
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {Object.entries(DOC_TYPES).map(([key, dt]) => (
-                  <button key={key} type="button" className="btn btn-sm" onClick={() => startSatuan(key)} title={dt.desc}>
-                    {dt.nama}
-                  </button>
-                ))}
+                <select
+                  value={satuanDocType}
+                  onChange={(e) => setSatuanDocType(e.target.value)}
+                  aria-label="Jenis dokumen"
+                  style={{ flex: 1, minWidth: 180 }}
+                >
+                  {Object.entries(DOC_TYPES).map(([key, dt]) => (
+                    <option key={key} value={key}>{dt.nama}</option>
+                  ))}
+                </select>
+                <button type="button" className="btn btn-ink" onClick={() => startSatuan(satuanDocType)}>
+                  Buat
+                </button>
               </div>
             </div>
           </div>

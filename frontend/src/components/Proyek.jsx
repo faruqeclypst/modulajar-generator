@@ -168,7 +168,6 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '28px 0 4px', flexWrap: 'wrap' }}>
-        <div className="flow-num sm" aria-hidden="true">02</div>
         <h2 className="sec" style={{ margin: 0, flex: 1 }}>Proyek Saya</h2>
         {projects.length > 0 && !showBaru && !editId && (
           <button
