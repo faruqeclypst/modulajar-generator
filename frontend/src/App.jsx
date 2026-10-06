@@ -18,6 +18,8 @@ import { listModuls, getModul, listProjects, getProject, migrasiPaketKeProyek, i
 import { getSupabase, getSession, getTurnstileSiteKey } from './lib/supabase';
 import { klaimReferal, sinkronProfil } from './lib/api';
 import { fetchKuota } from './lib/kuota';
+import TugasFloating from './components/TugasFloating';
+import { tutupTugas } from './lib/tugasLatar';
 
 const WA_LINK = 'https://wa.me/6285359907696?text=Halo%2C%20saya%20butuh%20bantuan%20ModulAjar';
 
@@ -252,6 +254,11 @@ export default function App() {
   const bukaRef = useRef(0); // tiket pembatalan fetch openDoc (mencegah race navigasi)
   const [draft, setDraft] = useState(null);
   const [wizardKey, setWizardKey] = useState(0);
+  const [tugasKembaliId, setTugasKembaliId] = useState(null); // id tugas untuk mode terlampir Wizard
+  // Bersihkan id terlampir saat keluar dari wizard agar buka baru tidak menempel ke tugas lama.
+  useEffect(() => {
+    if (view !== 'wizard') setTugasKembaliId(null);
+  }, [view]);
   const [wizardPaket, setWizardPaket] = useState(null);
   const [wizardProyek, setWizardProyek] = useState(null);
   const [ruangProyek, setRuangProyek] = useState(() => bacaViewTersimpan()?.ruangProjectId || null);
@@ -648,6 +655,7 @@ export default function App() {
       {view === 'wizard' && (
         <Wizard
           key={wizardKey}
+          tugasId={tugasKembaliId}
           initial={draft && !draft.markdown ? { form: draft.form, step: draft.step } : undefined}
           preselectPaketId={wizardPaket}
           preselectProjectId={wizardProyek}
@@ -766,6 +774,33 @@ export default function App() {
           />
         </div>
       )}
+      {/* Kartu progress mengambang: generate yang berjalan di latar */}
+      <TugasFloating
+        sembunyi={view === 'wizard' ? ['wizard'] : view === 'paket' ? ['paket'] : []}
+        onKembali={(t) => {
+          if (t.konteks === 'wizard') {
+            setTugasKembaliId(t.id);
+            setWizardKey((k) => k + 1);
+            setView('wizard');
+          } else if (t.konteks === 'paket') {
+            setView('paket');
+          }
+        }}
+        onBuka={(t) => {
+          const idTugas = t.id;
+          if (t.konteks === 'wizard' && t.hasil?.markdown) {
+            // Buka editor dari hasil tersimpan
+            setTugasKembaliId(idTugas);
+            setWizardKey((k) => k + 1);
+            setView('wizard');
+          } else if (t.konteks === 'paket') {
+            setView('paket');
+            tutupTugas(idTugas);
+          } else {
+            tutupTugas(idTugas);
+          }
+        }}
+      />
       </div>
       </ErrorBoundary>
 

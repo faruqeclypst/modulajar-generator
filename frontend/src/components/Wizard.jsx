@@ -8,6 +8,7 @@ import FormulirDasar from './FormulirDasar';
 import DocEditor from './DocEditor';
 import ProsesLive from './ProsesLive';
 import Paywall from './Paywall';
+import { buatTugas, tugasTahap, tugasTulisan, tugasTulisanReset, tugasSelesai, tugasGagal, tutupTugas, cariTugas, langgananTugas } from '../lib/tugasLatar';
 
 // Jenis dokumen yang wajib/sangat disarankan memakai acuan perencanaan
 const ACUAN_TYPES = ['modul', 'lkpd', 'soal', 'kktp'];
@@ -26,7 +27,34 @@ function formAwal(preselectDocType, initial) {
   return { ...emptyForm, docType: preselectDocType || 'modul', ...getProfile(), ...(initial?.form || {}) };
 }
 
-export default function Wizard({ onDone, onCancel, initial, preselectPaketId, preselectProjectId, preselectDocType, preselectModulId, waLink, kuota, onKuotaChanged }) {
+export default function Wizard({ onDone, onCancel, initial, preselectPaketId, preselectProjectId, preselectDocType, preselectModulId, waLink, kuota, onKuotaChanged, tugasId }) {
+  // Mode terlampir: pengguna kembali dari kartu floating saat generate berjalan di latar.
+  const [tugas, setTugas] = useState(() => (tugasId ? cariTugas(tugasId) : null));
+  const terhidrasi = useRef(false);
+  useEffect(() => {
+    if (!tugasId) return;
+    return langgananTugas((daftar) => {
+      const t = daftar.find((x) => x.id === tugasId);
+      setTugas(t || null);
+    });
+  }, [tugasId]);
+  // Bila tugas terlampir selesai saat ditonton, hidrasikan editor dari hasilnya.
+  useEffect(() => {
+    if (!tugasId || terhidrasi.current) return;
+    if (tugas?.state === 'selesai' && tugas.hasil?.markdown) {
+      terhidrasi.current = true;
+      const h = tugas.hasil;
+      try {
+        setForm((f) => ({ ...f, ...(h.form || {}) }));
+        setImages(h.images || []);
+        if (h.projectId) setProjectId(h.projectId);
+        if (h.paketId) setPaketId(String(h.paketId));
+        if (h.modulAcuanId) setModulAcuanId(String(h.modulAcuanId));
+        setMarkdown(h.markdown);
+        setStep(6);
+      } catch { /* abaikan */ }
+    }
+  }, [tugasId, tugas?.state]);
   // Langkah awal: preselect (tombol turunan) -> 2; draft tersimpan -> step draft; default 1.
   // Hanya langkah yang punya tampilan (1,2,3,4,6) yang dipulihkan.
   const [step, setStep] = useState(() => {
@@ -40,6 +68,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
   const [statusLive, setStatusLive] = useState({}); // {key: 'tunggu'|'jalan'|'ok'}
   const [tulisan, setTulisan] = useState([]);       // [{key,label,teks}] tulisan AI realtime per tahap
   const labelMap = useRef({});                     // key tahap -> label (untuk segmen tulisan)
+  const tugasIdRef = useRef(null);               // id tugas latar (tetap hidup saat pindah halaman)
   const [paywall, setPaywall] = useState(null);    // {mode, detail}
   const [error, setError] = useState('');
   const [markdown, setMarkdown] = useState('');
@@ -343,6 +372,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       next[key] = 'jalan';
       return next;
     });
+    if (tugasIdRef.current) tugasTahap(tugasIdRef.current, key, label);
   }
 
   // Tambahkan delta teks ke segmen tahap yang sesuai (buat segmen bila belum ada)
@@ -355,6 +385,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       next[ix] = { ...next[ix], teks: next[ix].teks + delta };
       return next;
     });
+    if (tugasIdRef.current) tugasTulisan(tugasIdRef.current, key, delta, label);
   }
 
   // Reset segmen tahap (dipakai saat server mengulang stream tahap yang dikoreksi)
@@ -366,6 +397,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       next[ix] = { ...next[ix], teks: '' };
       return next;
     });
+    if (tugasIdRef.current) tugasTulisanReset(tugasIdRef.current, key);
   }
 
   async function handleGenerate() {
@@ -377,9 +409,13 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     setStatusLive({});
     setTulisan([]);
     labelMap.current = {};
+    // Daftarkan ke tugas latar agar progress tetap tampil (floating) saat pindah halaman.
+    const tid = buatTugas({ judul: 'Menyusun ' + (DOC_TYPES.find((d) => d.key === form.docType)?.nama || 'dokumen'), konteks: 'wizard', aksi: { kembali: 'Lihat proses' } });
+    tugasIdRef.current = tid;
     try {
       const sumber = butuhAcuan ? await buildSumber() : '';
       let md = '';
+      let imgs = [];
       // info: profil (nip, kepala sekolah, ...) sebagai dasar, form menimpa.
       // Best practice 1 modul = 1 bab = N pertemuan: daftar manual disuntik
       // bila guru mengisi jumlah pertemuan tanpa Prosem.
@@ -391,7 +427,8 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
         else if (ev.tipe === 'teks-reset') resetTulisan(ev.key);
         else if (ev.tipe === 'selesai') {
           md = ev.markdown || '';
-          setImages(ev.images || []); // gambar sudah disisipkan server ke naskah
+          imgs = ev.images || [];
+          setImages(imgs); // gambar sudah disisipkan server ke naskah
           setStatusLive((prev) => {
             const next = { ...prev };
             for (const k of Object.keys(next)) next[k] = 'ok';
@@ -400,12 +437,21 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
         } else if (ev.tipe === 'gagal') throw new Error(ev.error || 'Generate gagal.');
       });
       if (!md.trim()) throw new Error('AI mengembalikan dokumen kosong.');
+      // Simpan hasil ke tugas latar: bila pengguna pindah halaman lalu kembali
+      // via kartu floating, editor bisa dipulihkan dari sini.
+      tugasSelesai(tid, {
+        markdown: md, images: imgs,
+        form: { ...form }, projectId: projectId || null,
+        paketId: paketId ? Number(paketId) : null,
+        modulAcuanId: modulAcuanId ? Number(modulAcuanId) : null,
+      });
       setMarkdown(md);
       setStep(6);
       await clearDraft();
       onKuotaChanged && onKuotaChanged();
     } catch (e) {
       // Kuota habis → buka Paywall, jangan tampilkan error mentah
+      if (tugasIdRef.current) tugasGagal(tugasIdRef.current, e.code === 'kuota_habis' ? 'Kredit habis.' : (e.message || 'Generate gagal.'));
       if (e.code === 'kuota_habis') setPaywall({ mode: 'kuota_habis', detail: e.detail });
       else setError(e.message);
     } finally {
@@ -426,6 +472,8 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       paketId: paketId ? Number(paketId) : undefined,
       modulAcuanId: modulAcuanId ? Number(modulAcuanId) : undefined,
     });
+    if (tugasIdRef.current) tutupTugas(tugasIdRef.current);
+    if (tugasId) tutupTugas(tugasId);
     onDone(id);
   }
 
@@ -433,6 +481,30 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
 
   return (
     <div className="wrap wizard">
+      {/* Mode terlampir: kembali dari kartu floating saat generate masih berjalan */}
+      {tugasId && tugas?.state === 'jalan' && (
+        <div className="card">
+          <span className="kicker">Kembali ke proses</span>
+          <p className="hint" style={{ marginTop: 0 }}>
+            Kamu kembali ke proses yang berjalan di latar. Biarkan halaman ini terbuka atau pindah lagi — progress tetap tampil di kartu mengambang.
+          </p>
+          <ProsesLive judul={tugas.judul} tahap={tugas.tahap} status={tugas.status} tulisan={tugas.tulisan} />
+          <div className="btn-row">
+            <button type="button" className="btn" onClick={onCancel}>Ke dashboard</button>
+          </div>
+        </div>
+      )}
+      {tugasId && !tugas && (
+        <div className="card">
+          <span className="kicker">Proses tidak ditemukan</span>
+          <p>Proses generate yang kamu tuju sudah selesai atau ditutup.</p>
+          <div className="btn-row">
+            <button type="button" className="btn btn-primary" onClick={onCancel}>Ke dashboard</button>
+          </div>
+        </div>
+      )}
+      {(!tugasId || tugas?.state !== 'jalan' || !tugas) && (
+      <>
       <div className="steps">
         {STEPS.map((s, i) => {
           const n = i + 1;
@@ -859,6 +931,8 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           waLink={waLink}
           onClose={() => setPaywall(null)}
         />
+      )}
+      </>
       )}
     </div>
   );

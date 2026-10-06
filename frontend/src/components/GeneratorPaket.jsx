@@ -10,6 +10,7 @@ import UnggahDokumen from './UnggahDokumen';
 import Paywall from './Paywall';
 import TulisanAI from './TulisanAI';
 import StempelSelesai from './StempelSelesai';
+import { buatTugas, tugasSetProgress, tugasSelesai, tugasGagal, tugasBerjalan, tutupTugas, cariTugas } from '../lib/tugasLatar';
 
 // Generator Paket via job backend: browser boleh ditutup, job tetap jalan di server.
 const RANTAI_LABEL = {
@@ -80,6 +81,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   const DRAFT_KEY = 'ma-paket-draft';
   const pollRef = useRef(null);
   const timerRef = useRef(null);
+  const tugasPaketRef = useRef(null); // id tugas latar untuk job paket yang dipantau
 
   const faseOpts = FASE[form.jenjang] || [];
   useEffect(() => { listProjects().then(setProjects).catch(() => {}); }, []);
@@ -89,6 +91,24 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   }, [form.jenjang]);
   useEffect(() => () => { hentikanPoll(); }, []);
   useEffect(() => { cekJobAktif(); }, []);
+  // Sinkronkan kartu floating paket dengan status job sebenarnya (mis. job selesai
+  // saat pengguna di halaman lain dan polling berhenti).
+  useEffect(() => {
+    (async () => {
+      const berjalan = tugasBerjalan('paket');
+      if (!berjalan.length) return;
+      for (const t of berjalan) {
+        const jobId = t.meta?.jobId;
+        if (!jobId || tugasPaketRef.current === t.id) continue; // sedang dipantau aktif
+        try {
+          const d = await apiJob('/api/paket/' + jobId, 'GET');
+          const st = d.job?.status;
+          if (st === 'selesai') tugasSelesai(t.id, { jobId });
+          else if (st === 'gagal' || st === 'dibatalkan') tugasGagal(t.id, st === 'dibatalkan' ? 'Paket dibatalkan.' : (d.job?.error || 'Penyusunan paket gagal.'));
+        } catch { /* abaikan: biarkan kartu apa adanya */ }
+      }
+    })();
+  }, []);
   // Tawarkan draft yang tersimpan di perangkat ini (tidak otomatis menimpa isian)
   useEffect(() => {
     try {
@@ -216,6 +236,13 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
     setErrJalan('');
     setMenghubungkan(false);
     gagalPoll.current = 0;
+    // Daftarkan ke tugas latar agar progress tetap tampil (floating) saat pindah halaman.
+    const ada = tugasPaketRef.current ? cariTugas(tugasPaketRef.current) : null;
+    if (!ada) {
+      for (const t of tugasBerjalan('paket')) tutupTugas(t.id);
+      tugasPaketRef.current = buatTugas({ judul: 'Menyusun Paket', konteks: 'paket', aksi: { kembali: 'Lihat progres paket' }, meta: { jobId } });
+    }
+    const tid = tugasPaketRef.current;
     const t0 = Date.now();
     timerRef.current = setInterval(() => setDetik(Math.floor((Date.now() - t0) / 1000)), 1000);
     const ambil = async () => {
@@ -225,9 +252,21 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
         setMenghubungkan(false);
         setErrJalan('');
         setJob(d.job);
+        // Sinkronkan progress ke kartu floating
+        const langkah = d.job?.progress?.langkah || [];
+        const st = {};
+        for (const s of langkah) st[s.key || s.label] = s.status === 'ok' ? 'ok' : (s.status === 'jalan' ? 'jalan' : 'tunggu');
+        tugasSetProgress(tid, langkah.map((s) => ({ key: s.key || s.label, label: s.label })), st);
         if (['selesai', 'gagal', 'dibatalkan'].includes(d.job.status)) {
           hentikanPoll();
-          if (d.job.status === 'selesai') { setTahap('selesai'); onChanged && onChanged(); onKuotaChanged && onKuotaChanged(); }
+          if (d.job.status === 'selesai') {
+            tugasSelesai(tid, { jobId });
+            setTahap('selesai'); onChanged && onChanged(); onKuotaChanged && onKuotaChanged();
+          } else {
+            tugasGagal(tid, d.job.status === 'dibatalkan' ? 'Paket dibatalkan.' : (d.job.error || 'Penyusunan paket gagal.'));
+            if (d.job.status === 'dibatalkan') setTahap('idle');
+          }
+          tugasPaketRef.current = null;
         }
         cekJobAktif();
       } catch (e) {
