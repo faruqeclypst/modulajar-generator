@@ -1549,8 +1549,8 @@ Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 // Pembangun Matriks Prosem: AI hanya mengeluarkan JSON data sederhana;
 // tabel HTML dibangun deterministik oleh kode sehingga sintaks SELALU valid.
 // AI tidak pernah menulis <table> — tidak ada yang bisa rusak.
-const BULAN_GANJIL = ['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-const BULAN_GENAP = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'];
+const BULAN_GANJIL = [['Juli', 'Jul'], ['Agustus', 'Agu'], ['September', 'Sep'], ['Oktober', 'Okt'], ['November', 'Nov'], ['Desember', 'Des']];
+const BULAN_GENAP = [['Januari', 'Jan'], ['Februari', 'Feb'], ['Maret', 'Mar'], ['April', 'Apr'], ['Mei', 'Mei'], ['Juni', 'Jun']];
 
 function bangunMatriksProsem(md, info) {
   if (!md || typeof md !== 'string') return md;
@@ -1564,10 +1564,12 @@ function bangunMatriksProsem(md, info) {
     if (!Array.isArray(daftar) || daftar.length === 0) return '';
     // Header kolom minggu: Bln-1 .. Bln-5 per bulan
     const kolomMinggu = [];
-    bulan.forEach((b) => { for (let w = 1; w <= 5; w++) kolomMinggu.push(b + '-' + w); });
-    let html = '<table>\n<tr><th>Materi Pokok</th><th>JP</th>';
-    kolomMinggu.forEach((k) => { html += '<th>' + k + '</th>'; });
-    html += '<th>Ket</th></tr>\n';
+    bulan.forEach(([, kode]) => { for (let w = 1; w <= 5; w++) kolomMinggu.push(kode + '-' + w); });
+    let html = '<table>\n<tr><th rowspan="2">Materi Pokok</th><th rowspan="2">JP</th>';
+    bulan.forEach(([nama]) => { html += '<th colspan="5">' + nama + '</th>'; });
+    html += '<th rowspan="2">Ket</th></tr>\n<tr>';
+    bulan.forEach(() => { for (let w = 1; w <= 5; w++) html += '<th>' + w + '</th>'; });
+    html += '</tr>\n';
     // Baris jumlah per minggu (untuk LBR/PTS/PAS dan total)
     const jumlah = new Array(kolomMinggu.length).fill('');
     let mingguIdx = 0;
