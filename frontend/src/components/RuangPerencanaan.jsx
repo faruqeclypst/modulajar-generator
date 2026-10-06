@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DOC_TYPES, ALUR_PERENCANAAN } from '../lib/docs';
 import { generateDocStream, extractTitle, getProfile } from '../lib/api';
+import { buatTugas, tugasTahap, tugasTulisan, tugasSelesai, tugasGagal, tutupTugas, cariTugas, langgananTugas, tugasBerjalan } from '../lib/tugasLatar';
 import { saveModul, updateModul, getModul, savePaket, updatePaket, getPaket, paketProgress, listProjects, getProject, saveProject, updateProject } from '../lib/db';
 import DocEditor from './DocEditor';
 import FormulirDasar from './FormulirDasar';
@@ -11,7 +12,7 @@ import { SkelKartu } from './Kerangka';
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
 const BUTUH = { cp: null, atp: 'cp', minggu_efektif: 'atp', prota: 'minggu_efektif', prosem: 'prota' };
 
-export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBuatModul, preselectProjectId, waLink, onKuotaChanged }) {
+export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBuatModul, preselectProjectId, waLink, onKuotaChanged, bukaStep, tugasId }) {
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState(preselectProjectId || null);
   const [project, setProject] = useState(null);
@@ -21,6 +22,10 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
   const [stepKey, setStepKey] = useState(null);
   const [errBaru, setErrBaru] = useState('');
   const [memuatAwal, setMemuatAwal] = useState(true); // loading daftar proyek saat pertama dibuka
+  // Buka langkah tertentu otomatis (dari kartu floating tugas latar).
+  useEffect(() => {
+    if (bukaStep) setStepKey(bukaStep);
+  }, [bukaStep]);
 
   // Pastikan setiap proyek punya baris paket tertaut (dipakai StepWorkspace
   // dan pemilih "Paket Perencanaan" di Wizard; tidak terlihat di UI).
@@ -215,15 +220,32 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
           onKuotaChanged={onKuotaChanged}
           onClose={() => { setStepKey(null); refresh(); }}
           onOpenDoc={onOpenDoc}
+          tugasId={tugasId}
         />
       )}
     </div>
   );
 }
 
-function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClose, onOpenDoc }) {
+function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClose, onOpenDoc, tugasId }) {
   const dt = DOC_TYPES[stepKey];
   const need = BUTUH[stepKey];
+  // Mode terlampir: kembali dari kartu floating saat generate berjalan di latar.
+  // Juga otomatis menempel bila langkah ini sudah ada tugas berjalan (cegah generate dobel).
+  const [tugasIdEfektif] = useState(() => {
+    if (tugasId) return tugasId;
+    const jalan = tugasBerjalan('ruang').find((t) => t.meta?.stepKey === stepKey);
+    return jalan ? jalan.id : null;
+  });
+  const [tugas, setTugas] = useState(() => (tugasIdEfektif ? cariTugas(tugasIdEfektif) : null));
+  const terhidrasi = useRef(false);
+  useEffect(() => {
+    if (!tugasIdEfektif) return;
+    return langgananTugas((daftar) => {
+      const t = daftar.find((x) => x.id === tugasIdEfektif);
+      setTugas(t || null);
+    });
+  }, [tugasIdEfektif]);
   const [teks, setTeks] = useState('');       // CP resmi (tempel) / materi tambahan
   const [sumber, setSumber] = useState('');     // markdown dokumen acuan
   const [sumberJudul, setSumberJudul] = useState('');
@@ -233,9 +255,21 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   const [statusLive, setStatusLive] = useState({});
   const [tulisan, setTulisan] = useState([]);       // teks AI realtime per tahap (efek mengetik)
   const labelMap = useRef({});
+  const tugasIdRef = useRef(null); // id tugas latar (tetap hidup saat pindah halaman)
   const [paywall, setPaywall] = useState(null);
   const [error, setError] = useState('');
   const [finalMd, setFinalMd] = useState('');
+  // Bila tugas terlampir selesai saat ditonton, hidrasikan dari hasilnya.
+  useEffect(() => {
+    if (!tugasIdEfektif || terhidrasi.current) return;
+    if (tugas?.state === 'selesai' && tugas.hasil?.markdown) {
+      terhidrasi.current = true;
+      try {
+        setMarkdown(tugas.hasil.markdown);
+        setFinalMd(tugas.hasil.markdown);
+      } catch { /* abaikan */ }
+    }
+  }, [tugasId, tugas?.state]);
 
   useEffect(() => {
     (async () => {
@@ -263,6 +297,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
       next[key] = 'jalan';
       return next;
     });
+    if (tugasIdRef.current) tugasTahap(tugasIdRef.current, key, label);
   }
 
   // Tambahkan delta teks ke segmen tahap yang sesuai (efek mengetik ala ChatGPT)
@@ -275,11 +310,19 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
       next[ix] = { ...next[ix], teks: next[ix].teks + delta };
       return next;
     });
+    if (tugasIdRef.current) tugasTulisan(tugasIdRef.current, key, delta, label);
   }
 
   async function handleGenerate() {
     setError(''); setPaywall(null); setBusy(true);
     setTahapLive([]); setStatusLive({}); setTulisan([]); labelMap.current = {};
+    // Daftarkan ke tugas latar agar progress tetap tampil (floating) saat pindah halaman.
+    const tid = buatTugas({
+      judul: 'Menyusun ' + (dt?.nama || 'dokumen'),
+      konteks: 'ruang', aksi: { kembali: 'Lihat proses' },
+      meta: { stepKey, projectId: project?.id || null },
+    });
+    tugasIdRef.current = tid;
     try {
       // CP: teks tempelan resmi jadi materi utama. Lainnya: sumber = dokumen acuan sebelumnya.
       let md = '';
@@ -296,9 +339,13 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
         } else if (ev.tipe === 'gagal') throw new Error(ev.error || 'Generate gagal.');
       });
       if (!md.trim()) throw new Error('AI mengembalikan dokumen kosong.');
+      // Simpan hasil ke tugas latar: bila pengguna pindah halaman lalu kembali
+      // via kartu floating, hasilnya bisa dipulihkan dari sini.
+      tugasSelesai(tid, { markdown: md, stepKey });
       setMarkdown(md); setFinalMd(md);
       onKuotaChanged && onKuotaChanged();
     } catch (e) {
+      if (tugasIdRef.current) tugasGagal(tugasIdRef.current, e.code === 'kuota_habis' ? 'Kredit habis.' : (e.message || 'Generate gagal.'));
       if (e.code === 'kuota_habis') setPaywall({ mode: 'kuota_habis', detail: e.detail });
       else setError(e.message);
     } finally { setBusy(false); }
@@ -318,10 +365,40 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
     if (docId) { await updateModul(docId, payload); }
     else { docId = await saveModul(payload); }
     await updatePaket(paket.id, { docs: { ...(paket.docs || {}), [stepKey]: docId } });
+    if (tugasIdRef.current) tutupTugas(tugasIdRef.current);
+    if (tugasIdEfektif) tutupTugas(tugasIdEfektif);
     onClose();
   }
 
   const isCp = stepKey === 'cp';
+
+  // Mode terlampir: kembali dari kartu floating saat generate masih berjalan
+  if (tugasIdEfektif && tugas?.state === 'jalan') {
+    return (
+      <div className="card">
+        <span className="kicker">Langkah {ALUR_PERENCANAAN.find((s) => s.key === stepKey).langkah}</span>
+        <h2 style={{ margin: '4px 0 8px' }}>{dt.nama}</h2>
+        <p className="hint" style={{ marginTop: 0 }}>
+          Kamu kembali ke proses yang berjalan di latar. Pindah halaman lagi pun progress tetap tampil di kartu mengambang.
+        </p>
+        <ProsesLive judul={tugas.judul} tahap={tugas.tahap} status={tugas.status} tulisan={tugas.tulisan} />
+        <div className="btn-row">
+          <button type="button" className="btn" onClick={onClose}>Tutup</button>
+        </div>
+      </div>
+    );
+  }
+  if (tugasIdEfektif && !tugas) {
+    return (
+      <div className="card">
+        <span className="kicker">Proses tidak ditemukan</span>
+        <p>Proses generate yang kamu tuju sudah selesai atau ditutup.</p>
+        <div className="btn-row">
+          <button type="button" className="btn btn-primary" onClick={onClose}>Tutup</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card">

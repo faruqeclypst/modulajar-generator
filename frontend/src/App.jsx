@@ -255,9 +255,11 @@ export default function App() {
   const [draft, setDraft] = useState(null);
   const [wizardKey, setWizardKey] = useState(0);
   const [tugasKembaliId, setTugasKembaliId] = useState(null); // id tugas untuk mode terlampir Wizard
+  const [ruangTugas, setRuangTugas] = useState(null); // {tugasId, stepKey} untuk mode terlampir Ruang
   // Bersihkan id terlampir saat keluar dari wizard agar buka baru tidak menempel ke tugas lama.
   useEffect(() => {
     if (view !== 'wizard') setTugasKembaliId(null);
+    if (view !== 'ruang') setRuangTugas(null);
   }, [view]);
   const [wizardPaket, setWizardPaket] = useState(null);
   const [wizardProyek, setWizardProyek] = useState(null);
@@ -676,6 +678,8 @@ export default function App() {
           onBuatModul={(pid, projId) => startNew(pid, projId)}
           preselectProjectId={ruangProyek}
           waLink={WA_LINK} onKuotaChanged={muatKuota}
+          bukaStep={ruangTugas?.stepKey || null}
+          tugasId={ruangTugas?.tugasId || null}
         />
       )}
 
@@ -776,7 +780,7 @@ export default function App() {
       )}
       {/* Kartu progress mengambang: generate yang berjalan di latar */}
       <TugasFloating
-        sembunyi={view === 'wizard' ? ['wizard'] : view === 'paket' ? ['paket'] : []}
+        sembunyi={view === 'wizard' ? ['wizard'] : view === 'paket' ? ['paket'] : view === 'ruang' ? ['ruang'] : []}
         onKembali={(t) => {
           if (t.konteks === 'wizard') {
             setTugasKembaliId(t.id);
@@ -784,6 +788,12 @@ export default function App() {
             setView('wizard');
           } else if (t.konteks === 'paket') {
             setView('paket');
+          } else if (t.konteks === 'ruang') {
+            // Kembali ke Ruang Perencanaan, buka langkah yang sedang berjalan
+            const projectId = t.meta?.projectId || null;
+            if (projectId) setRuangProyek(projectId);
+            setRuangTugas({ tugasId: t.id, stepKey: t.meta?.stepKey || null });
+            setView('ruang');
           }
         }}
         onBuka={(t) => {
@@ -793,6 +803,11 @@ export default function App() {
             setTugasKembaliId(idTugas);
             setWizardKey((k) => k + 1);
             setView('wizard');
+          } else if (t.konteks === 'ruang' && t.hasil?.markdown) {
+            const projectId = t.meta?.projectId || null;
+            if (projectId) setRuangProyek(projectId);
+            setRuangTugas({ tugasId: idTugas, stepKey: t.meta?.stepKey || t.hasil?.stepKey || null });
+            setView('ruang');
           } else if (t.konteks === 'paket') {
             setView('paket');
             tutupTugas(idTugas);
