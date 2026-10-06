@@ -26,7 +26,13 @@ function formAwal(preselectDocType, initial) {
 }
 
 export default function Wizard({ onDone, onCancel, initial, preselectPaketId, preselectProjectId, preselectDocType, preselectModulId, waLink, kuota, onKuotaChanged }) {
-  const [step, setStep] = useState(preselectPaketId || preselectProjectId || preselectModulId ? 2 : 1);
+  // Langkah awal: preselect (tombol turunan) -> 2; draft tersimpan -> step draft; default 1.
+  // Hanya langkah yang punya tampilan (1,2,3,4,6) yang dipulihkan.
+  const [step, setStep] = useState(() => {
+    if (preselectPaketId || preselectProjectId || preselectModulId) return 2;
+    const s = Number(initial?.step);
+    return [1, 2, 3, 4, 6].includes(s) ? s : 1;
+  });
   const [form, setForm] = useState(() => formAwal(preselectDocType, initial));
   const [loading, setLoading] = useState(false);
   const [tahapLive, setTahapLive] = useState([]);   // [{key,label}] tahapan asli dari server
@@ -125,7 +131,8 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
   useEffect(() => {
     if (!preselectModulId) return;
     (async () => {
-      const m = await getModul(Number(preselectModulId));
+      let m = null;
+      try { m = await getModul(Number(preselectModulId)); } catch { /* jaringan bermasalah: abaikan prefill */ }
       if (!m) return;
       setModulAcuanId(String(m.id));
       setModulLabel(m.judul || 'Modul Ajar');
@@ -154,7 +161,8 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       const docs = (p && p.docs) || {};
       setPaketDocs(docs);
       if (docs.prosem) {
-        const d = await getModul(docs.prosem);
+        let d = null;
+        try { d = await getModul(docs.prosem); } catch { /* jaringan bermasalah: abaikan */ }
         setProsemWeeks(parseProsemWeeks(d?.markdown));
       } else {
         setProsemWeeks([]);
@@ -241,22 +249,26 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
   }
 
   async function buildSumber() {
+    // Ambil satu dokumen acuan; gagal jaringan -> lewati (jangan gagalkan generate)
+    const ambilAman = async (id) => {
+      try { return await getModul(id); } catch { return null; }
+    };
     const parts = [];
     for (const key of ['cp', 'atp', 'prota', 'prosem']) {
       const id = paketDocs[key];
       if (!id) continue;
-      const d = await getModul(id);
+      const d = await ambilAman(id);
       if (d?.markdown) parts.push(`===== ${DOC_TYPES[key].nama.toUpperCase()} =====\n${d.markdown}`);
     }
     if (modulAcuanId) {
-      const d = await getModul(Number(modulAcuanId));
+      const d = await ambilAman(Number(modulAcuanId));
       if (d?.markdown) parts.push(`===== MODUL AJAR ACUAN: ${d.judul} =====\n${d.markdown}`);
     }
     // Dokumen tersimpan tambahan yang dicentang (maks 8000 karakter per dokumen)
     const terpakaiSumber = new Set([...Object.values(paketDocs).map(String), ...(modulAcuanId ? [String(modulAcuanId)] : [])]);
     for (const id of dokAcuanIds) {
       if (terpakaiSumber.has(String(id))) continue;
-      const d = await getModul(Number(id));
+      const d = await ambilAman(Number(id));
       if (!d?.markdown) continue;
       const jenis = ((DOC_TYPES[d.docType] || {}).nama || 'Dokumen').toUpperCase();
       let isi = d.markdown;
@@ -290,7 +302,19 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     });
   }
 
+  // Reset segmen tahap (dipakai saat server mengulang stream tahap yang dikoreksi)
+  function resetTulisan(key) {
+    setTulisan((prev) => {
+      const ix = prev.findIndex((s) => s.key === key);
+      if (ix === -1) return prev;
+      const next = [...prev];
+      next[ix] = { ...next[ix], teks: '' };
+      return next;
+    });
+  }
+
   async function handleGenerate() {
+    if (loading) return; // cegah double-submit
     setError('');
     setPaywall(null);
     setLoading(true);
@@ -305,6 +329,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       await generateDocStream(form.docType, { ...getProfile(), ...form }, form.materi, sumber, null, (ev) => {
         if (ev.tipe === 'tahap') tandaiTahap(ev.key, ev.label);
         else if (ev.tipe === 'teks') tambahTulisan(ev.key, ev.delta || '');
+        else if (ev.tipe === 'teks-reset') resetTulisan(ev.key);
         else if (ev.tipe === 'selesai') {
           md = ev.markdown || '';
           setImages(ev.images || []); // gambar sudah disisipkan server ke naskah
@@ -675,7 +700,9 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           )}
           <div className="btn-row">
             <button className="btn" onClick={() => setStep(showMateri ? 3 : 2)}>Kembali</button>
-            <button className="btn btn-primary" onClick={handleGenerate}>Generate {dt.nama}</button>
+            <button className="btn btn-primary" onClick={handleGenerate} disabled={loading}>
+              {loading ? 'Menyusun…' : 'Generate ' + dt.nama}
+            </button>
           </div>
         </div>
       )}
@@ -709,11 +736,14 @@ function EditorStep({ form, markdown, images, onBack, onRegen, onSave }) {
   const [md, setMd] = useState(markdown);
   const [imgs, setImgs] = useState(images);
   const [saving, setSaving] = useState(false);
+  const [errSimpan, setErrSimpan] = useState('');
   const dt = DOC_TYPES[form.docType];
 
   async function save() {
     setSaving(true);
+    setErrSimpan('');
     try { await onSave(md, imgs); }
+    catch (e) { setErrSimpan(e?.message || 'Gagal menyimpan. Periksa koneksi, lalu coba lagi.'); }
     finally { setSaving(false); }
   }
 
@@ -738,6 +768,7 @@ function EditorStep({ form, markdown, images, onBack, onRegen, onSave }) {
           {saving ? 'Menyimpan…' : 'Simpan ' + dt.nama}
         </button>
       </div>
+      {errSimpan && <div className="alert alert-error no-print" role="alert">{errSimpan}</div>}
     </div>
   );
 }

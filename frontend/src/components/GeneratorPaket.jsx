@@ -64,6 +64,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   const [errForm, setErrForm] = useState({});
   const [errJalan, setErrJalan] = useState('');
   const [menghubungkan, setMenghubungkan] = useState(false);
+  const [memulai, setMemulai] = useState(false); // guard double-submit tombol Buat
   const gagalPoll = useRef(0);
   const ambilRef = useRef(null);
   const [detik, setDetik] = useState(0);
@@ -150,7 +151,11 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   }
 
   function simpanDraft() {
+    // Jangan simpan form kosong; minta konfirmasi bila menimpa draft lama
+    const kosong = !form.nama.trim() && !form.mapel.trim() && !(form.topiks || '').trim();
+    if (kosong) { setInfoDraf('Isi dulu sebelum menyimpan draft.'); return; }
     try {
+      if (localStorage.getItem(DRAFT_KEY) && !window.confirm('Timpa draft yang sudah tersimpan?')) return;
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
         mode, reviewJeda, form, projectId, proyekBaru, waktu: Date.now(),
       }));
@@ -163,9 +168,23 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
     try {
       const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
       if (!d) return;
+      setErrForm({}); // bersihkan error validasi lama
+      setInfoDraf('');
       setMode(d.mode || 'lengkap');
       setReviewJeda(!!d.reviewJeda);
-      setForm({ ...emptyForm, ...getProfile(), ...(d.form || {}) });
+      // Field profil (nama, nip, sekolah, tahunAjaran, jenjang) pakai data
+      // terbaru di perangkat; hanya field non-profil yang dipulihkan dari draft.
+      const prof = getProfile();
+      const dForm = d.form || {};
+      setForm({
+        ...emptyForm,
+        ...dForm,
+        nama: prof.nama || '',
+        nip: prof.nip || '',
+        sekolah: prof.sekolah || '',
+        tahunAjaran: prof.tahunAjaran || '',
+        jenjang: prof.jenjang || dForm.jenjang || emptyForm.jenjang,
+      });
       setProjectId(d.projectId || '');
       setProyekBaru(d.proyekBaru || '');
       setDraftAda(null);
@@ -228,7 +247,9 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   }
 
   async function mulai() {
+    if (memulai) return; // cegah double-submit
     if (!validasi()) return;
+    setMemulai(true);
     setErrJalan('');
     setPaywall(null);
     try {
@@ -263,10 +284,14 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
         uploads: { cpResmi: form.cpResmi, mingguEfektif: form.mingguEfektif, acuan: form.acuan },
       });
       pantau(d.jobId);
+      // Job berhasil dibuat: draft tidak lagi dibutuhkan
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* abaikan */ }
+      setDraftAda(null);
     } catch (e) {
       // Kuota tidak cukup → buka Paywall dengan rincian butuh/sisa
       if (e.code === 'kuota_habis') setPaywall({ mode: 'kuota_habis', detail: e.detail });
       else setErrJalan(e.message || 'Gagal memulai job.');
+      setMemulai(false);
     }
   }
 
@@ -306,7 +331,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
 
       {tahap === 'form' && draftAda && (
         <div className="alert alert-info">
-          <b>Ada draft tersimpan</b> ({new Date(draftAda.waktu).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}).
+          <b>Ada draft tersimpan</b> ({new Date(draftAda.waktu).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}).
           <div className="btn-row">
             <button className="btn btn-sm btn-primary" onClick={muatDraft}>Muat draft</button>
             <button className="btn btn-sm" onClick={hapusDraft}>Hapus</button>
@@ -431,9 +456,9 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
             <div className="field"><label>JP per Minggu <span className="hint">(opsional)</span></label>
               <input value={form.jpPerMinggu} onChange={(e) => set('jpPerMinggu', e.target.value)} placeholder="cth: 3" /></div>
             <div className="field"><label>Jumlah Soal PG</label>
-              <input type="number" min="0" value={form.jmlPG} onChange={(e) => set('jmlPG', e.target.value)} /></div>
+              <input type="number" min="0" value={form.jmlPG} onChange={(e) => set('jmlPG', e.target.value === '' ? '' : String(Math.max(0, Number(e.target.value) || 0)))} /></div>
             <div className="field"><label>Jumlah Soal Uraian</label>
-              <input type="number" min="0" value={form.jmlUraian} onChange={(e) => set('jmlUraian', e.target.value)} /></div>
+              <input type="number" min="0" value={form.jmlUraian} onChange={(e) => set('jmlUraian', e.target.value === '' ? '' : String(Math.max(0, Number(e.target.value) || 0)))} /></div>
           </div>
 
           <div className="field"><label>Materi Sumber <span className="hint">(opsional — kosongkan untuk disusun AI otomatis)</span></label>
@@ -480,7 +505,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
             <p className="hint" style={{ margin: '0 0 4px' }}>Kredit: tanpa batas (Admin).</p>
           )}
           <div className="btn-row">
-            <button className="btn btn-primary" onClick={mulai}>Buat {MODE_INFO[mode].nama}</button>
+            <button className="btn btn-primary" onClick={mulai} disabled={memulai}>{memulai ? 'Membuat…' : `Buat ${MODE_INFO[mode].nama}`}</button>
             <button className="btn" onClick={simpanDraft}>Simpan Draft</button>
             <button className="btn" onClick={onBack}>Kembali</button>
           </div>
@@ -544,7 +569,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
                       <span className="job-status">{STATUS_LANGKAH[s.status] || s.status}</span>
                     </div>
                     {s.dokumenId && (
-                      <button className="btn btn-sm" onClick={() => onOpenDoc(s.dokumenId)}>Buka</button>
+                      <button className="btn btn-sm" onClick={() => onOpenDoc(s.dokumenId, { view: 'paket' })}>Buka</button>
                     )}
                     {s.status === 'gagal' && job.status === 'gagal' && (
                       <button className="btn btn-sm btn-primary" onClick={lanjutkan}>Ulangi langkah ini</button>
@@ -592,7 +617,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
                   <b style={{ display: 'block', marginTop: 6 }}>{h.judul}</b>
                   {h.topik && <span className="hint">{h.topik}</span>}
                 </div>
-                <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(h.dokumenId)}>Buka</button>
+                <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(h.dokumenId, { view: 'paket' })}>Buka</button>
               </div>
             ))}
           </div>

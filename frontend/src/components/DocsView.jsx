@@ -98,7 +98,7 @@ export default function DocsView({ onBack, onMasukan }) {
             <ul>
               <li><b>Paket Lengkap:</b> CP, ATP, Minggu Efektif, Prota, Prosem, KKTP, lalu Modul + LKPD per topik dan satu Bank Soal. Satu klik, tanpa jeda.</li>
               <li><b>Paket Perencanaan:</b> hanya 6 dokumen perencanaan, pas untuk awal semester.</li>
-              <li><b>Paket Pelaksanaan:</b> Modul + LKPD per topik dan Bank Soal, dengan acuan yang kamu tempel.</li>
+              <li><b>Paket Pelaksanaan:</b> Modul + LKPD per topik dan Bank Soal. Dokumen acuan (ATP/Prosem) opsional: tempel yang sudah ada, susun dulu dengan tombol <b>Susun dengan AI</b>, atau kosongkan — AI menyusun draf acuannya otomatis saat paket berjalan.</li>
             </ul>
             <p>
               Paket dikerjakan <b>server</b>: browser boleh ditutup, pekerjaan tetap
@@ -131,7 +131,7 @@ export default function DocsView({ onBack, onMasukan }) {
             <p>
               Di <b>Pengaturan → Kunci AI Sendiri</b>, kamu bisa memakai base URL
               dan API key milikmu sendiri. Selama aktif, seluruh generate memakai
-              kuncimu dan <b>tidak memotong kuota harian</b>. Cocok untuk sekolah
+              kuncimu dan <b>tidak memotong kuota mingguan</b>. Cocok untuk sekolah
               yang sudah punya langganan API sendiri.
             </p>
           </S>

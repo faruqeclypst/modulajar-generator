@@ -40,10 +40,13 @@ function periodeKuota() {
   const d = String(anchor.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
-// Awal window bonus referral 3-hari (anchor tetap dari epoch): YYYY-MM-DD
+// Awal window bonus referral 3-hari: hari kalender WIB (bukan epoch UTC yang
+// selisih 7 jam). Anchor = kelipatan 3 hari dari epoch-day WIB.
 function windowStart() {
-  const epochDay = Math.floor(Date.now() / 86400000);
-  return new Date(Math.floor(epochDay / 3) * 3 * 86400000).toISOString().slice(0, 10);
+  const kiniWIB = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  const tengahMalamWIB = Date.UTC(kiniWIB.getFullYear(), kiniWIB.getMonth(), kiniWIB.getDate()) - 7 * 3600 * 1000;
+  const hariWIB = Math.floor(tengahMalamWIB / 86400000);
+  return new Date(Math.floor(hariWIB / 3) * 3 * 86400000).toISOString().slice(0, 10);
 }
 // Peringatan kuota dibatasi agar log tidak kebanjiran saat tabel hilang
 let kuotaWarnAt = 0;
@@ -52,7 +55,7 @@ function warnKuota(e) {
   if (kini - kuotaWarnAt < 10 * 60 * 1000) return;
   kuotaWarnAt = kini;
   console.warn('[modulajar] KUOTA NONAKTIF SEMENTARA: tabel kuota_harian tidak bisa diakses (' +
-    (e?.message || e) + '). Jalankan SQL section 4 di supabase-schema.sql. Generate tetap diizinkan.');
+    (e?.message || e) + '). Jalankan supabase-bundle.sql di Supabase Dashboard. Generate tetap diizinkan.');
 }
 async function kuotaInfo(userId) {
   const periode = periodeKuota();
@@ -111,12 +114,44 @@ async function tambahKuotaInner(userId, n = 1) {
     warnKuota(e); // kegagalan kuota tidak boleh menggagalkan generate
   }
 }
-async function cekKuota(userId, butuh = 1) {
-  const info = await kuotaInfo(userId);
-  return { ...info, cukup: info.sisa >= butuh };
+// Reservasi kuota atomik: cek DAN potong dalam satu giliran antrean serial,
+// sehingga dua request konkuren tidak bisa sama-sama lolos lalu melewati batas.
+// Mengembalikan true bila kuota cukup (dan sudah dipotong), false bila tidak.
+// Tanpa DB / tabel hilang: fail-open (true) seperti perilaku lama.
+async function potongKuotaAtomik(userId, butuh = 1) {
+  let hasil = false;
+  antriKuota = antriKuota.then(async () => {
+    const periode = periodeKuota();
+    let dipakai = 0, bonus = 0;
+    if (!sb) { hasil = true; return; }
+    try {
+      const { data, error } = await sb.from('kuota_harian')
+        .select('dipakai').eq('user_id', userId).eq('tanggal', periode).single();
+      if (error && error.code !== 'PGRST116') throw error;
+      dipakai = data?.dipakai || 0;
+    } catch (e) { warnKuota(e); hasil = true; return; }
+    try {
+      const { data, error } = await sb.from('bonus_kuota')
+        .select('bonus').eq('user_id', userId).eq('window_start', windowStart()).single();
+      if (error && error.code !== 'PGRST116') throw error;
+      bonus = data?.bonus || 0;
+    } catch { /* tabel bonus belum ada: abaikan */ }
+    const sisa = Math.max(0, KUOTA_MINGGUAN - dipakai + bonus);
+    if (sisa < butuh) { hasil = false; return; }
+    await tambahKuotaInner(userId, butuh);
+    hasil = true;
+  }).catch(() => { hasil = false; });
+  await antriKuota;
+  return hasil;
 }
 // Bonus referral +n ke window 3-hari berjalan. Tidak pernah throw.
-async function tambahBonus(userId, n = 3) {
+// Diserialkan seperti kuota agar klaim konkuren tidak menghilangkan bonus.
+let antriBonus = Promise.resolve();
+function tambahBonus(userId, n = 3) {
+  antriBonus = antriBonus.then(() => tambahBonusInner(userId, n)).catch(() => {});
+  return antriBonus;
+}
+async function tambahBonusInner(userId, n = 3) {
   if (!sb) return;
   try {
     const ws = windowStart();
@@ -205,8 +240,10 @@ async function resolveKunciEfektif(userId, user) {
   if (cfg.bawaanAktif && cfg.umum.apiKey) {
     return { baseUrl: cfg.umum.baseUrl, apiKey: cfg.umum.apiKey, model: cfg.umum.model, sumber: 'umum' };
   }
-  if (process.env.KENARI_API_KEY && !cfg.umum.apiKey) {
-    // Fallback kompatibilitas: env masih diisi tapi DB belum dikonfigurasi
+  if (cfg.bawaanAktif && process.env.KENARI_API_KEY && !cfg.umum.apiKey) {
+    // Fallback kompatibilitas: env masih diisi tapi DB belum dikonfigurasi.
+    // Hanya bila AI bawaan AKTIF — bila admin mematikannya, jangan hidupkan
+    // diam-diam lewat env (kill-switch admin harus dihormati).
     return { baseUrl: 'https://kenari.id/v1', apiKey: process.env.KENARI_API_KEY, model: MODEL, sumber: 'env' };
   }
   throw new Error('AI bawaan sedang nonaktif. Pasang kunci AI sendiri di Pengaturan untuk tetap bisa memakai.');
@@ -582,7 +619,7 @@ function promptTahap3(info, fondasi, materi, sumber) {
   // System 100% statis agar prefix prompt stabil (context caching). Daftar TP
   // dipindah ke user message.
   const system = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
-Tugasmu HANYA menyusun bagian ASESMEN, PENGAYAAN/REMEDIAL, REFLEKSI, dan LAMPIRAN dalam markdown. ${ANTI_FIKSI}
+Tugasmu HANYA menyusun bagian ASESMEN, PENGAYAAN/REMEDIAL, dan REFLEKSI dalam markdown. ${ANTI_FIKSI}
 Semua asesmen WAJIB diturunkan langsung dari Tujuan Pembelajaran pada bagian DATA di pesan pengguna (jangan mengarang indikator baru).
 
 Struktur WAJIB persis:
@@ -597,12 +634,6 @@ Struktur WAJIB persis:
 
 ### 9. Refleksi Peserta Didik dan Guru
 Pertanyaan refleksi untuk peserta didik dan untuk guru.
-
-## C. Lampiran
-- **LKPD**: kerangka lembar kerja selaras TP di atas
-- **Bahan Bacaan**: ringkasan materi pengayaan untuk guru
-- **Glosarium**: istilah + definisi singkat
-- **Daftar Pustaka**: minimal 3 sumber nyata (buku/teori/penulis yang benar-benar ada)
 
 ${ANTI_SLOP} ${KONSISTENSI}
 
@@ -679,6 +710,12 @@ ${kegiatanMd}
 ${asesmenMd}
 
 ${materiMd}
+
+## C. Lampiran
+- **LKPD**: kerangka lembar kerja selaras TP di atas
+- **Bahan Bacaan**: ringkasan materi pengayaan untuk guru
+- **Glosarium**: istilah + definisi singkat
+- **Daftar Pustaka**: minimal 3 sumber nyata (buku/teori/penulis yang benar-benar ada)
 
 ## D. Lembar Pengesahan
 
@@ -796,6 +833,7 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap 
   const target = budget.pendahuluan + budget.inti + budget.penutup;
   if (totalKegiatan !== target) {
     console.warn(`[modulajar] tahap 2: total menit ${totalKegiatan} != ${target} (${label}), retry dengan koreksi`);
+    onTeks('teks-reset', 'kegiatan'); // beri tahu pendengar: teks kegiatan ditulis ulang, jangan di-append
     await onTahap('koreksi');
     const koreksi = `\n\nKOREKSI: total menit kegiatanmu ${totalKegiatan}, HARUS TEPAT ${target} (Pendahuluan ${budget.pendahuluan} + Inti ${budget.inti} + Penutup ${budget.penutup}). Tulis ulang dengan total yang tepat.`;
     kegiatanMd = await ai(p2.system, p2.user + koreksi, 6000, 0.5, (d) => onTeks('kegiatan', d));
@@ -1089,9 +1127,9 @@ ${ANTI_SLOP} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia yang mudah dipahami sesuai jenjang. Tugas autentik dan kontekstual. ${ISTILAH_BARU}`,
 
-  soal: (info = {}) => {
-    const nPG = Number(info.jmlPG) || 10;
-    const nUraian = Number(info.jmlUraian) || 5;
+  soal: () => {
+    // Jumlah soal (PG/Uraian) TIDAK disematkan di system prompt: nilainya ada di
+    // user message (cache prefix system tetap stabil → hit rate context caching).
     return `Kamu adalah asisten penyusun asesmen Kurikulum Merdeka untuk guru Indonesia.
 Susun PAKET SOAL lengkap dengan kisi-kisi, soal, kunci jawaban, dan pedoman penskoran. WAJIB ikuti struktur markdown persis di bawah.
 ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (modul ajar/ATP), kisi-kisi WAJIB diturunkan dari TP/indikator pada acuan, jangan mengarang indikator baru. Jika tidak ada acuan, turunkan dari materi pokok/topik pada data.
@@ -1113,10 +1151,10 @@ WAJIB format tabel markdown:
 | 1 | ... | PG/Uraian | ... | C1-C6 |
 
 ## C. Soal Pilihan Ganda
-${nPG} soal, masing-masing dengan 4 opsi (A-D). Opsi pengecoh harus masuk akal (miskonsepsi yang umum terjadi), bukan asal.
+Jumlah sesuai baris "Jumlah Soal PG" pada pesan pengguna (bila tertulis '-', pakai 10), masing-masing dengan 4 opsi (A-D). Opsi pengecoh harus masuk akal (miskonsepsi yang umum terjadi), bukan asal.
 
 ## D. Soal Uraian
-${nUraian} soal uraian singkat/esai.
+Jumlah sesuai baris "Uraian" pada pesan pengguna (bila tertulis '-', pakai 5): soal uraian singkat/esai.
 
 ## E. Kunci Jawaban dan Pedoman Penskoran
 Kunci PG dengan format: 1-B, 2-C, ... (tanpa bold pada opsi). Rubrik penskoran uraian: skor per langkah penyelesaian, dengan deskriptor yang konkret.
@@ -1161,7 +1199,8 @@ Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 
 // Inti generate satu dokumen — dipakai route langsung maupun job paket
 async function generateDocInternal(docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null, onTahap = () => {}, onTeks = () => {}) {
-  if (!process.env.KENARI_API_KEY) throw new Error('Kunci AI belum dikonfigurasi di server.');
+  // (Gate KENARI_API_KEY dihapus: ai() sudah melempar error yang benar bila
+  // konteks kunci kosong, dan gate itu mematikan BYOK/key-admin saat env kosong.)
   if (docType === 'modul') {
     try {
       return await generateModulPipeline(info, materi, sumber, rekomendasi, onTahap, onTeks);
@@ -1182,7 +1221,7 @@ async function generateDocInternal(docType = 'modul', info = {}, materi = '', su
 }
 
 async function rekomendasiAIInternal({ jenjang = '', fase = '', mapel = '', topik = '' }) {
-  if (!process.env.KENARI_API_KEY) throw new Error('Kunci AI belum dikonfigurasi di server.');
+  // (Gate KENARI_API_KEY dihapus dengan alasan yang sama seperti di generateDocInternal.)
   const system = `Kamu asisten guru Indonesia. Berdasarkan info pembelajaran, berikan rekomendasi penyusunan modul ajar dalam format JSON MURNI (tanpa markdown, tanpa teks lain) dengan struktur persis: {"judul": "...", "model": "salah satu dari: Problem Based Learning (PBL), Project Based Learning (PjBL), Discovery Learning, Inquiry Learning, Pembelajaran Kooperatif, Pembelajaran Langsung, Pembelajaran Berdiferensiasi, Contextual Teaching and Learning (CTL)", "alokasi": "...", "tp": ["...", "...", "..."], "catatan": "..."}. TP = 3 tujuan pembelajaran singkat format ABCD.`;
   const raw = await ai(system, `Jenjang: ${jenjang}\nFase: ${fase}\nMata Pelajaran: ${mapel}\nTopik: ${topik}`, 1500, 0.6);
   const m = raw.match(/\{[\s\S]*\}/);
@@ -1302,33 +1341,46 @@ function serializeJob(j) {
 
 const workerAktif = new Set();
 
+// Dilempar saat worker mendeteksi job dibatalkan/gagal di tengah langkah:
+// jangan simpan dokumen, jangan potong kuota, jangan timpa status di DB.
+class HentiJob extends Error {}
+
 async function jalankanJob(jobId) {
   if (!sb || workerAktif.has(jobId)) return;
-  // Resolusi kunci efektif sekali di awal; konteks AsyncLocalStorage
-  // membuat tiap job yang berjalan paralel memakai kuncinya sendiri.
-  let kunciJob = null;
+  workerAktif.add(jobId); // sinkron sebelum await pertama: tutup race eksekusi ganda
   try {
-    const j0 = await sbGetJob(jobId);
-    if (j0?.user_id) kunciJob = await resolveKunciEfektif(j0.user_id, { email: await emailOf(j0.user_id).catch(() => '') });
-  } catch (e) {
-    // Bila AI bawaan nonaktif & tanpa BYOK: gagalkan job dengan pesan jelas
-    try { await sbUpdateJob(jobId, { status: 'gagal', error: e.message || String(e) }); } catch {}
-    return;
+    // Resolusi kunci efektif sekali di awal; konteks AsyncLocalStorage
+    // membuat tiap job yang berjalan paralel memakai kuncinya sendiri.
+    let kunciJob = null;
+    try {
+      const j0 = await sbGetJob(jobId);
+      if (j0?.user_id) kunciJob = await resolveKunciEfektif(j0.user_id, { email: await emailOf(j0.user_id).catch(() => '') });
+    } catch (e) {
+      // Bila AI bawaan nonaktif & tanpa BYOK: gagalkan job dengan pesan jelas
+      try { await sbUpdateJob(jobId, { status: 'gagal', error: e.message || String(e) }); } catch {}
+      return;
+    }
+    await aiKeyCtx.run(kunciJob, () => jalankanJobInti(jobId));
+  } finally {
+    workerAktif.delete(jobId);
   }
-  return aiKeyCtx.run(kunciJob, () => jalankanJobInti(jobId));
 }
 async function jalankanJobInti(jobId) {
-  if (!sb || workerAktif.has(jobId)) return;
-  workerAktif.add(jobId);
+  if (!sb) return;
   try {
     let job = await sbGetJob(jobId);
     if (job.status !== 'berjalan' && job.status !== 'antri') return;
     const userId = job.user_id;
     // Admin tidak dibatasi dan tidak dihitung kuotanya (ditentukan sekali di awal job)
     const adminJob = ADMIN_EMAILS.includes((await emailOf(userId) || '').toLowerCase());
-    // BYOK: pakai kunci sendiri berarti kuota tidak dipotong
-    const bebasKuota = adminJob || !!aiKeyCtx.getStore();
+    // Kuota hanya dipotong bila memakai AI bawaan: sumber 'umum'/'env'.
+    // (Perbaikan: dulu !!aiKeyCtx.getStore() selalu truthy untuk semua sumber
+    // sehingga kuota paket tidak pernah terpotong.)
+    const bebasKuota = adminJob || aiKeyCtx.getStore()?.sumber === 'sendiri';
+    // Kuota paket direservasi atomik di awal via POST /api/paket (flag di config);
+    // job lama tanpa flag tetap memakai potongan per dokumen sebagai fallback.
     const cfg = job.config || {};
+    const kuotaDireservasi = cfg.kuotaDireservasi || 0;
     const info0 = cfg.info || {};
     const uploads = cfg.uploads || {};
     const topiks = cfg.topiks || [];
@@ -1353,31 +1405,44 @@ async function jalankanJobInti(jobId) {
 
     // Draf otomatis: kolom opsional yang dikosongkan (acuan ATP/Prosem, materi)
     // disusun AI sekali di awal job agar langkah berikutnya tetap punya acuan.
+    // Dipersist ke job.config.drafOtomatis agar resume tidak menyusun ulang.
+    // Draf materi HANYA untuk modul/lkpd/soal, bukan untuk langkah perencanaan
+    // (menghindari sirkular: materi yang disusun tanpa CP/ATP menjadi acuan CP/ATP).
     // Berjalan dalam konteks kunci AI job (aiKeyCtx), jadi pakai ai() langsung.
-    if (job.mode === 'pelaksanaan' && !(uploads.acuan || '').trim() && !md['atp']) {
+    const drafTersimpan = cfg.drafOtomatis || {};
+    let drafAcuan = drafTersimpan.acuan || '';
+    let drafMateri = drafTersimpan.materi || '';
+    async function persistDraf() {
+      try {
+        await sbUpdateJob(jobId, { config: { ...cfg, drafOtomatis: { acuan: drafAcuan, materi: drafMateri } } });
+      } catch { /* abaikan: draf tetap dipakai di memori */ }
+    }
+    if (job.mode === 'pelaksanaan' && !(uploads.acuan || '').trim() && !md['atp'] && !drafAcuan) {
       try {
         const { system, user, maxTokens } = promptDrafPaket('acuan', info0, topiks);
-        md['atp'] = (await ai(system, user, maxTokens, 0.7)).trim();
+        drafAcuan = (await ai(system, user, maxTokens, 0.7)).trim();
+        await persistDraf();
       } catch (e) { console.warn('[modulajar] draf acuan otomatis gagal:', e.message || e); }
     }
-    if (job.mode !== 'perencanaan' && !(cfg.materi || '').trim()) {
+    if (drafAcuan) md['atp'] = drafAcuan;
+    if (job.mode !== 'perencanaan' && !(cfg.materi || '').trim() && !drafMateri) {
       try {
         const { system, user, maxTokens } = promptDrafPaket('materi', info0, topiks);
-        cfg.materi = (await ai(system, user, maxTokens, 0.7)).trim();
+        drafMateri = (await ai(system, user, maxTokens, 0.7)).trim();
+        await persistDraf();
       } catch (e) { console.warn('[modulajar] draf materi otomatis gagal:', e.message || e); }
     }
 
-    let rekomendasi = null, rekDiminta = false;
-    async function pastikanRekomendasi() {
-      if (!rekDiminta) {
-        rekDiminta = true;
-        try {
-          rekomendasi = await rekomendasiAIInternal({
-            jenjang: info0.jenjang, fase: info0.fase, mapel: info0.mapel, topik: topiks[0] || '',
-          });
-        } catch { rekomendasi = null; }
+    // Rekomendasi dibagikan antar pekerja paralel via satu promise yang sama
+    // (guard boolean membuat pekerja kedua mendapat null tanpa menunggu).
+    let rekPromise = null;
+    function pastikanRekomendasi() {
+      if (!rekPromise) {
+        rekPromise = rekomendasiAIInternal({
+          jenjang: info0.jenjang, fase: info0.fase, mapel: info0.mapel, topik: topiks[0] || '',
+        }).catch(() => null);
       }
-      return rekomendasi;
+      return rekPromise;
     }
 
     function acuanUntuk(docType, topik) {
@@ -1396,6 +1461,14 @@ async function jalankanJobInti(jobId) {
     }
 
     async function updateProgress(fase) {
+      // Hormati status terminal: jangan timpa 'dibatalkan'/'gagal'/'selesai'/
+      // 'menunggu_review' kembali menjadi 'berjalan'. Kasus utama: user menekan
+      // Batal di tengah langkah, atau worker paralel lain sudah menandai gagal.
+      // Pekerja yang tertinggal juga tidak bisa menghidupkan job yang sudah mati.
+      try {
+        const cur = await sbGetJob(jobId);
+        if (cur && !['antri', 'berjalan'].includes(cur.status)) return;
+      } catch { /* lanjut: tulis seperti biasa */ }
       const selesai = langkah.filter((l) => l.status === 'ok').length;
       const jalan = langkah.find((l) => l.status === 'jalan');
       const progress = { total: langkah.length, selesai, fase: fase || (jalan ? jalan.label : ''), langkah };
@@ -1406,6 +1479,12 @@ async function jalankanJobInti(jobId) {
     }
 
     async function kerjakan(step) {
+      // Idempotensi resume: hasil langkah ini sudah tercatat (crash di antara
+      // simpanDokumen dan persist status) → jangan kerjakan ulang.
+      if (hasil.some((h) => h.key === step.key)) {
+        step.status = 'ok';
+        return;
+      }
       step.status = 'jalan';
       await updateProgress();
       try {
@@ -1442,12 +1521,18 @@ async function jalankanJobInti(jobId) {
             await tulisLive();
           };
           const onTeks = (key, delta) => {
+            // Event khusus dari pipeline: bagian ditulis ulang (retry koreksi)
+            if (key === 'teks-reset') { teksBuf = ''; return; }
             teksBuf += delta;
             tulisLive().catch(() => {});
           };
+          // Draf materi otomatis HANYA untuk modul/lkpd/soal — langkah
+          // perencanaan memakai materi milik user saja (atau kosong).
+          const FASE_PERENCANAAN = ['cp', 'atp', 'minggu_efektif', 'prota', 'prosem', 'kktp'];
+          const materiStep = FASE_PERENCANAAN.includes(step.docType) ? (cfg.materi || '') : (cfg.materi || drafMateri);
           try {
             markdown = await generateDocInternal(
-              step.docType, infoStep, cfg.materi || '',
+              step.docType, infoStep, materiStep,
               acuanUntuk(step.docType, step.topik), step.docType === 'modul' ? rek : undefined,
               onTahap, onTeks,
             );
@@ -1455,6 +1540,10 @@ async function jalankanJobInti(jobId) {
             liveAktif = null; // langkah selesai/gagal: bersihkan tampilan live
           }
         }
+        // Cek pembatalan SETELAH AI selesai, SEBELUM menyimpan: user mungkin
+        // menekan Batal selama generate berjalan. Lempar HentiJob agar dokumen
+        // tidak disimpan, kuota tidak dipotong, dan status DB dihormati.
+        if (!(await masihBerjalan())) throw new HentiJob('dibatalkan');
         // Gambar relevan langsung disisipkan ke naskah (tanpa persetujuan)
         let images = [];
         if (step.docType === 'modul' || step.docType === 'lkpd') {
@@ -1465,12 +1554,15 @@ async function jalankanJobInti(jobId) {
         const judul = extractTitle(markdown);
         const meta = { ...info0, topik: step.topik || topiks.join('; ') };
         const dokumenId = await simpanDokumen(userId, step.docType, judul, markdown, meta, images);
-        if (!bebasKuota) await tambahKuota(userId, 1); // 1 dokumen selesai = 1 kuota
-        md[keyOf(step)] = markdown;
         hasil.push({ key: keyOf(step), docType: step.docType, topik: step.topik || null, dokumenId, judul });
+        md[keyOf(step)] = markdown;
         step.status = 'ok';
-        await updateProgress();
+        await updateProgress(); // persist hasil+status DULU, baru potong kuota
+        // Fallback kuota untuk job lama tanpa reservasi di awal (config.kuotaDireservasi).
+        // Job baru sudah direservasi penuh di POST /api/paket.
+        if (!bebasKuota && !kuotaDireservasi) await tambahKuota(userId, 1);
       } catch (e) {
+        if (e instanceof HentiJob) throw e; // bukan kegagalan: hormati status DB
         step.status = 'gagal';
         await updateProgress();
         throw new Error('Langkah ' + step.label + (step.topik ? ' (' + step.topik + ')' : '') + ' gagal: ' + (e.message || e));
@@ -1517,10 +1609,12 @@ async function jalankanJobInti(jobId) {
     }
     await sbUpdateJob(jobId, { status: 'selesai', progress: { total: langkah.length, selesai: langkah.length, fase: '', langkah }, hasil });
   } catch (e) {
-    try { await sbUpdateJob(jobId, { status: 'gagal', error: e.message || String(e) }); }
-    catch { /* abaikan */ }
-  } finally {
-    workerAktif.delete(jobId);
+    // HentiJob = berhenti atas permintaan (dibatalkan) atau job sudah terminal:
+    // JANGAN timpa status DB menjadi 'gagal'.
+    if (!(e instanceof HentiJob)) {
+      try { await sbUpdateJob(jobId, { status: 'gagal', error: e.message || String(e) }); }
+      catch { /* abaikan */ }
+    }
   }
 }
 
@@ -1544,6 +1638,51 @@ function validasiPanjang(teks, maks, nama) {
   if (String(teks || '').length > maks) return nama + ' terlalu panjang (maks ' + maks + ' karakter).';
   return null;
 }
+// Validasi base URL provider AI (anti-SSRF): wajib https dan menolak
+// hostname lokal/pribadi. Pengecekan berbasis string hostname saja — cukup
+// untuk IP literal, tetapi TIDAK melindungi dari DNS rebinding (domain yang
+// resolve ke IP privat); pengerasan penuh butuh resolve DNS + validasi IP
+// ulang sebelum fetch.
+// Mengembalikan null bila valid, atau pesan error (untuk 400) bila tidak.
+function validasiBaseUrl(raw) {
+  const s = String(raw || '').trim().replace(/\/+$/, '');
+  let u;
+  try { u = new URL(s); } catch { return 'Base URL tidak valid. Contoh: https://api.openai.com/v1'; }
+  if (u.protocol !== 'https:') return 'Base URL wajib memakai https.';
+  if (u.username || u.password) return 'Base URL tidak boleh mengandung kredensial.';
+  // hostname IPv6 dikembalikan dengan kurung (mis. "[::1]") — kupas dulu
+  const h = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  const privat =
+    h === 'localhost' || h === '::1' || h === '0.0.0.0' || h.endsWith('.localhost') ||
+    /^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /^169\.254\./.test(h);
+  if (privat) return 'Base URL tidak boleh mengarah ke alamat lokal/pribadi.';
+  return null;
+}
+// Rate limit in-memory per user per endpoint (per-proses: tidak dibagikan
+// antar instance bila aplikasi di-scale horizontal).
+// Mengembalikan true bila request diizinkan, false bila melebihi batas.
+const rateBucket = new Map(); // key -> array timestamp (ms)
+function cekRateLimit(userId, endpoint, maksPerJam) {
+  const kini = Date.now();
+  const batas = kini - 3600 * 1000;
+  const key = userId + '|' + endpoint;
+  let arr = rateBucket.get(key);
+  if (!arr) { arr = []; rateBucket.set(key, arr); }
+  while (arr.length && arr[0] <= batas) arr.shift();
+  if (arr.length >= maksPerJam) return false;
+  arr.push(kini);
+  return true;
+}
+// Normalisasi + validasi daftar topik: harus list, cap 20 topik × 200 karakter.
+// Mengembalikan { daftar } bila valid, atau { galat } bila tidak.
+function validasiTopiks(topiksRaw) {
+  if (topiksRaw !== undefined && !Array.isArray(topiksRaw)) return { galat: 'Daftar topik harus berupa list.' };
+  const daftar = [...new Set((topiksRaw || []).map((t) => String(t).trim()).filter(Boolean))].slice(0, 20);
+  const panjang = daftar.find((t) => t.length > 200);
+  if (panjang) return { galat: 'Topik terlalu panjang (maks 200 karakter): "' + panjang.slice(0, 60) + '".' };
+  return { daftar };
+}
 
 app.post('/api/paket', requireAuth(async (req, res) => {
   try {
@@ -1555,33 +1694,39 @@ app.post('/api/paket', requireAuth(async (req, res) => {
     const uploads = objekAman(uploadsRaw);
     if (!(info.mapel || '').trim())
       return kirimGagal(res, 400, 'Mata pelajaran wajib diisi.');
-    if (topiksRaw !== undefined && !Array.isArray(topiksRaw))
-      return kirimGagal(res, 400, 'Daftar topik harus berupa list.');
-    const daftarTopik = [...new Set(topiksRaw.map((t) => String(t).trim()).filter(Boolean))].slice(0, 20);
-    const topikPanjang = daftarTopik.find((t) => t.length > 200);
-    if (topikPanjang)
-      return kirimGagal(res, 400, 'Topik terlalu panjang (maks 200 karakter): "' + topikPanjang.slice(0, 60) + '".');
+    const { daftar: daftarTopik, galat: galatTopik } = validasiTopiks(topiksRaw);
+    if (galatTopik) return kirimGagal(res, 400, galatTopik);
     if ((mode === 'lengkap' || mode === 'pelaksanaan') && !daftarTopik.length)
       return kirimGagal(res, 400, 'Daftar topik kosong. Tambahkan minimal satu topik.');
     const errMateri = validasiPanjang(materi, 20000, 'Materi');
     if (errMateri) return kirimGagal(res, 400, errMateri);
+    // Batas panjang kolom acuan agar prompt tiap langkah tidak membengkak
+    for (const [k, label] of [['cpResmi', 'Teks CP resmi'], ['mingguEfektif', 'Dokumen minggu efektif'], ['acuan', 'Dokumen acuan']]) {
+      const errU = validasiPanjang(uploads[k], 20000, label);
+      if (errU) return kirimGagal(res, 400, errU);
+    }
     const langkah = rencanaJob(mode, daftarTopik);
-    // Cek kuota SEBELUM job dibuat: estimasi = jumlah dokumen yang akan disusun.
+    // Reservasi kuota atomik SEBELUM job dibuat: cek + potong dalam satu
+    // giliran antrean (tahan race double-submit). Worker tidak lagi memotong
+    // per dokumen bila reservasi sudah dilakukan (flag kuotaDireservasi).
     // Kuota hanya dipotong bila memakai AI bawaan (bukan BYOK/admin).
     const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
+    let kuotaDireservasi = 0;
     if (potongKuota(kunciUser.sumber)) {
-      const cek = await cekKuota(req.user.id, langkah.length);
-      if (!cek.cukup) {
+      const ok = await potongKuotaAtomik(req.user.id, langkah.length);
+      if (!ok) {
+        const cek = await kuotaInfo(req.user.id);
         return res.status(402).json({
           ok: false, code: 'kuota_habis',
-          error: 'Kredit tidak cukup untuk paket ini. Kredit diperbarui setiap jam 15:00 WIB.',
+          error: 'Kredit tidak cukup untuk paket ini. Kredit diperbarui setiap Minggu jam 15:00 WIB.',
           butuh: langkah.length, sisa: cek.sisa, batas: cek.batas, bonus: cek.bonus,
         });
       }
+      kuotaDireservasi = langkah.length;
     }
     const { data, error } = await sb.from('jobs').insert({
       user_id: req.user.id, mode, status: 'antri',
-      config: { info, materi: materi || '', topiks: daftarTopik, uploads, reviewJeda: !!reviewJeda },
+      config: { info, materi: materi || '', topiks: daftarTopik, uploads, reviewJeda: !!reviewJeda, kuotaDireservasi },
       progress: { total: langkah.length, selesai: 0, fase: '', langkah }, hasil: [],
     }).select('id').single();
     if (error) throw new Error(error.message);
@@ -1722,24 +1867,31 @@ app.post('/api/generate-doc', requireAuth(async (req, res) => {
     const errValid = validasiGenerate({ docType, infoRaw, materi, sumber });
     if (errValid) return kirimGagal(res, 400, errValid);
     const info = objekAman(infoRaw);
-    // Kuota hanya dipotong bila memakai AI bawaan (bukan BYOK/admin)
+    // Kuota hanya dipotong bila memakai AI bawaan (bukan BYOK/admin).
+    // Reservasi atomik di awal; bila generate gagal, reservasi dikembalikan.
     const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
     const kunciSendiri = kunciUser.sumber === 'sendiri';
     const potong = potongKuota(kunciUser.sumber);
-    if (sb && potong) {
-
-      const cek = await cekKuota(req.user.id, 1);
-      if (!cek.cukup) {
+    let direservasi = false;
+    if (potong) {
+      direservasi = await potongKuotaAtomik(req.user.id, 1);
+      if (!direservasi) {
+        const cek = await kuotaInfo(req.user.id);
         return res.status(402).json({
           ok: false, code: 'kuota_habis',
-          error: 'Kredit harian habis. Kredit diperbarui setiap jam 15:00 WIB.',
+          error: 'Kredit mingguan habis. Kredit diperbarui setiap Minggu jam 15:00 WIB.',
           butuh: 1, sisa: cek.sisa, batas: cek.batas, bonus: cek.bonus,
         });
       }
     }
-    const markdown = await aiKeyCtx.run(kunciUser, () =>
-      generateDocInternal(docType, info, materi, sumber, rekomendasi));
-    if (sb && potong) await tambahKuota(req.user.id, 1);
+    let markdown;
+    try {
+      markdown = await aiKeyCtx.run(kunciUser, () =>
+        generateDocInternal(docType, info, materi, sumber, rekomendasi));
+    } catch (e) {
+      if (direservasi) await tambahKuota(req.user.id, -1); // kembalikan reservasi
+      throw e;
+    }
     res.json({ ok: true, markdown, kunciSendiri });
   } catch (e) {
     kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
@@ -1756,6 +1908,13 @@ function validasiGenerate({ docType, infoRaw, materi, sumber }) {
   if (!Object.keys(NAMA_DOKUMEN).includes(docType)) return 'Jenis dokumen tidak dikenal.';
   if (infoRaw !== undefined && (typeof infoRaw !== 'object' || infoRaw === null || Array.isArray(infoRaw)))
     return 'Data info tidak valid.';
+  // Alokasi minimum 10 menit agar budgetKegiatan tidak negatif/nol.
+  const alokasi = objekAman(infoRaw).alokasi;
+  if (alokasi) {
+    const totalMenit = parseAlokasi(alokasi).totalMenit;
+    if (!Number.isFinite(totalMenit) || totalMenit < 10)
+      return 'Alokasi waktu minimal 10 menit (contoh: "2 x 40 menit").';
+  }
   return validasiPanjang(materi, 20000, 'Materi') || validasiPanjang(sumber, 20000, 'Sumber acuan');
 }
 
@@ -1781,12 +1940,14 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
     const info = objekAman(infoRaw);
     const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
     const kunciSendiri = kunciUser.sumber === 'sendiri';
-    if (sb && potongKuota(kunciUser.sumber)) {
-      const cek = await cekKuota(req.user.id, 1);
-      if (!cek.cukup) {
+    let direservasi = false;
+    if (potongKuota(kunciUser.sumber)) {
+      direservasi = await potongKuotaAtomik(req.user.id, 1);
+      if (!direservasi) {
+        const cek = await kuotaInfo(req.user.id);
         return res.status(402).json({
           ok: false, code: 'kuota_habis',
-          error: 'Kredit harian habis. Kredit diperbarui setiap jam 15:00 WIB.',
+          error: 'Kredit mingguan habis. Kredit diperbarui setiap Minggu jam 15:00 WIB.',
           butuh: 1, sisa: cek.sisa, batas: cek.batas, bonus: cek.bonus,
         });
       }
@@ -1806,6 +1967,9 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
     };
     // Teruskan tulisan AI apa adanya agar user bisa melihat prosesnya realtime
     const onTeks = (key, delta) => {
+      // Event khusus: AI menulis ulang bagian (retry koreksi) — frontend
+      // harus me-reset tampilan bagian itu, bukan meng-append.
+      if (key === 'teks-reset') { kirim({ tipe: 'teks-reset', key: delta }); return; }
       kirim({ tipe: 'teks', key, delta });
     };
     try {
@@ -1818,9 +1982,9 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
         markdown = r.markdown;
         images = r.images;
       }
-      if (sb && potongKuota(kunciUser.sumber)) await tambahKuota(req.user.id, 1);
       kirim({ tipe: 'selesai', markdown, images, kunciSendiri });
     } catch (e) {
+      if (direservasi) await tambahKuota(req.user.id, -1); // kembalikan reservasi
       kirim({ tipe: 'gagal', error: e.message || String(e) });
     }
     res.end();
@@ -1916,13 +2080,9 @@ app.post('/api/ai-config', requireAuth(async (req, res) => {
     const baseUrl = String(req.body?.baseUrl || '').trim().replace(/\/+$/, '');
     const apiKey = String(req.body?.apiKey || '').trim();
     const model = String(req.body?.model || '').trim();
-    let urlOk = false;
-    try {
-      const u = new URL(baseUrl);
-      urlOk = u.protocol === 'http:' || u.protocol === 'https:';
-    } catch { urlOk = false; }
-    if (!urlOk)
-      return res.status(400).json({ ok: false, error: 'Base URL tidak valid. Contoh: https://api.openai.com/v1' });
+    const errUrl = validasiBaseUrl(baseUrl);
+    if (errUrl)
+      return res.status(400).json({ ok: false, error: errUrl });
     if (apiKey.length < 8)
       return res.status(400).json({ ok: false, error: 'API key terlalu pendek (minimal 8 karakter).' });
     const { error } = await sb.from('kunci_ai').upsert({
@@ -1974,6 +2134,61 @@ async function buatKodeReferal(userId) {
 }
 const MAKS_KLAIM_WINDOW = 5;
 
+// Skema klaim referral baru memakai tabel klaim_referal
+// (id, kode, pemilik_id, oleh_id, created_at, unique(kode, oleh_id)).
+// Bila tabel belum dibuat (42P01), fallback ke perilaku lama single-claim.
+// Hasil pengecekan di-cache; negatif di-cek ulang tiap 60 detik agar proses
+// yang sudah jalan otomatis memakai tabel baru setelah SQL dijalankan.
+let klaimTabelAda = null, klaimTabelCekAt = 0;
+async function adaTabelKlaim() {
+  const kini = Date.now();
+  if (klaimTabelAda === true) return true;
+  if (klaimTabelAda === false && kini - klaimTabelCekAt < 60000) return false;
+  klaimTabelCekAt = kini;
+  try {
+    const { error } = await sb.from('klaim_referal').select('id', { head: true }).limit(1);
+    klaimTabelAda = !error || String(error.code || '') !== '42P01';
+  } catch (e) {
+    klaimTabelAda = !String(e?.code || '').includes('42P01');
+  }
+  return klaimTabelAda;
+}
+
+// Jumlah klaim milik pemilik dalam window 3-hari berjalan (WIB).
+async function hitungKlaimWindow(pemilikId) {
+  const r = await sb.from('klaim_referal')
+    .select('id', { head: true, count: 'exact' })
+    .eq('pemilik_id', pemilikId).gte('created_at', windowStart() + 'T00:00:00+07:00');
+  if (r.error) throw r.error;
+  return r.count ?? 0;
+}
+
+// Klaim skema baru, diserialkan agar cek-duplikat + cek-batas + insert atomik.
+let antriReferal = Promise.resolve();
+function klaimReferalBaru(kode, pemilikId, olehId) {
+  const giliran = antriReferal.then(() => klaimReferalBaruInner(kode, pemilikId, olehId));
+  antriReferal = giliran.catch(() => {}); // rantai tetap hidup walau satu klaim gagal
+  return giliran;
+}
+async function klaimReferalBaruInner(kode, pemilikId, olehId) {
+  const { data: dupe } = await sb.from('klaim_referal')
+    .select('id').eq('kode', kode).eq('oleh_id', olehId).limit(1);
+  if (dupe?.length)
+    return { ok: false, status: 409, code: 'sudah_dipakai', error: 'Kode ini sudah kamu pakai.' };
+  const jumlah = await hitungKlaimWindow(pemilikId);
+  if (jumlah >= MAKS_KLAIM_WINDOW)
+    return { ok: false, status: 429, code: 'batas_klaim', error: 'Batas klaim periode ini tercapai.' };
+  const { error } = await sb.from('klaim_referal')
+    .insert({ kode, pemilik_id: pemilikId, oleh_id: olehId });
+  if (error) {
+    if (String(error.code) === '23505') // balapan insert: unique(kode, oleh_id)
+      return { ok: false, status: 409, code: 'sudah_dipakai', error: 'Kode ini sudah kamu pakai.' };
+    throw error;
+  }
+  await tambahBonus(pemilikId, 3);
+  return { ok: true };
+}
+
 app.get('/api/referal', requireAuth(async (req, res) => {
   try {
     if (!butuhSb(req, res)) return;
@@ -1989,9 +2204,14 @@ app.get('/api/referal', requireAuth(async (req, res) => {
     const ws = windowStart();
     let klaimPeriodeIni = 0, bonusPeriodeIni = 0;
     try {
-      const { data: k } = await sb.from('referal')
-        .select('id').eq('pemilik_id', uid).gte('created_at', ws + 'T00:00:00+07:00');
-      klaimPeriodeIni = k?.length || 0;
+      if (await adaTabelKlaim()) {
+        klaimPeriodeIni = await hitungKlaimWindow(uid);
+      } else {
+        // Fallback skema lama: satu kode satu klaim selamanya
+        const { data: k } = await sb.from('referal')
+          .select('id').eq('pemilik_id', uid).not('dipakai_oleh_id', 'is', null);
+        klaimPeriodeIni = k?.length || 0;
+      }
       const { data: b } = await sb.from('bonus_kuota')
         .select('bonus').eq('user_id', uid).eq('window_start', ws).single();
       bonusPeriodeIni = b?.bonus || 0;
@@ -2012,28 +2232,30 @@ app.post('/api/referal/klaim', requireAuth(async (req, res) => {
     const uid = req.user.id;
     const kode = String(req.body?.kode || '').trim().toUpperCase();
     if (!kode) return res.status(400).json({ ok: false, error: 'Kode referral wajib diisi.' });
-    let pernah, baris;
+    let baris;
     try {
-      const r1 = await sb.from('referal').select('id').eq('dipakai_oleh_id', uid).limit(1);
-      pernah = r1.data;
       const r2 = await sb.from('referal').select('id, pemilik_id, dipakai_oleh_id').eq('kode', kode).single();
       baris = r2.data;
     } catch {
       return res.status(503).json({ ok: false, error: 'Fitur referral belum dikonfigurasi di database.' });
     }
-    if (pernah?.length)
-      return res.status(400).json({ ok: false, code: 'sudah_pernah', error: 'Kamu sudah pernah memakai kode referral.' });
     if (!baris)
       return res.status(404).json({ ok: false, code: 'kode_tidak_dikenal', error: 'Kode referral tidak dikenal.' });
     if (baris.pemilik_id === uid)
       return res.status(400).json({ ok: false, code: 'kode_sendiri', error: 'Tidak bisa memakai kode referral milik sendiri.' });
+    if (await adaTabelKlaim()) {
+      // Skema baru: tiap teman bisa klaim; maks 5 klaim per 3 hari per pemilik kode
+      const hasil = await klaimReferalBaru(kode, baris.pemilik_id, uid);
+      if (!hasil.ok) return res.status(hasil.status).json({ ok: false, code: hasil.code, error: hasil.error });
+      return res.json({ ok: true, bonusDitambah: 3 });
+    }
+    // Fallback skema lama (tabel klaim_referal belum ada): satu kode hanya
+    // bisa diklaim satu orang, dan tiap user hanya bisa klaim sekali, selamanya.
+    const r1 = await sb.from('referal').select('id').eq('dipakai_oleh_id', uid).limit(1);
+    if (r1.data?.length)
+      return res.status(400).json({ ok: false, code: 'sudah_pernah', error: 'Kamu sudah pernah memakai kode referral.' });
     if (baris.dipakai_oleh_id)
       return res.status(400).json({ ok: false, code: 'kode_terpakai', error: 'Kode ini sudah dipakai.' });
-    const ws = windowStart();
-    const { data: klaim } = await sb.from('referal')
-      .select('id').eq('pemilik_id', baris.pemilik_id).gte('created_at', ws + 'T00:00:00+07:00');
-    if ((klaim?.length || 0) >= MAKS_KLAIM_WINDOW)
-      return res.status(400).json({ ok: false, code: 'bonus_penuh', error: 'Bonus pemilik kode periode ini sudah penuh.' });
     // Tandai dipakai (kondisional: hanya bila masih kosong) lalu verifikasi pemenangnya
     await sb.from('referal').update({ dipakai_oleh_id: uid }).eq('id', baris.id).is('dipakai_oleh_id', null);
     const { data: cek } = await sb.from('referal').select('dipakai_oleh_id').eq('id', baris.id).single();
@@ -2073,7 +2295,8 @@ app.post('/api/verifikasi-captcha', async (req, res) => {
     const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ secret, response: token }),
+      // remoteip membantu Cloudflare menilai risiko token (opsional tapi dianjurkan)
+      body: new URLSearchParams({ secret, response: token, remoteip: req.socket?.remoteAddress || '' }),
       signal: AbortSignal.timeout(15000),
     });
     const data = await r.json().catch(() => ({}));
@@ -2106,7 +2329,12 @@ app.post('/api/masukan', async (req, res) => {
     if (emailAkhir && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAkhir)) {
       return res.status(400).json({ ok: false, error: 'Alamat email tidak valid.' });
     }
-    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'anon';
+    // Kunci rate-limit: gabungan XFF-pertama + remoteAddress socket. XFF saja
+    // tidak bisa dipercaya buta (mudah dipalsukan); remoteAddress saja bisa
+    // berubah di balik proxy. Gabungan keduanya paling stabil untuk setup ini.
+    const xffPertama = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    const remoteAddr = req.socket?.remoteAddress || '';
+    const ip = [xffPertama, remoteAddr].filter(Boolean).join('|') || 'anon';
     const kunci = userId ? 'u:' + userId : 'ip:' + ip;
     if (!bolehKirimMasukan(kunci)) {
       return res.status(429).json({ ok: false, error: 'Terlalu sering mengirim. Coba lagi besok.', code: 'rate_limited' });
@@ -2164,10 +2392,10 @@ app.post('/api/admin/pengaturan-ai', requireAdmin(async (req, res) => {
     const patch = { updated_at: new Date().toISOString() };
     if (typeof b.bawaanAktif === 'boolean') patch.bawaan_aktif = b.bawaanAktif;
     const str = (v) => String(v || '').trim();
-    const urlOk = (u) => { try { const x = new URL(u); return x.protocol === 'http:' || x.protocol === 'https:'; } catch { return false; } };
     if (b.umum) {
       if (b.umum.baseUrl !== undefined) {
-        if (!urlOk(str(b.umum.baseUrl))) return res.status(400).json({ ok: false, error: 'Base URL umum tidak valid.' });
+        const errUrl = validasiBaseUrl(b.umum.baseUrl);
+        if (errUrl) return res.status(400).json({ ok: false, error: 'Base URL umum: ' + errUrl });
         patch.umum_base_url = str(b.umum.baseUrl).replace(/\/+$/, '');
       }
       if (str(b.umum.apiKey)) patch.umum_api_key = str(b.umum.apiKey);
@@ -2175,7 +2403,8 @@ app.post('/api/admin/pengaturan-ai', requireAdmin(async (req, res) => {
     }
     if (b.admin) {
       if (b.admin.baseUrl !== undefined) {
-        if (!urlOk(str(b.admin.baseUrl))) return res.status(400).json({ ok: false, error: 'Base URL admin tidak valid.' });
+        const errUrl = validasiBaseUrl(b.admin.baseUrl);
+        if (errUrl) return res.status(400).json({ ok: false, error: 'Base URL admin: ' + errUrl });
         patch.admin_base_url = str(b.admin.baseUrl).replace(/\/+$/, '');
       }
       if (str(b.admin.apiKey)) patch.admin_api_key = str(b.admin.apiKey);
@@ -2203,8 +2432,8 @@ app.post('/api/admin/ai-uji', requireAdmin(async (req, res) => {
     const baseUrl = String(req.body?.baseUrl || '').trim().replace(/\/+$/, '');
     const apiKey = String(req.body?.apiKey || '').trim();
     const model = String(req.body?.model || '').trim() || MODEL;
-    try { const u = new URL(baseUrl); if (!['http:', 'https:'].includes(u.protocol)) throw 0; }
-    catch { return res.status(400).json({ ok: false, error: 'Base URL tidak valid.' }); }
+    const errUrlUji = validasiBaseUrl(baseUrl);
+    if (errUrlUji) return res.status(400).json({ ok: false, error: errUrlUji });
     if (apiKey.length < 8) return res.status(400).json({ ok: false, error: 'API key terlalu pendek.' });
     const t0 = Date.now();
     const r = await fetch(baseUrl + '/chat/completions', {
@@ -2235,8 +2464,8 @@ app.post('/api/admin/ai-model', requireAdmin(async (req, res) => {
   try {
     const baseUrl = String(req.body?.baseUrl || '').trim().replace(/\/+$/, '');
     const apiKey = String(req.body?.apiKey || '').trim();
-    try { const u = new URL(baseUrl); if (!['http:', 'https:'].includes(u.protocol)) throw 0; }
-    catch { return res.status(400).json({ ok: false, error: 'Base URL tidak valid.' }); }
+    const errUrlModel = validasiBaseUrl(baseUrl);
+    if (errUrlModel) return res.status(400).json({ ok: false, error: errUrlModel });
     if (apiKey.length < 8) return res.status(400).json({ ok: false, error: 'API key terlalu pendek.' });
     const r = await fetch(baseUrl + '/models', {
       headers: { 'Authorization': 'Bearer ' + apiKey },
@@ -2326,8 +2555,8 @@ app.post('/api/admin/daftar-ai', requireAdmin(async (req, res) => {
     const model = String(req.body?.model || '').trim();
     const untuk = req.body?.untuk === 'admin' ? 'admin' : 'umum';
     if (!nama) return res.status(400).json({ ok: false, error: 'Nama AI wajib diisi.' });
-    try { const u = new URL(baseUrl); if (!['http:', 'https:'].includes(u.protocol)) throw 0; }
-    catch { return res.status(400).json({ ok: false, error: 'Base URL tidak valid.' }); }
+    const errUrlDaftar = validasiBaseUrl(baseUrl);
+    if (errUrlDaftar) return res.status(400).json({ ok: false, error: errUrlDaftar });
     if (apiKey.length < 8) return res.status(400).json({ ok: false, error: 'API key terlalu pendek.' });
     const { data, error } = await sb.from('daftar_ai').insert({
       nama, base_url: baseUrl, api_key: apiKey, model, untuk, aktif: false,
@@ -2383,15 +2612,27 @@ app.get('/api/admin/ringkasan', requireAdmin(async (req, res) => {
     wibTengahMalam.setUTCHours(0, 0, 0, 0);
     const awalHari = new Date(wibTengahMalam.getTime() - 7 * 3600 * 1000).toISOString();
     const hariIni = periodeKuota();
-    const [totalUser, dokumenTotal, dokumenHariIni, kreditTerpakaiHariIni, jobAktif, referralDiklaim] = await Promise.all([
+    const [totalUser, dokumenTotal, dokumenHariIni, kreditTerpakaiMingguIni, jobAktif, referralDiklaim] = await Promise.all([
       (async () => { try { const { data } = await sb.auth.admin.listUsers({ perPage: 1 }); return data?.total || (data?.users ? data.users.length : 0); } catch { return 0; } })(),
       (async () => { try { const { count } = await sb.from('dokumen').select('id', { count: 'exact', head: true }); return count || 0; } catch { return 0; } })(),
       (async () => { try { const { count } = await sb.from('dokumen').select('id', { count: 'exact', head: true }).gte('created_at', awalHari); return count || 0; } catch { return 0; } })(),
+      // Nilai ini periode MINGGUAN (periodeKuota = Minggu 15:00 WIB); nama key
+      // JSON dipertahankan (kreditTerpakaiHariIni) agar kontrak frontend tidak pecah.
       (async () => { try { const { data } = await sb.from('kuota_harian').select('dipakai').eq('tanggal', hariIni); return (data || []).reduce((a, b) => a + (b.dipakai || 0), 0); } catch { return 0; } })(),
       (async () => { try { const { count } = await sb.from('jobs').select('id', { count: 'exact', head: true }).in('status', ['antri', 'berjalan']); return count || 0; } catch { return 0; } })(),
-      (async () => { try { const { count } = await sb.from('referal').select('id', { count: 'exact', head: true }); return count || 0; } catch { return 0; } })(),
+      // Klaim referral aktual: tabel baru bila ada, else dipakai_oleh_id terisi
+      (async () => {
+        try {
+          if (await adaTabelKlaim()) {
+            const { count } = await sb.from('klaim_referal').select('id', { count: 'exact', head: true });
+            return count || 0;
+          }
+          const { count } = await sb.from('referal').select('id', { count: 'exact', head: true }).not('dipakai_oleh_id', 'is', null);
+          return count || 0;
+        } catch { return 0; }
+      })(),
     ]);
-    res.json({ ok: true, totalUser, dokumenTotal, dokumenHariIni, kreditTerpakaiHariIni, jobAktif, referralDiklaim });
+    res.json({ ok: true, totalUser, dokumenTotal, dokumenHariIni, kreditTerpakaiHariIni: kreditTerpakaiMingguIni, jobAktif, referralDiklaim });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });
   }
@@ -2409,13 +2650,18 @@ app.get('/api/admin/pengguna', requireAdmin(async (req, res) => {
       const k = await sb.from('kunci_ai').select('user_id');
       byokSet = new Set((k.data || []).map((x) => x.user_id));
     } catch { /* abaikan: tabel BYOK mungkin belum ada */ }
-    const daftar = await Promise.all(users.map(async (u) => {
-      let jmlDokumen = 0;
-      try {
-        const c = await sb.from('dokumen').select('id', { count: 'exact', head: true }).eq('user_id', u.id);
-        jmlDokumen = c.count || 0;
-      } catch { /* abaikan */ }
-      return { id: u.id, email: u.email, dibuat: u.created_at, byok: byokSet.has(u.id), jmlDokumen };
+    // Hitung dokumen per user dalam SATU query (hindari N+1 per baris)
+    let hitungDok = {};
+    try {
+      const ids = users.map((u) => u.id);
+      if (ids.length) {
+        const { data: dd } = await sb.from('dokumen').select('user_id').in('user_id', ids);
+        for (const d of (dd || [])) hitungDok[d.user_id] = (hitungDok[d.user_id] || 0) + 1;
+      }
+    } catch { /* abaikan */ }
+    const daftar = users.map((u) => ({
+      id: u.id, email: u.email, dibuat: u.created_at,
+      byok: byokSet.has(u.id), jmlDokumen: hitungDok[u.id] || 0,
     }));
     res.json({ ok: true, data: daftar, total: data?.total ?? daftar.length, page, perPage });
   } catch (e) {
@@ -2505,8 +2751,17 @@ app.get('/api/admin/jobs', requireAdmin(async (req, res) => {
     if (error) throw error;
     const emailMap = {};
     try {
-      const { data: ud } = await sb.auth.admin.listUsers({ perPage: 100, page: 1 });
-      for (const u of (ud?.users || [])) emailMap[u.id] = u.email;
+      // Hanya user yang muncul di halaman ini; ambil halaman listUsers
+      // sampai semua ketemu (maks 10 halaman) — bukan 100 pertama saja.
+      const tersisa = new Set((data || []).map((j) => j.user_id).filter(Boolean));
+      let pageU = 1;
+      while (tersisa.size && pageU <= 10) {
+        const { data: ud } = await sb.auth.admin.listUsers({ perPage: 100, page: pageU });
+        const daftar = ud?.users || [];
+        for (const u of daftar) { emailMap[u.id] = u.email; tersisa.delete(u.id); }
+        if (!daftar.length) break;
+        pageU++;
+      }
     } catch { /* abaikan */ }
     res.json({
       ok: true,
@@ -2524,6 +2779,8 @@ app.get('/api/admin/jobs', requireAdmin(async (req, res) => {
 // Regenerate satu blok ala Gutenberg
 app.post('/api/regen-block', requireAuth(async (req, res) => {
   try {
+    if (!cekRateLimit(req.user.id, 'regen-block', 60))
+      return kirimGagal(res, 429, 'Terlalu banyak permintaan. Coba lagi nanti.');
     const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
     const { docType = 'modul', blockType = 'p', blockText = '', docTitle = '', topic = '' } = req.body || {};
     if (!String(blockText).trim()) return kirimGagal(res, 400, 'Blok kosong.');
@@ -2541,6 +2798,8 @@ app.post('/api/regen-block', requireAuth(async (req, res) => {
 // Rekomendasi AI di awal wizard
 app.post('/api/rekomendasi', requireAuth(async (req, res) => {
   try {
+    if (!cekRateLimit(req.user.id, 'rekomendasi', 30))
+      return kirimGagal(res, 429, 'Terlalu banyak permintaan. Coba lagi nanti.');
     const rekomendasi = await rekomendasiAIInternal(req.body || {});
     res.json({ ok: true, rekomendasi });
   } catch (e) {
@@ -2567,10 +2826,14 @@ function promptDrafPaket(jenis, { jenjang = '', fase = '', kelas = '', semester 
 }
 app.post('/api/paket/draf', requireAuth(async (req, res) => {
   try {
+    if (!cekRateLimit(req.user.id, 'paket-draf', 20))
+      return kirimGagal(res, 429, 'Terlalu banyak permintaan. Coba lagi nanti.');
     const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
     const { jenis = 'acuan', info = {}, topiks = [] } = req.body || {};
     if (!String(info.mapel || '').trim()) return kirimGagal(res, 400, 'Isi mata pelajaran dulu sebelum menyusun draf.');
-    const { system, user, maxTokens } = promptDrafPaket(jenis === 'materi' ? 'materi' : 'acuan', info, topiks);
+    const { daftar: daftarTopik, galat: galatTopik } = validasiTopiks(topiks);
+    if (galatTopik) return kirimGagal(res, 400, galatTopik);
+    const { system, user, maxTokens } = promptDrafPaket(jenis === 'materi' ? 'materi' : 'acuan', info, daftarTopik);
     const text = await aiKeyCtx.run(kunciUser, () => ai(system, user, maxTokens, 0.7));
     res.json({ ok: true, text: text.trim() });
   } catch (e) {

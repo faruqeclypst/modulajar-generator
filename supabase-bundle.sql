@@ -135,3 +135,56 @@ create index if not exists transaksi_status_idx on transaksi(status);
 create index if not exists transaksi_referensi_idx on transaksi(referensi);
 alter table transaksi enable row level security;
 -- Sengaja tanpa policy untuk user: hanya service_role (backend) yang baca/tulis.
+
+-- 10) Tabel inti: dokumen & jobs (disalin dari supabase-schema.sql agar
+--     bundle ini benar-benar sekali jalan untuk setup baru)
+create table if not exists dokumen (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  doc_type text not null,
+  judul text not null,
+  markdown text not null default '',
+  meta jsonb not null default '{}',
+  images jsonb not null default '[]',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists dokumen_user_idx on dokumen(user_id, updated_at desc);
+
+create table if not exists jobs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  mode text not null,
+  status text not null default 'antri'
+    check (status in ('antri','berjalan','menunggu_review','selesai','gagal','dibatalkan')),
+  config jsonb not null default '{}',
+  progress jsonb not null default '{}',
+  hasil jsonb not null default '[]',
+  error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists jobs_user_idx on jobs(user_id, created_at desc);
+
+alter table dokumen enable row level security;
+alter table jobs enable row level security;
+drop policy if exists "own_dokumen" on dokumen;
+create policy "own_dokumen" on dokumen for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "own_jobs" on jobs;
+create policy "own_jobs" on jobs for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 11) Klaim referral per teman (mendukung multi-klaim: satu kode bisa diklaim
+--     banyak user berbeda, satu baris per klaim)
+create table if not exists klaim_referal (
+  id uuid primary key default gen_random_uuid(),
+  kode text not null,
+  pemilik_id uuid not null,
+  oleh_id uuid not null,
+  created_at timestamptz default now(),
+  unique(kode, oleh_id)
+);
+create index if not exists klaim_referal_pemilik_idx on klaim_referal(pemilik_id, created_at);
+alter table klaim_referal enable row level security;
+-- Sengaja tanpa policy untuk user: hanya service_role (backend) yang baca/tulis.

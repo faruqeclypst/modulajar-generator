@@ -23,7 +23,7 @@ async function apiAdmin(path, method, body) {
 const fmtTgl = (v) => {
   if (!v) return '-';
   try {
-    return new Date(v).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return new Date(v).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   } catch { return String(v); }
 };
 const fmtAngka = (v) => Number(v || 0).toLocaleString('id-ID');
@@ -484,7 +484,7 @@ export default function AdminDashboard({ onBack }) {
                 <KartuAngka label="Total Pengguna" nilai={r.totalUser} loading={!ringkasan} />
                 <KartuAngka label="Dokumen Dibuat" nilai={r.dokumenTotal} loading={!ringkasan} />
                 <KartuAngka label="Dokumen Hari Ini" nilai={r.dokumenHariIni} loading={!ringkasan} />
-                <KartuAngka label="Kredit Terpakai Hari Ini" nilai={r.kreditTerpakaiHariIni} loading={!ringkasan} />
+                <KartuAngka label="Kredit Terpakai Minggu Ini" nilai={r.kreditTerpakaiHariIni} loading={!ringkasan} />
                 <KartuAngka label="Job Paket Aktif" nilai={r.jobAktif} loading={!ringkasan} />
                 <KartuAngka label="Referral Diklaim" nilai={r.referralDiklaim} loading={!ringkasan} />
               </div>

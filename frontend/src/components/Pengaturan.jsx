@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import Paywall from './Paywall';
-import { getAiConfig, saveAiConfig, deleteAiConfig, getAiStatus, setAiPilihan, getReferal } from '../lib/api';
+import { getAiConfig, saveAiConfig, deleteAiConfig, getAiStatus, setAiPilihan, getReferal, getProfile, saveProfile } from '../lib/api';
 import { SkelForm, Skel } from './Kerangka';
 
 // Sumber AI: pilih "AI bawaan web" atau "AI sendiri (BYOK)".
-// AI bawaan memotong kuota harian; AI sendiri tidak.
+// AI bawaan memotong kuota mingguan; AI sendiri tidak.
 function KunciAISendiri() {
   const [status, setStatus] = useState('memuat'); // memuat | aktif | kosong | gagal
   const [cfg, setCfg] = useState(null);
@@ -46,7 +46,7 @@ function KunciAISendiri() {
     try {
       await setAiPilihan(keBawaan);
       setPilihan(keBawaan);
-      setCatatan(keBawaan ? 'Sekarang memakai AI bawaan web (memotong kredit harian).' : 'Sekarang memakai kunci AI sendiri (tanpa potong kredit).');
+      setCatatan(keBawaan ? 'Sekarang memakai AI bawaan web (memotong kredit mingguan).' : 'Sekarang memakai kunci AI sendiri (tanpa potong kredit).');
     } catch (e) {
       setErr('Gagal mengganti pilihan: ' + (e.message || 'coba lagi.'));
     } finally {
@@ -77,7 +77,7 @@ function KunciAISendiri() {
   }
 
   async function hapus() {
-    if (!window.confirm('Hapus kunci AI sendiri? Generate akan kembali memakai kuota harian.')) return;
+    if (!window.confirm('Hapus kunci AI sendiri? Generate akan kembali memakai kuota mingguan.')) return;
     setErr('');
     setCatatan('');
     try {
@@ -109,7 +109,7 @@ function KunciAISendiri() {
             <b>AI bawaan web</b>
             <br />
             <span className="muted">
-              {bawaanAktif ? 'Memakai kunci yang disediakan web. Generate memotong kredit harian.' : 'Saat ini dimatikan admin — wajib pakai AI sendiri.'}
+              {bawaanAktif ? 'Memakai kunci yang disediakan web. Generate memotong kredit mingguan.' : 'Saat ini dimatikan admin — wajib pakai AI sendiri.'}
             </span>
           </span>
         </label>
@@ -121,7 +121,7 @@ function KunciAISendiri() {
           <span>
             <b>AI sendiri</b>
             <br />
-            <span className="muted">Pakai API key milikmu. Generate tidak memotong kredit harian.</span>
+            <span className="muted">Pakai API key milikmu. Generate tidak memotong kredit mingguan.</span>
           </span>
         </label>
       </div>
@@ -247,8 +247,6 @@ function BagikanBonus() {
     </section>
   );
 }
-import { getProfile, saveProfile } from '../lib/api';
-
 // Halaman Pengaturan: hanya kontrol nyata, semuanya berfungsi.
 export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }) {
   const meta = user?.user_metadata || {};
@@ -367,7 +365,7 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
           <>
             <p style={{ marginTop: 0 }}>
               Sisa <b>{kuota.sisa}</b> dari <b>{kuota.batas}</b> kredit minggu ini.
-              20 kredit/minggu, diperbarui setiap Minggu jam 15:00 WIB.
+              {kuota.batas || 20} kredit/minggu, diperbarui setiap Minggu jam 15:00 WIB.
             </p>
             <div className="btn-row" style={{ marginTop: 12, marginBottom: 0 }}>
               <button type="button" className="btn btn-sm btn-primary" onClick={() => setPaywall({ mode: 'upgrade' })}>

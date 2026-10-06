@@ -1,6 +1,6 @@
 import { getToken } from './supabase';
 
-// Status kuota harian user yang login: { admin, batas, dipakai, sisa, tanggal }
+// Status kuota mingguan user yang login: { admin, batas, dipakai, sisa, tanggal }
 // Admin: batas/sisa = null (tanpa batas). Gagal fetch: null.
 export async function fetchKuota() {
   try {

@@ -25,8 +25,6 @@ export default function Paywall({ mode, detail, onClose, waLink }) {
     if (r && r.segera) setLayar('segera');
   }
 
-  const dipakai = detail?.dipakai;
-  const batas = detail?.batas;
   const butuh = detail?.butuh;
   const sisa = detail?.sisa;
 
@@ -36,11 +34,9 @@ export default function Paywall({ mode, detail, onClose, waLink }) {
         {layar === 'info' && (
           <>
             <span className="kicker red">Kredit</span>
-            <h2 id="paywall-judul">Kredit harian habis</h2>
+            <h2 id="paywall-judul">Kredit mingguan habis</h2>
             <p>
-              {typeof dipakai === 'number' && typeof batas === 'number'
-                ? `Kamu memakai ${dipakai} dari ${batas} kredit minggu ini. `
-                : 'Kredit harianmu sudah habis. '}
+              Kredit mingguanmu sudah habis.{' '}
               {typeof butuh === 'number' && typeof sisa === 'number'
                 ? `Paket ini butuh ${butuh} dokumen, sisa kreditmu ${sisa}. `
                 : ''}
@@ -60,7 +56,7 @@ export default function Paywall({ mode, detail, onClose, waLink }) {
             <span className="kicker red">Upgrade</span>
             <h2 id="paywall-judul">Buat dokumen tanpa batas</h2>
             <p>
-              Satu akun upgrade, kredit harian tidak berlaku lagi.
+              Satu akun upgrade, kredit mingguan tidak berlaku lagi.
               Cocok untuk awal semester saat banyak perangkat harus disusun sekaligus.
             </p>
             <div className="btn-row">

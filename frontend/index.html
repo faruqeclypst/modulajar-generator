@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ModulAjar — Generator Perangkat Ajar Kurikulum Merdeka</title>
-<meta name="description" content="ModulAjar menyusun perangkat ajar Kurikulum Merdeka berurutan: CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Bank Soal, dan KKTP. Gratis 20 kredit setiap minggu." />
+<title>ModulAjar — Perangkat Ajar Lengkap dalam Hitungan Menit</title>
+<meta name="description" content="Susun CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Bank Soal, dan KKTP mengikuti alur Kurikulum Merdeka dalam hitungan menit. Gratis 20 kredit setiap minggu." />
 <meta name="keywords" content="modul ajar, perangkat pembelajaran, kurikulum merdeka, CP, ATP, prota, prosem, LKPD, bank soal, KKTP, generator modul ajar, AI untuk guru" />
 <meta name="author" content="Alfaruq Asri, S.Pd." />
 <meta name="robots" content="index, follow" />
@@ -18,8 +18,8 @@
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="ModulAjar" />
 <meta property="og:locale" content="id_ID" />
-<meta property="og:title" content="ModulAjar — Generator Perangkat Ajar Kurikulum Merdeka" />
-<meta property="og:description" content="Dari CP sampai bank soal, tersusun berurutan mengikuti Kurikulum Merdeka. Gratis 20 kredit setiap minggu." />
+<meta property="og:title" content="ModulAjar — Perangkat Ajar Lengkap dalam Hitungan Menit" />
+<meta property="og:description" content="Susun CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Bank Soal, dan KKTP mengikuti alur Kurikulum Merdeka dalam hitungan menit. Gratis 20 kredit setiap minggu." />
 <meta property="og:url" content="https://modulajar.alfaruqasri.my.id/" />
 <meta property="og:image" content="https://modulajar.alfaruqasri.my.id/og-image.png" />
 <meta property="og:image:width" content="1200" />
@@ -28,8 +28,8 @@
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="ModulAjar — Generator Perangkat Ajar Kurikulum Merdeka" />
-<meta name="twitter:description" content="Dari CP sampai bank soal, tersusun berurutan mengikuti Kurikulum Merdeka. Gratis 20 kredit setiap minggu." />
+<meta name="twitter:title" content="ModulAjar — Perangkat Ajar Lengkap dalam Hitungan Menit" />
+<meta name="twitter:description" content="Susun CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Bank Soal, dan KKTP mengikuti alur Kurikulum Merdeka dalam hitungan menit. Gratis 20 kredit setiap minggu." />
 <meta name="twitter:image" content="https://modulajar.alfaruqasri.my.id/og-image.png" />
 
 <!-- Structured data -->
@@ -41,7 +41,7 @@
   "alternateName": "ModulAjar — Generator Modul Ajar",
   "url": "https://modulajar.alfaruqasri.my.id/",
   "image": "https://modulajar.alfaruqasri.my.id/og-image.png",
-  "description": "Generator perangkat ajar Kurikulum Merdeka: CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Bank Soal, dan KKTP. Gratis 20 kredit setiap minggu.",
+  "description": "Susun CP, ATP, Prota, Prosem, Modul Ajar, LKPD, Bank Soal, dan KKTP mengikuti alur Kurikulum Merdeka dalam hitungan menit. Gratis 20 kredit setiap minggu.",
   "applicationCategory": "EducationalApplication",
   "operatingSystem": "Web",
   "inLanguage": "id",
@@ -53,9 +53,52 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  /* Konten statis pra-render: dibaca crawler tanpa JS, diganti React saat aplikasi dimuat. */
+  .seo-static { font-family: Archivo, system-ui, sans-serif; background: #FBF6EE; color: #1E1914; max-width: 880px; margin: 0 auto; padding: 32px 24px 64px; line-height: 1.65; }
+  .seo-static nav { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 32px; font-weight: 700; }
+  .seo-static nav a { color: #1E1914; }
+  .seo-static h1 { font-size: 40px; line-height: 1.15; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; margin: 0 0 16px; }
+  .seo-static h2 { font-size: 24px; font-weight: 800; margin: 40px 0 8px; }
+  .seo-static p { margin: 0 0 12px; color: #3d362d; }
+  .seo-static ul { margin: 0 0 12px; padding-left: 22px; color: #3d362d; }
+  .seo-static .kicker { display: inline-block; background: #1E1914; color: #FBF6EE; font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; padding: 5px 12px; margin-bottom: 16px; }
+  .seo-static footer { margin-top: 48px; border-top: 2px solid #1E1914; padding-top: 16px; font-size: 14px; }
+</style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <!-- Konten statis untuk SEO/crawler tanpa JavaScript. React menggantikannya saat dimuat. -->
+  <div class="seo-static">
+    <nav aria-label="Navigasi">
+      <a href="#alur">Alur Dokumen</a>
+      <a href="#cara-kerja">Cara Kerja</a>
+      <a href="#harga">Harga</a>
+      <a href="#faq">Tanya Jawab</a>
+    </nav>
+    <span class="kicker">Untuk Guru Indonesia</span>
+    <h1>Perangkat Ajar Lengkap dalam Hitungan Menit</h1>
+    <p>ModulAjar adalah generator perangkat ajar Kurikulum Merdeka bertenaga AI. Dari CP sampai modul ajar, LKPD, dan bank soal — AI menyusun mengikuti alur Kurikulum Merdeka yang runtut dan acuan yang kamu pilih. Kamu yang memeriksa, mengedit, dan mengesahkan.</p>
+    <h2 id="alur">Satu alur, sembilan perangkat</h2>
+    <p>Perangkat ajar yang baik tersusun berurutan: perencanaan dulu, baru pelaksanaan, lalu penilaian.</p>
+    <ul>
+      <li><strong>Perencanaan:</strong> CP, ATP, Minggu Efektif, Prota, Prosem</li>
+      <li><strong>Pelaksanaan:</strong> Modul Ajar, LKPD</li>
+      <li><strong>Penilaian:</strong> Bank Soal, KKTP</li>
+    </ul>
+    <h2 id="cara-kerja">Cara kerja</h2>
+    <p>Buat proyek untuk satu mata pelajaran, susun perencanaan (CP, ATP, Prota, Prosem), lalu generate dokumen — satuan atau paket satu klik untuk satu semester sekaligus. Edit per blok, tulis ulang bagian dengan AI, sisipkan gambar, lalu unduh sebagai Word atau cetak PDF.</p>
+    <h2 id="harga">Harga</h2>
+    <p>Setiap akun mendapat 20 kredit gratis setiap minggu, diperbarui setiap Minggu jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Tanpa kartu kredit.</p>
+    <h2 id="faq">Tanya jawab</h2>
+    <p><strong>Apakah ModulAjar gratis?</strong> Ya — 20 kredit gratis setiap minggu, diperbarui setiap Minggu jam 15:00 WIB.</p>
+    <p><strong>Dokumen apa saja yang bisa dibuat?</strong> CP, ATP, Minggu Efektif, Prota, Prosem, Modul Ajar lengkap (materi, bank soal, rubrik, lembar pengesahan), LKPD, Bank Soal, dan KKTP.</p>
+    <p><strong>Bisakah memakai API key AI sendiri?</strong> Bisa — di Pengaturan ada opsi kunci AI sendiri; generate tidak memotong kredit.</p>
+    <footer>
+      <p>© 2026 ModulAjar · Dibuat untuk guru Indonesia.</p>
+    </footer>
+  </div>
+</div>
 <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

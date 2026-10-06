@@ -184,12 +184,15 @@ export default function App() {
   const [projectAktif, setProjectAktif] = useState(null);
   const [active, setActive] = useState(null);
   const [asalDoc, setAsalDoc] = useState(null); // halaman asal sebelum buka dokumen (untuk tombol Kembali)
+  const [docGagalId, setDocGagalId] = useState(null); // id dokumen yang gagal dimuat karena jaringan (untuk tombol Coba lagi)
+  const bukaRef = useRef(0); // tiket pembatalan fetch openDoc (mencegah race navigasi)
   const [draft, setDraft] = useState(null);
   const [wizardKey, setWizardKey] = useState(0);
   const [wizardPaket, setWizardPaket] = useState(null);
   const [wizardProyek, setWizardProyek] = useState(null);
   const [ruangProyek, setRuangProyek] = useState(() => bacaViewTersimpan()?.ruangProjectId || null);
   const [wizardTurunan, setWizardTurunan] = useState(null); // { docType, modulId }
+  const [wizardDocType, setWizardDocType] = useState(null); // preselect jenis dokumen satuan dari beranda
   const [kuota, setKuota] = useState(null); // { admin, batas, dipakai, sisa, tanggal } | null
 
   // Terapkan preferensi ukuran teks sesegera mungkin
@@ -319,12 +322,29 @@ export default function App() {
     setWizardPaket(paketId || null);
     setWizardProyek(projectId || null);
     setWizardTurunan(null);
+    setWizardDocType(null);
     setWizardKey((k) => k + 1);
     setView('wizard');
   }
-  function startTurunan(docType, modulId) { setWizardTurunan({ docType, modulId }); setWizardPaket(null); setWizardProyek(null); setWizardKey((k) => k + 1); setView('wizard'); }
+  function startTurunan(docType, modulId) { setWizardTurunan({ docType, modulId }); setWizardDocType(null); setWizardPaket(null); setWizardProyek(null); setWizardKey((k) => k + 1); setView('wizard'); }
+  function startSatuan(docType) { setWizardDocType(docType || null); setWizardTurunan(null); setWizardPaket(null); setWizardProyek(null); setWizardKey((k) => k + 1); setView('wizard'); }
   async function openDoc(id, asal) {
-    const d = await getModul(id);
+    const tiket = ++bukaRef.current; // (B) batalkan bila pengguna navigasi sebelum fetch selesai
+    let d = null;
+    try {
+      d = await getModul(id);
+    } catch (e) {
+      if (tiket !== bukaRef.current) return;
+      // (C) Gangguan jaringan: bedakan dari "dokumen tidak ada"
+      setActive(null);
+      setDocGagalId(id);
+      setView('tidak-ditemukan');
+      const p = '/dokumen/' + id;
+      if (window.location.pathname !== p) history.pushState(null, '', p);
+      return;
+    }
+    if (tiket !== bukaRef.current) return;
+    setDocGagalId(null);
     if (!d) {
       // Dokumen tidak ada / sudah dihapus -> halaman 404
       setActive(null);
@@ -343,18 +363,24 @@ export default function App() {
   // Catat halaman asal sebelum buka dokumen (untuk tombol Kembali)
   const catatAsal = (asal) => setAsalDoc(asal || null);
   function kembaliDariDoc() {
+    bukaRef.current++; // (B) batalkan fetch openDoc yang masih berjalan
     if (window.location.pathname.startsWith('/dokumen/')) {
       history.replaceState(null, '', '/');
     }
     const a = asalDoc; setAsalDoc(null);
-    if (a?.view === 'proyek' && a.projectId) openProyek(a.projectId);
+    if (a?.view === 'proyek' && a.projectId) {
+      // (G3) Proyek asal mungkin sudah dihapus -> fallback ke beranda agar tidak stuck
+      openProyek(a.projectId).then((ok) => { if (!ok) goApp(); });
+    }
     else if (a?.view === 'ruang' && a.ruangProjectId) goRuang(a.ruangProjectId);
+    else if (a?.view === 'paket') setView('paket');
     else goApp();
   }
   // Routing dokumen via path /dokumen/<id> (bukan hash, agar tautan rapi dan
   // tidak rusak saat dibagikan). Mendukung: tombol Lihat, klik kanan > buka di
   // tab baru, tombol back browser, dan link hash lama (#/dokumen/<id>) yang
   // otomatis dikonversi ke path baru.
+  const pertamaRouting = useRef(true);
   useEffect(() => {
     if (auth !== 'app') return;
     const idDokumenDariUrl = () => {
@@ -366,15 +392,29 @@ export default function App() {
       const pm = window.location.pathname.match(/^\/dokumen\/([\w-]+)\/?$/);
       return pm ? pm[1] : null;
     };
+    // (A) Sinkronisasi URL: navigasi programmatic menjauh dari dokumen (setView
+    // tanpa ubah URL) harus mereset URL ke '/', kalau tidak bukaDariUrl() akan
+    // membuka ulang dokumen -> bounce. Dilewati pada proses pertama agar deep
+    // link (/dokumen/<id> dibuka di tab baru) tetap dibuka.
+    if (!pertamaRouting.current) {
+      if ((view !== 'detail' && view !== 'tidak-ditemukan') && window.location.pathname.startsWith('/dokumen/')) {
+        history.replaceState(null, '', '/');
+        bukaRef.current++; // (B) batalkan fetch openDoc yang masih berjalan
+      }
+    }
+    pertamaRouting.current = false;
     const bukaDariUrl = () => {
       const id = idDokumenDariUrl();
       if (!id) return false;
-      if (view !== 'detail' || active?.id !== id) openDoc(id);
+      // Sudah di halaman 404 untuk id ini (tak ada / gagal jaringan): jangan buka ulang
+      if (view === 'tidak-ditemukan') return true;
+      if (view !== 'detail' || active?.id !== id) openDoc(id, null); // (D) asal eksplisit
       return true;
     };
     const tandai404 = () => {
       const path = window.location.pathname;
-      if (path !== '/' && !path.startsWith('/dokumen/') && view !== 'tidak-ditemukan') {
+      const matchDok = /^\/dokumen\/([\w-]+)\/?$/.test(path); // (G1) '/dokumen/' tanpa id -> 404
+      if (path !== '/' && !matchDok && view !== 'tidak-ditemukan') {
         setView('tidak-ditemukan');
       }
     };
@@ -396,8 +436,9 @@ export default function App() {
   }, []);
   async function openProyek(id) {
     const p = await getProject(id);
-    if (!p) return;
+    if (!p) return false;
     setProjectAktif(p); setView('proyek');
+    return true;
   }
   const goApp = () => { setView('app'); refresh(); };
   const goRuang = (projectId) => { setRuangProyek(projectId || null); setView('ruang'); };
@@ -408,6 +449,7 @@ export default function App() {
     setUser(null);
     setActive(null);
     try { localStorage.removeItem(VIEW_KEY); } catch { /* abaikan */ }
+    history.replaceState(null, '', '/'); // (G2) jangan tinggalkan URL /dokumen/<id>
     setView('landing');
   }
 
@@ -475,14 +517,29 @@ export default function App() {
         <div className="wrap narrow" style={{ textAlign: 'center', paddingTop: 72 }}>
           <span className="kicker">404</span>
           <h1 className="page">Halaman tidak ditemukan</h1>
-          <p className="lead" style={{ maxWidth: '52ch', marginLeft: 'auto', marginRight: 'auto' }}>
-            Dokumen atau halaman yang kamu cari tidak ada, sudah dihapus,
-            atau tautannya salah ketik.
-          </p>
+          {docGagalId ? (
+            <p className="lead" style={{ maxWidth: '52ch', marginLeft: 'auto', marginRight: 'auto' }}>
+              Koneksi bermasalah saat memuat dokumen. Periksa koneksi internet,
+              lalu coba lagi.
+            </p>
+          ) : (
+            <p className="lead" style={{ maxWidth: '52ch', marginLeft: 'auto', marginRight: 'auto' }}>
+              Dokumen atau halaman yang kamu cari tidak ada, sudah dihapus,
+              atau tautannya salah ketik.
+            </p>
+          )}
           <div className="btn-row" style={{ justifyContent: 'center' }}>
+            {docGagalId && (
+              <button
+                type="button" className="btn btn-primary"
+                onClick={() => openDoc(docGagalId, null)}
+              >
+                Coba lagi
+              </button>
+            )}
             <button
-              type="button" className="btn btn-primary"
-              onClick={() => { history.replaceState(null, '', '/'); goApp(); }}
+              type="button" className={docGagalId ? 'btn' : 'btn btn-primary'}
+              onClick={() => { setDocGagalId(null); history.replaceState(null, '', '/'); goApp(); }}
             >
               Kembali ke beranda
             </button>
@@ -495,16 +552,16 @@ export default function App() {
       {view === 'wizard' && (
         <Wizard
           key={wizardKey}
-          initial={draft && !draft.markdown ? { form: draft.form } : undefined}
+          initial={draft && !draft.markdown ? { form: draft.form, step: draft.step } : undefined}
           preselectPaketId={wizardPaket}
           preselectProjectId={wizardProyek}
-          preselectDocType={wizardTurunan?.docType}
+          preselectDocType={wizardTurunan?.docType || wizardDocType}
           preselectModulId={wizardTurunan?.modulId}
           waLink={WA_LINK}
           kuota={kuota}
           onKuotaChanged={muatKuota}
           onCancel={goApp}
-          onDone={(id) => { openDoc(id); refresh(); }}
+          onDone={(id) => { openDoc(id, null); refresh(); }}
         />
       )}
 
@@ -576,6 +633,24 @@ export default function App() {
               <button className="btn btn-primary" onClick={() => goRuang()}>
                 {projects.length === 0 ? 'Mulai Perencanaan' : 'Buka Ruang Perencanaan'}
               </button>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flow-num" aria-hidden="true">02</div>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <h3 style={{ margin: '0 0 4px' }}>Buat Satu Dokumen</h3>
+              <p style={{ margin: '0 0 12px', fontSize: 14 }}>
+                Butuh satu saja? Pilih jenis dokumen — modul ajar 1 unit, KKTP saja, CP saja, dan lainnya.
+                Memakai 1 kredit per dokumen jadi.
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {Object.entries(DOC_TYPES).map(([key, dt]) => (
+                  <button key={key} type="button" className="btn btn-sm" onClick={() => startSatuan(key)} title={dt.desc}>
+                    {dt.nama}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

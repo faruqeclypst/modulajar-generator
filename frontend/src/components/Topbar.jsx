@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ModalReferal from './ModalReferal';
 
 // Topbar: latar ink, sticky. Navigasi nyata (pindah view), chip pengguna
@@ -36,6 +36,7 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
   const [open, setOpen] = useState(false); // menu pengguna
   const [mobileOpen, setMobileOpen] = useState(false); // panel navigasi mobile
   const [refModal, setRefModal] = useState(false); // modal Free Credit (referal)
+  const tutupRefModal = useCallback(() => setRefModal(false), []); // stabil: cegah re-subscribe Escape tiap render
   const triggerRef = useRef(null);
   const menuRef = useRef(null);
   const firstItemRef = useRef(null);
@@ -213,7 +214,7 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
           </>
         )}
       </nav>
-      {refModal && <ModalReferal onClose={() => setRefModal(false)} />}
+      {refModal && <ModalReferal onClose={tutupRefModal} />}
     </header>
   );
 }

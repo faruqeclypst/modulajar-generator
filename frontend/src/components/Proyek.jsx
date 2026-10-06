@@ -4,7 +4,7 @@ import { saveProject, updateProject, deleteProject, getPaket, deleteModul } from
 import FormulirDasar from './FormulirDasar';
 
 function fmtDate(ts) {
-  return new Date(ts).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(ts).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function labelProyek(p) {
@@ -175,7 +175,7 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
                   </div>
                   <time>Diperbarui {fmtDate(m.updatedAt)}</time>
                   <div className="actions">
-                    <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(m.id)}>Buka</button>
+                    <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(m.id, { view: 'app' })}>Buka</button>
                     <button className="btn btn-sm btn-danger" onClick={() => hapusDokumen(m)} disabled={busy}>Hapus</button>
                   </div>
                 </div>
@@ -314,7 +314,7 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
                   {m.topik && <div style={{ fontSize: 13.5, color: 'var(--slate)' }}>{m.topik}</div>}
                   <time>Diperbarui {fmtDate(m.updatedAt)}</time>
                   <div className="actions">
-                    <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(m.id)}>Buka</button>
+                    <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(m.id, { view: 'proyek', projectId: project.id })}>Buka</button>
                     <button className="btn btn-sm btn-danger" onClick={() => hapusDokumen(m)} disabled={busy}>Hapus</button>
                   </div>
                 </div>

@@ -67,7 +67,12 @@ export async function listModuls() {
 export async function getModul(id) {
   const c = await getSupabase();
   const { data, error } = await c.from('dokumen').select('*').eq('id', id).single();
-  if (error) return null;
+  if (error) {
+    // PGRST116 = tidak ada baris -> dokumen memang tidak ada (404 asli).
+    // Error lain (jaringan, RLS, dsb) dilempar agar pemanggil bisa bedakan.
+    if (error.code === 'PGRST116') return null;
+    throw new Error('Gagal memuat dokumen: ' + error.message);
+  }
   return toApp(data);
 }
 

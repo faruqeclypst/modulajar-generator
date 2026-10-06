@@ -240,7 +240,8 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   useEffect(() => {
     (async () => {
       if (need && paket.docs[need]) {
-        const d = await getModul(paket.docs[need]);
+        let d = null;
+        try { d = await getModul(paket.docs[need]); } catch { d = null; }
         if (d) { setSumber(d.markdown || ''); setSumberJudul(d.judul || DOC_TYPES[need].nama); }
       }
     })();
