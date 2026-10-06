@@ -18,7 +18,7 @@ import { SkelKartu } from './Kerangka';
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
 const BUTUH = { cp: null, atp: 'cp', minggu_efektif: 'atp', distribusi_jp: 'minggu_efektif', prota: 'distribusi_jp', prosem: 'prota' };
 // Acuan tambahan (selain BUTUH utama) yang ikut dikirim sebagai referensi AI
-const ACUAN_TAMBAHAN = { prosem: ['minggu_efektif', 'distribusi_jp'] };
+const ACUAN_TAMBAHAN = { prosem: ['atp', 'minggu_efektif', 'distribusi_jp'] };
 
 export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBuatModul, preselectProjectId, waLink, onKuotaChanged, bukaStep, tugasId, onStepChange }) {
   const [projects, setProjects] = useState([]);
