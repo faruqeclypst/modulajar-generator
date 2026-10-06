@@ -97,7 +97,8 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
             )}
           </div>
           <figure className="hero-maskot">
-            <img src="/maskot.png" alt="Maskot guru ModulAjar menunjuk ke atas sambil memegang tablet" width="640" height="600" loading="eager" />
+            <img className="maskot-splash" src="/splash.svg" alt="" aria-hidden="true" />
+            <img className="maskot-img" src="/maskot.png" alt="Maskot guru ModulAjar menunjuk ke atas sambil memegang tablet" width="640" height="600" loading="eager" />
           </figure>
         </div>
       </section>
