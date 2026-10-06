@@ -113,6 +113,13 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
           </button>
         )}
         {!user && (
+          <nav className="landnav" aria-label="Navigasi landing">
+            {[['#alur', 'Alur'], ['#cara-kerja', 'Cara Kerja'], ['#harga', 'Harga'], ['#faq', 'FAQ']].map(([href, label]) => (
+              <a key={href} className="nav-item" href={href}>{label}</a>
+            ))}
+          </nav>
+        )}
+        {!user && (
           <button type="button" className="btn btn-primary btn-sm topbar-cta" onClick={onLogin}>
             Masuk
           </button>

@@ -75,6 +75,16 @@ img { max-width: 100%; }
 .topbar-land .user-chip { border-color: var(--ink); color: var(--ink); }
 .topbar-land .user-chip:hover { background: var(--wash); }
 .topbar-land .topbar-acts { border-left-color: rgba(30,25,20,.22); }
+/* Navigasi landing publik: tautan anchor ke section (tinta di atas krem). */
+.landnav { display: flex; align-items: center; gap: 2px; }
+.landnav .nav-item {
+  display: inline-flex; align-items: center; text-decoration: none;
+  color: var(--ink);
+}
+.landnav .nav-item:hover { color: var(--red); border-bottom-color: var(--red); }
+@media (max-width: 760px) { .landnav { display: none; } }
+/* Anchor section tidak tertutup navbar sticky. */
+section[id] { scroll-margin-top: 88px; }
 .topnav-desktop { display: flex; align-items: center; gap: 6px; }
 .nav-item {
   background: none; border: none; color: var(--paper); font: inherit; font-weight: 700;
