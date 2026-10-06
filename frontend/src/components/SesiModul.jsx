@@ -230,6 +230,69 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
     generateUntuk(topiks[mulai], mulai);
   }
 
+  // Paket lengkap: generate SEMUA modul sekaligus tanpa konfirmasi per modul
+  async function paketLengkap() {
+    if (!topiks.length) { setError('Tambahkan minimal satu topik (atau ambil dari Prosem).'); return; }
+    if (busy) return;
+    setError('');
+    setHasil([]);
+    setSesiTerhenti(false);
+    setTahap('jalan');
+    setBusy(true);
+    const tid = buatTugas({ judul: `Paket Lengkap: ${topiks.length} Modul`, konteks: 'sesi-modul', aksi: { kembali: 'Lihat proses' } });
+    tugasIdRef.current = tid;
+    try {
+      for (let ix = 0; ix < topiks.length; ix++) {
+        setIdx(ix);
+        const topikObj = topiks[ix];
+        tugasTahap(tid, `modul-${ix}`, `Modul ${ix + 1}/${topiks.length}: ${topikObj.topik.slice(0, 40)}`);
+        const info = {
+          ...getProfile(),
+          topik: topikObj.topik, alokasi: topikObj.alokasi,
+          docType: 'modul',
+          personaGuru: persona,
+          menitPerJP: getProfile().menitPerJP || 45,
+          // Rantai: kirim semua dokumen perencanaan agar modul selaras
+          _rantai: ['cp', 'atp', 'minggu_efektif', 'distribusi_jp', 'prota', 'prosem'],
+        };
+        const sumberParts = [];
+        if (docs.cp) sumberParts.push('===== CP =====\n' + docs.cp.slice(0, 6000));
+        if (docs.atp) sumberParts.push('===== ATP =====\n' + docs.atp.slice(0, 6000));
+        if (docs.minggu_efektif) sumberParts.push('===== MINGGU EFEKTIF =====\n' + docs.minggu_efektif.slice(0, 3000));
+        if (docs.distribusi_jp) sumberParts.push('===== DISTRIBUSI JP =====\n' + docs.distribusi_jp.slice(0, 3000));
+        if (docs.prota) sumberParts.push('===== PROTA =====\n' + docs.prota.slice(0, 4000));
+        if (docs.prosem) sumberParts.push('===== PROSEM =====\n' + docs.prosem.slice(0, 4000));
+        const sumber = sumberParts.join('\n\n');
+        let md = '', imgs = [];
+        await generateDocStream('modul', info, topikObj.topik, sumber, null, (ev) => {
+          if (ev.tipe === 'selesai') { md = ev.markdown || ''; imgs = ev.images || []; }
+        });
+        if (!md) throw new Error(`Gagal generate modul ${ix + 1}.`);
+        const judul = extractTitle(md) || `Modul: ${topikObj.topik}`;
+        const prof = getProfile();
+        const docId = await saveModul({
+          docType: 'modul', judul,
+          jenjang: project.jenjang, fase: project.fase, kelas: project.kelas,
+          semester: project.semester, mapel: mapel || project.mapel, topik: topikObj.topik,
+          alokasi: topikObj.alokasi, model: model === 'auto' ? '' : model,
+          nama: namaGuru || prof.nama, sekolah: prof.sekolah, tahunAjaran: project.tahunAjaran || prof.tahunAjaran,
+          markdown: md, images: imgs, projectId: project.id,
+        });
+        setHasil((prev) => [...prev, { topik: topikObj.topik, docId, markdown: md }]);
+      }
+      tugasSelesai(tid, {});
+      setTahap('selesai');
+      onKuotaChanged && onKuotaChanged();
+    } catch (e) {
+      tugasGagal(tid, e.message || 'Paket gagal.');
+      setError(e.message || 'Paket gagal.');
+      setTahap('setup');
+    } finally {
+      setBusy(false);
+      tugasIdRef.current = null;
+    }
+  }
+
   function mulaiUlang() {
     setHasil([]);
     setSesiTerhenti(false);
@@ -443,7 +506,7 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
             </div>
           </div>
           <p className="hint">
-            Dokumen acuan tersedia: {[docs.cp && 'CP', docs.atp && 'ATP', docs.prota && 'Prota', docs.prosem && 'Prosem'].filter(Boolean).join(', ') || 'belum ada'}.
+            Dokumen acuan tersedia: {[docs.cp && 'CP', docs.atp && 'ATP', docs.minggu_efektif && 'Minggu Efektif', docs.distribusi_jp && 'Distribusi JP', docs.prota && 'Prota', docs.prosem && 'Prosem'].filter(Boolean).join(', ') || 'belum ada'}.
             {!docs.atp && ' Buat dulu di Ruang Perencanaan agar modul selaras.'}
           </p>
           {personaRingkasan && (
@@ -472,8 +535,11 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
           )}
           <div className="btn-row">
             <button type="button" className="btn" onClick={onBack}>Kembali</button>
-            <button type="button" className="btn btn-primary" onClick={() => mulaiSesi(0)} disabled={busy || !topiks.length}>
-              Mulai Sesi ({topiks.length} modul)
+            <button type="button" className="btn" onClick={() => mulaiSesi(0)} disabled={busy || !topiks.length}>
+              Sesi Per Modul ({topiks.length})
+            </button>
+            <button type="button" className="btn btn-primary" onClick={paketLengkap} disabled={busy || !topiks.length} title="Generate semua modul sekaligus tanpa konfirmasi per modul">
+              Paket Lengkap Sekali Generate ({topiks.length} modul)
             </button>
           </div>
           {topiks.length > 0 && (
