@@ -180,7 +180,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .btn-danger { background: var(--paper-2); color: var(--red-dark); border: 2px solid var(--red); }
 .btn-danger:hover { box-shadow: 4px 4px 0 var(--red); }
 .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
-@media (max-width: 640px) { .btn-row .btn { flex: 1 1 100%; } }
+@media (max-width: 640px) { .btn-row .btn { flex: 1 1 100%; } .toolbar .btn { flex: 1 1 calc(50% - 5px); } }
 
 /* ---------- formulir ---------- */
 .field { margin-bottom: 18px; }
@@ -393,6 +393,8 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 
 /* ---------- kertas dokumen ---------- */
 .paper { background: #fff; border: var(--bd); box-shadow: 8px 8px 0 var(--ink); padding: clamp(24px, 5vw, 56px); margin-bottom: 24px; }
+/* Halaman detail dokumen: kertas lebih lebar di layar besar, tetap nyaman dibaca */
+.docview .paper { max-width: 940px; margin-left: auto; margin-right: auto; }
 .paper-head { border-bottom: 4px solid var(--ink); padding-bottom: 20px; margin-bottom: 24px; }
 .paper-head .doclabel { font-size: 12px; font-weight: 800; letter-spacing: 3px; color: var(--red-dark); text-transform: uppercase; margin-bottom: 8px; }
 .paper-head h1 { font-size: clamp(24px, 4.5vw, 38px); font-weight: 900; line-height: 1.15; margin: 0 0 14px; letter-spacing: -.5px; }

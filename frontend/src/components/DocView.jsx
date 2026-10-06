@@ -58,7 +58,7 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
   }
 
   return (
-    <div className="wrap narrow">
+    <div className="wrap docview">
       <div className="toolbar no-print">
         <button className="btn btn-sm" onClick={onBack}>← Kembali</button>
         {mode === 'view' && (
