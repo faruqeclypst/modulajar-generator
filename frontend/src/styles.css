@@ -739,16 +739,17 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   .matriks-lebar .md table th:nth-child(2), .matriks-lebar .md table td:nth-child(2) { width: 4%; }
   .matriks-lebar .md table th:last-child, .matriks-lebar .md table td:last-child { width: 8%; white-space: normal; }
 }
-/* Minggu libur/tidak efektif: tetap tampil dengan warna */
+/* Minggu libur/tidak efektif: fill merah, tanpa JP */
 .matriks-lebar .md table td.td-libur {
-  background: repeating-linear-gradient(45deg, #E0E0E0, #E0E0E0 4px, #F5F5F5 4px, #F5F5F5 8px);
+  background: #E57373;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 /* Legenda warna di bawah tabel Prosem */
 .legenda-prosem { margin-top: 10px; font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .legenda-judul { font-weight: 700; }
 .legenda-item { display: inline-flex; align-items: center; gap: 6px; }
 .legenda-warna { display: inline-block; width: 18px; height: 14px; border: 1px solid #999; }
-.legenda-warna.warna-libur { background: repeating-linear-gradient(45deg, #E0E0E0, #E0E0E0 4px, #F5F5F5 4px, #F5F5F5 8px); }
+.legenda-warna.warna-libur { background: #E57373; }
 .legenda-detail { color: #666; font-style: italic; }
 /* Warna kolom minggu khusus Prosem (seperti dokumen resmi) */
 .matriks-lebar .md table td.td-lbr { background: #F2994A; font-weight: 700; }
