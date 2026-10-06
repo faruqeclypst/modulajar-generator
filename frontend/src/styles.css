@@ -633,9 +633,10 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   .pratinjau-full-isi { padding: 12px 8px 40px; }
 }
 
-/* Tugas floating: progress generate ala bubble chat — bisa dibuka & diminimize */
+/* Tugas floating: progress generate ala bubble chat — bisa dibuka & diminimize.
+   Posisi kiri bawah agar tidak menutupi konten utama di kanan. */
 .tugas-bubble {
-  position: fixed; right: 16px; bottom: 16px; z-index: 90;
+  position: fixed; left: 16px; bottom: 16px; z-index: 90;
   display: flex; align-items: center; gap: 10px;
   background: var(--ink); color: var(--paper);
   border: var(--bd); box-shadow: 4px 4px 0 rgba(0,0,0,.25);
@@ -650,7 +651,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 }
 @keyframes tugas-putar { to { transform: rotate(360deg); } }
 .tugas-bubble-teks { white-space: nowrap; }
-.tugas-floating { position: fixed; right: 16px; bottom: 16px; z-index: 90; display: flex; flex-direction: column; gap: 10px; width: 320px; max-width: calc(100vw - 32px); }
+.tugas-floating { position: fixed; left: 16px; bottom: 16px; z-index: 90; display: flex; flex-direction: column; gap: 10px; width: 320px; max-width: calc(100vw - 32px); }
 .tugas-panel-kepala {
   display: flex; align-items: center; justify-content: space-between;
   background: var(--ink); color: var(--paper);
