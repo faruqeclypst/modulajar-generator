@@ -259,24 +259,30 @@ export default function App() {
     })();
   }, [auth]);
 
-  // Restore posisi tersimpan setelah login (hanya setelah auth==='app')
+  // Restore posisi tersimpan setelah login (hanya setelah auth==='app').
+  // Pengaman anti-macet: bila 20 detik belum selesai (mis. dokumen acuan
+  // tak kunjung termuat karena jaringan), paksa keluar dari layar
+  // "Memuat halaman…" ke dashboard.
   useEffect(() => {
     if (auth !== 'app') return;
+    let stop = false;
+    const paksa = setTimeout(() => {
+      if (stop) return;
+      setView((v) => (v === null ? 'app' : v));
+      setRestoring(false);
+    }, 20000);
+    const beres = () => { clearTimeout(paksa); if (!stop) setRestoring(false); };
     const d = bacaViewTersimpan();
     // Tidak ada posisi tersimpan (atau tidak valid) -> dashboard, bukan landing publik.
-    if (!d) { setView('app'); setRestoring(false); return; }
-    if (d.view === 'proyek' && d.projectId) {
-      let stop = false;
+    if (!d) { setView('app'); beres(); }
+    else if (d.view === 'proyek' && d.projectId) {
       getProject(d.projectId).then((p) => {
         if (stop) return;
         if (p) { setProjectAktif(p); setView('proyek'); }
         else setView('app');
-      }).catch(() => { if (!stop) setView('app'); })
-        .finally(() => { if (!stop) setRestoring(false); });
-      return () => { stop = true; };
+      }).catch(() => { if (!stop) setView('app'); }).finally(beres);
     }
-    if (d.view === 'detail' && d.docId) {
-      let stop = false;
+    else if (d.view === 'detail' && d.docId) {
       getModul(d.docId).then((m) => {
         if (stop) return;
         if (m) {
@@ -286,24 +292,21 @@ export default function App() {
         } else {
           setView('app');
         }
-      }).catch(() => { if (!stop) setView('app'); })
-        .finally(() => { if (!stop) setRestoring(false); });
-      return () => { stop = true; };
+      }).catch(() => { if (!stop) setView('app'); }).finally(beres);
     }
-    if (d.view === 'ruang') {
+    else if (d.view === 'ruang') {
       // Kembalikan proyek ruang yang sedang dibuka; tanpa itu jatuh ke 'app'
       if (d.ruangProjectId) setRuangProyek(d.ruangProjectId);
       else { setView('app'); }
-      setRestoring(false);
-      return;
+      beres();
     }
-    if (d.view === 'wizard') {
+    else if (d.view === 'wizard') {
       // Wizard adalah alur transien (form tidak dipersist) -> kembali ke app
       setView('app');
-      setRestoring(false);
-      return;
+      beres();
     }
-    setRestoring(false);
+    else beres();
+    return () => { stop = true; clearTimeout(paksa); };
   }, [auth]);
 
   // Simpan posisi setiap view/active berubah (hanya saat sudah login).
