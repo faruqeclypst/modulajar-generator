@@ -187,6 +187,9 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
                   Panduan
                 </button>
               )}
+              <button type="button" {...menuItem(null)} onClick={() => { setOpen(false); onNav('masukan'); }}>
+                Kirim Masukan
+              </button>
               {isAdmin && (
                 <button type="button" {...menuItem(null)} onClick={() => { setOpen(false); onNav('admin'); }}>
                   Dashboard Admin
