@@ -71,6 +71,7 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
   const [imgAt, setImgAt] = useState(null); // index tempat panel sisip gambar terbuka
   const [slashId, setSlashId] = useState(null); // id blok teks yang menu "/" nya terbuka
   const [pratinjau, setPratinjau] = useState(false); // mode pratinjau side-by-side
+  const [pratinjauFull, setPratinjauFull] = useState(false); // mode pratinjau layar penuh
   const rowRefs = useRef({});
 
   const mdPratinjau = blocksToMd(blocks);
@@ -84,6 +85,18 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
     }
     setPratinjau((v) => !v);
   }
+
+  // tutup pratinjau layar penuh dengan Escape
+  useEffect(() => {
+    if (!pratinjauFull) return;
+    const onKey = (e) => { if (e.key === 'Escape') setPratinjauFull(false); };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [pratinjauFull]);
 
   // sinkron ke parent
   useEffect(() => {
@@ -327,6 +340,15 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
           {pratinjau && (
             <button
               type="button" className="btn btn-sm"
+              onClick={() => setPratinjauFull(true)}
+              title="Buka pratinjau layar penuh"
+            >
+              Layar penuh
+            </button>
+          )}
+          {pratinjau && (
+            <button
+              type="button" className="btn btn-sm"
               onClick={() => bukaPratinjauBaru({ judul: docTitle, markdown: mdPratinjau, images: imgsPratinjau, docType })}
               title="Buka pratinjau di tab baru"
             >
@@ -455,6 +477,19 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
           </div>
         )}
       </div>
+      {pratinjauFull && (
+        <div className="pratinjau-full" role="dialog" aria-modal="true" aria-label="Pratinjau layar penuh">
+          <div className="pratinjau-full-bar no-print">
+            <b>{docTitle || 'Pratinjau Dokumen'}</b>
+            <button type="button" className="btn btn-sm" onClick={() => setPratinjauFull(false)}>
+              Tutup (Esc)
+            </button>
+          </div>
+          <div className="pratinjau-full-isi">
+            <DocPaper doc={{ judul: docTitle, markdown: mdPratinjau, images: imgsPratinjau, docType }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

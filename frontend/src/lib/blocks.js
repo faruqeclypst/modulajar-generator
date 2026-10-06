@@ -12,6 +12,14 @@ const cleanCell = (c) => String(c || '')
   .replace(/\s+/g, ' ')
   .trim();
 
+// Bersihkan marker inline (**bold**, *italic*) di teks blok agar editor
+// menampilkan teks bersih tanpa simbol markdown.
+const cleanInline = (t) => String(t || '')
+  .replace(/\*\*(.+?)\*\*/g, '$1')
+  .replace(/__(.+?)__/g, '$1')
+  .replace(/`(.+?)`/g, '$1')
+  .trim();
+
 export function mdToBlocks(md, lookup = []) {
   const blocks = [];
   const lines = (md || '').split('\n');
@@ -20,7 +28,7 @@ export function mdToBlocks(md, lookup = []) {
 
   const flushPara = () => {
     if (para.length) {
-      blocks.push({ id: nid(), type: 'p', text: para.join('\n').trim() });
+      blocks.push({ id: nid(), type: 'p', text: cleanInline(para.join('\n').trim()) });
       para = [];
     }
   };
@@ -54,7 +62,7 @@ export function mdToBlocks(md, lookup = []) {
       while (i < lines.length) {
         const lm = lines[i].match(/^(\s*)[-*]\s+(.*)/);
         if (!lm) break;
-        items.push({ depth: Math.min(2, Math.floor(lm[1].length / 2)), text: lm[2] });
+        items.push({ depth: Math.min(2, Math.floor(lm[1].length / 2)), text: cleanInline(lm[2]) });
         i++;
       }
       blocks.push({ id: nid(), type: 'ul', items });
@@ -68,7 +76,7 @@ export function mdToBlocks(md, lookup = []) {
         if (!lm) break;
         // sub-item huruf (a. b.) -> depth 1
         const lm2 = lines[i].match(/^(\s*)[a-z][.)]\s+(.*)/);
-        items.push({ depth: Math.min(2, Math.floor(lm[1].length / 2)), text: lm[2] });
+        items.push({ depth: Math.min(2, Math.floor(lm[1].length / 2)), text: cleanInline(lm[2]) });
         i++;
       }
       blocks.push({ id: nid(), type: 'ol', items });
@@ -80,7 +88,7 @@ export function mdToBlocks(md, lookup = []) {
       while (i < lines.length) {
         const lm = lines[i].match(/^(\s*)[a-z][.)]\s+(.*)/);
         if (!lm) break;
-        items.push({ depth: 0, text: lm[2] });
+        items.push({ depth: 0, text: cleanInline(lm[2]) });
         i++;
       }
       blocks.push({ id: nid(), type: 'ol-alpha', items });
