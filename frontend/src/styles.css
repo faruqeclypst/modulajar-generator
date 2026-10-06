@@ -157,6 +157,12 @@ img { max-width: 100%; }
 /* Sistem lebar konsisten: semua halaman pakai .wrap fluid; konten formulir dibatasi .col-form / scope halaman */
 .col-form { max-width: 760px; }
 .pengaturan .card { max-width: 760px; }
+/* Grid kartu pengaturan: 1 kolom di HP, 2 kolom di layar lebar. */
+.pengaturan-grid { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
+.pengaturan-grid > .card { max-width: none; margin: 0; }
+@media (min-width: 1100px) {
+  .pengaturan-grid { grid-template-columns: 1fr 1fr; }
+}
 .wizard .steps, .wizard > .card { max-width: 760px; }
 .card {
   background: var(--paper-2); border: var(--bd); box-shadow: var(--sh);

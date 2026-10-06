@@ -311,6 +311,7 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
       <h1 className="page">Pengaturan</h1>
       <p className="lead">Profil, kredit, kunci AI, bonus, tampilan, data, dan bantuan. Semua yang ada di sini benar-benar berfungsi.</p>
 
+      <div className="pengaturan-grid">
       <section className="card" aria-labelledby="set-profil">
         <h2 className="sec" id="set-profil" style={{ marginTop: 0 }}>Profil</h2>
         <div className="set-row">
@@ -433,6 +434,7 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
           <button type="button" className="btn btn-sm btn-danger" onClick={keluar}>Keluar dari aplikasi</button>
         </div>
       </section>
+      </div>
 
       {paywall && (
         <Paywall
