@@ -7,28 +7,35 @@ import { splitInfoUmum, buangJudulGanda, rapikanIdentitas } from './api';
 import { ekstrakPengesahan, buangPengesahan } from './pengesahan';
 import { DOC_TYPES } from './docs';
 
-// Tema dokumen untuk Word. Kunci: 'hangat' (bawaan) | 'resmi' | 'modern'.
+// Tema dokumen untuk Word — diselaraskan dengan tema pratinjau web (DocPaper).
+// Kunci: 'hangat' (bawaan) | 'resmi' | 'modern'.
 const TEMA_DOCX = {
   resmi: {
     font: 'Times New Roman', bodySize: 24, titleSize: 32,
     titleAlign: AlignmentType.CENTER, bodyAlign: AlignmentType.JUSTIFIED,
+    kickerColor: '8F2A20',
+    h2Gaya: 'klasik', // tengah + garis ganda bawah
+    h3Border: { color: '241F1B', size: 6 },
     margin: { top: 1701, left: 2268, bottom: 1701, right: 1701 }, // 3/4/3/3 cm resmi
-    h2Color: undefined, h2Size: 28,
-    headerFill: '1B1B1A', headerColor: 'FFFFFF',
+    headerFill: '241F1B', headerColor: 'FFFFFF',
   },
   modern: {
-    font: 'Calibri', bodySize: 22, titleSize: 34,
+    font: 'Calibri', bodySize: 22, titleSize: 40,
     titleAlign: AlignmentType.LEFT, bodyAlign: AlignmentType.LEFT,
+    kickerColor: 'B5362A',
+    h2Gaya: 'aksen', h2Aksen: 'B5362A', // garis bata kiri, teks gelap
+    h3Border: { color: 'EFE7D8', size: 6 },
     margin: { top: 1418, left: 1418, bottom: 1418, right: 1418 }, // 2,5 cm lega
-    h2Color: 'B5362A', h2Size: 28,
-    headerFill: 'F5F0E6', headerColor: '241F1B',
+    headerFill: 'EFE7D8', headerColor: '241F1B',
   },
   hangat: {
-    font: 'Georgia', bodySize: 24, titleSize: 32,
-    titleAlign: AlignmentType.CENTER, bodyAlign: AlignmentType.JUSTIFIED,
+    font: 'Georgia', bodySize: 24, titleSize: 36,
+    titleAlign: AlignmentType.LEFT, bodyAlign: AlignmentType.JUSTIFIED,
+    kickerColor: '8F2A20',
+    h2Gaya: 'blok', // blok tinta, teks kertas
+    h3Border: { color: '241F1B', size: 12 },
     margin: { top: 1701, left: 1701, bottom: 1701, right: 1701 }, // 3 cm
-    h2Color: undefined, h2Size: 28,
-    headerFill: '1B1B1A', headerColor: 'FFFFFF',
+    headerFill: '241F1B', headerColor: 'FFFFFF',
   },
 };
 const FONT = 'Times New Roman';
@@ -62,14 +69,47 @@ function inlineRuns(text, size, cfg) {
 
 function heading(text, level, size, cfg, before = 360) {
   const font = (cfg || {}).font || FONT;
+  const clean = String(text).replace(/\*/g, '');
+  const gaya = (cfg || {}).h2Gaya;
+  // Gaya h2 mengikuti tema pratinjau web: blok tinta (hangat), aksen bata kiri (modern), klasik tengah (resmi)
+  if (level === HeadingLevel.HEADING_2 && gaya === 'blok') {
+    return new Paragraph({
+      heading: level, keepNext: true,
+      spacing: { before, after: 200 },
+      shading: { type: ShadingType.CLEAR, fill: '241F1B' },
+      children: [new TextRun({ text: clean.toUpperCase(), bold: true, font, size, color: 'FBF6EE' })],
+    });
+  }
+  if (level === HeadingLevel.HEADING_2 && gaya === 'aksen') {
+    return new Paragraph({
+      heading: level, keepNext: true,
+      spacing: { before, after: 160 },
+      border: { left: { style: BorderStyle.SINGLE, size: 36, color: (cfg || {}).h2Aksen || 'B5362A', space: 16 } },
+      indent: { left: 200 },
+      children: [new TextRun({ text: clean, bold: true, font, size, color: '241F1B' })],
+    });
+  }
+  if (level === HeadingLevel.HEADING_2 && gaya === 'klasik') {
+    return new Paragraph({
+      heading: level, keepNext: true,
+      alignment: AlignmentType.CENTER,
+      spacing: { before, after: 160 },
+      border: { bottom: { style: BorderStyle.DOUBLE, size: 12, color: '241F1B', space: 8 } },
+      children: [new TextRun({ text: clean.toUpperCase(), bold: true, font, size, color: '000000' })],
+    });
+  }
+  // h3: garis bawah tipis seperti pratinjau
+  const hb = (cfg || {}).h3Border;
+  const borderBawah = level === HeadingLevel.HEADING_3 && hb
+    ? { border: { bottom: { style: BorderStyle.SINGLE, size: hb.size, color: hb.color, space: 6 } } }
+    : {};
   return new Paragraph({
     heading: level,
     keepNext: true, // heading tidak terpisah dari isi di bawahnya
+    ...(level === HeadingLevel.HEADING_1 ? { alignment: AlignmentType.CENTER } : {}),
     spacing: { before, after: 160 },
-    children: [new TextRun({
-      text: String(text).replace(/\*/g, ''), bold: true, font, size,
-      ...(cfg && cfg.h2Color && level === HeadingLevel.HEADING_2 ? { color: cfg.h2Color } : {}),
-    })],
+    ...borderBawah,
+    children: [new TextRun({ text: clean, bold: true, font, size, color: '241F1B' })],
   });
 }
 
@@ -306,18 +346,18 @@ export async function buildDocxDocument({ judul, docType = 'modul', markdown, im
   children.push(
     new Paragraph({
       alignment: cfg.titleAlign,
-      spacing: { after: 200 },
-      children: [new TextRun({ text: typeName.toUpperCase() + ' \u2022 KURIKULUM MERDEKA', font, size: 20, color: '555555' })],
+      spacing: { after: 160 },
+      children: [new TextRun({ text: typeName.toUpperCase() + ' \u2022 KURIKULUM MERDEKA', bold: true, font, size: 20, color: cfg.kickerColor || '8F2A20' })],
     }),
     new Paragraph({
       alignment: cfg.titleAlign,
       spacing: { after: 400 },
-      children: [new TextRun({ text: judul || typeName, bold: true, font, size: cfg.titleSize })],
+      children: [new TextRun({ text: judul || typeName, bold: true, font, size: cfg.titleSize, color: '241F1B' })],
     })
   );
 
   if (infoRows.length > 0) {
-    children.push(heading('Informasi Umum', HeadingLevel.HEADING_1, 28, cfg, 120));
+    // pratinjau web tidak memakai heading "Informasi Umum" — tabel langsung di bawah judul
     children.push(infoTable(infoRows, cfg));
     children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
   }
@@ -378,8 +418,8 @@ export async function buildDocxDocument({ judul, docType = 'modul', markdown, im
     styles: {
       default: {
         document: { run: { font, size: 24 } },
-        heading1: { run: { font, size: 28, bold: true, ...(cfg.h2Color ? { color: cfg.h2Color } : {}) } },
-        heading2: { run: { font, size: 26, bold: true, ...(cfg.h2Color ? { color: cfg.h2Color } : {}) } },
+        heading1: { run: { font, size: 28, bold: true } },
+        heading2: { run: { font, size: 26, bold: true } },
         heading3: { run: { font, size: 24, bold: true } },
         heading4: { run: { font, size: 22, bold: true } },
       },
