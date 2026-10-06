@@ -868,8 +868,21 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .land-chain { list-style: none; margin: 8px 0 0; padding: 0; }
 .land-chain-group {
   border: var(--bd); background: var(--paper-2); box-shadow: var(--sh);
-  padding: clamp(18px, 3vw, 28px); margin: 0 0 18px;
+  padding: clamp(18px, 3vw, 28px); margin: 0 0 36px; position: relative;
 }
+/* Panah penghubung antar tahap alur */
+.land-chain-group:not(:last-child)::after {
+  content: '↓'; position: absolute; left: 50%; bottom: -30px; transform: translateX(-50%);
+  font-size: 22px; font-weight: 900; color: var(--red); line-height: 1;
+}
+/* Penutup siklus: penilaian melingkar kembali ke perencanaan */
+.land-cycle {
+  display: flex; gap: 16px; align-items: center;
+  border: 2px dashed var(--red); box-shadow: none; background: transparent;
+}
+.land-cycle-arrow { font-size: 40px; font-weight: 900; color: var(--red); line-height: 1; flex: none; }
+.land-cycle h3 { margin: 0 0 4px; font-size: 17px; }
+.land-cycle p { margin: 0; font-size: 14px; color: var(--slate); }
 .land-chain-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
 .land-chain-num {
   font-weight: 900; font-size: 15px; letter-spacing: 2px; text-transform: uppercase;

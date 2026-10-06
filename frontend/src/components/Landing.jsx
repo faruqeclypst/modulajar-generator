@@ -105,8 +105,9 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
         <h2 className="sec-title">Satu alur,<br />sembilan perangkat.</h2>
         <p className="lead" style={{ maxWidth: '62ch' }}>
           Perangkat ajar yang baik tersusun berurutan: perencanaan dulu, baru
-          pelaksanaan, lalu penilaian. ModulAjar menjaga urutan itu di setiap
-          dokumen yang dibuat.
+          pelaksanaan, lalu penilaian — dan hasilnya melingkar kembali:
+          asesmen dan refleksi menjadi bahan perbaikan perencanaan berikutnya.
+          ModulAjar menjaga urutan itu di setiap dokumen yang dibuat.
         </p>
         <ol className="land-chain">
           {RANTAI.map((g) => (
@@ -127,6 +128,16 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
             </li>
           ))}
         </ol>
+        <div className="card land-cycle">
+          <span className="land-cycle-arrow" aria-hidden="true">↺</span>
+          <div>
+            <h3>Siklus berlanjut</h3>
+            <p>
+              Alur ini melingkar, bukan jalan buntu. Hasil <b>penilaian</b> dan refleksi
+              menjadi bahan perbaikan <b>perencanaan</b> periode berikutnya — begitu seterusnya.
+            </p>
+          </div>
+        </div>
       </section>
 
       <section id="cara-kerja" style={{ marginTop: 56 }}>
