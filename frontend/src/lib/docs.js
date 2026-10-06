@@ -1,10 +1,28 @@
-// Definisi 8 jenis perangkat ajar
+// Definisi jenis perangkat ajar (Kurikulum Merdeka)
 export const DOC_TYPES = {
   modul: {
     nama: 'Modul Ajar', tag: 'Inti',
     desc: 'Modul ajar Kurikulum Merdeka lengkap: CP, TP, kegiatan, asesmen, lampiran.',
     fields: ['jenjang', 'fase', 'kelas', 'semester', 'mapel', 'topik', 'alokasi', 'model'],
     materi: true, gambar: true,
+  },
+  cp: {
+    nama: 'Capaian Pembelajaran', tag: 'Perencanaan',
+    desc: 'Draf CP per elemen untuk fase dan mata pelajaran.',
+    fields: ['jenjang', 'fase', 'mapel'],
+    materi: false, gambar: false,
+  },
+  analisis_cp: {
+    nama: 'Analisis CP', tag: 'Perencanaan',
+    desc: 'Bedah CP per elemen menjadi komponen operasional siap dirumuskan jadi TP.',
+    fields: ['jenjang', 'fase', 'mapel'],
+    materi: false, gambar: false,
+  },
+  tp: {
+    nama: 'Tujuan Pembelajaran', tag: 'Perencanaan',
+    desc: 'Daftar TP operasional dan terukur yang diturunkan dari CP.',
+    fields: ['jenjang', 'fase', 'kelas', 'semester', 'mapel'],
+    materi: false, gambar: false,
   },
   atp: {
     nama: 'ATP', tag: 'Perencanaan',
@@ -18,10 +36,10 @@ export const DOC_TYPES = {
     fields: ['jenjang', 'fase', 'kelas', 'semester', 'mapel'],
     materi: false, gambar: false,
   },
-  cp: {
-    nama: 'Capaian Pembelajaran', tag: 'Perencanaan',
-    desc: 'Draf CP per elemen untuk fase dan mata pelajaran.',
-    fields: ['jenjang', 'fase', 'mapel'],
+  distribusi_jp: {
+    nama: 'Distribusi Alokasi JP', tag: 'Perencanaan',
+    desc: 'Pembagian jam pelajaran per materi pokok selama satu semester.',
+    fields: ['jenjang', 'fase', 'kelas', 'semester', 'mapel'],
     materi: false, gambar: false,
   },
   prota: {
@@ -31,7 +49,7 @@ export const DOC_TYPES = {
     materi: false, gambar: false,
   },
   prosem: {
-    nama: 'Program Semester', tag: 'Perencanaan',
+    nama: 'Prosem', tag: 'Perencanaan',
     desc: 'Rincian mingguan materi, TP, dan asesmen per semester.',
     fields: ['jenjang', 'fase', 'kelas', 'semester', 'mapel'],
     materi: false, gambar: false,
@@ -41,6 +59,18 @@ export const DOC_TYPES = {
     desc: 'Lembar kerja siap cetak dengan bahasa ramah siswa + rubrik.',
     fields: ['jenjang', 'fase', 'kelas', 'semester', 'mapel', 'topik', 'alokasi', 'model'],
     materi: true, gambar: true,
+  },
+  bahan_ajar: {
+    nama: 'Bahan Ajar', tag: 'Kegiatan',
+    desc: 'Materi bacaan/ringkasan selaras modul ajar, siap dibagikan ke siswa.',
+    fields: ['jenjang', 'fase', 'kelas', 'semester', 'mapel', 'topik'],
+    materi: true, gambar: true,
+  },
+  asesmen: {
+    nama: 'Asesmen & Rubrik', tag: 'Asesmen',
+    desc: 'Asesmen diagnostik, formatif, sumatif + rubrik, selaras dengan modul ajar.',
+    fields: ['jenjang', 'fase', 'kelas', 'semester', 'mapel', 'topik'],
+    materi: true, gambar: false,
   },
   soal: {
     nama: 'Bank Soal', tag: 'Asesmen',
@@ -59,10 +89,13 @@ export const DOC_TYPES = {
 // Urutan baku penyusunan perangkat ajar (Ruang Perencanaan)
 export const ALUR_PERENCANAAN = [
   { key: 'cp', langkah: '01', nama: 'Capaian Pembelajaran', desc: 'Tempel teks CP resmi, jadikan fondasi seluruh perangkat.' },
-  { key: 'atp', langkah: '02', nama: 'ATP', desc: 'Alur Tujuan Pembelajaran diturunkan langsung dari CP.' },
-  { key: 'minggu_efektif', langkah: '03', nama: 'Minggu Efektif', desc: 'Hitung minggu efektif semester ini sebagai acuan alokasi Prota, Prosem, dan modul.' },
-  { key: 'prota', langkah: '04', nama: 'Program Tahunan', desc: 'Distribusi materi setahun mengikuti ATP dan minggu efektif.' },
-  { key: 'prosem', langkah: '05', nama: 'Program Semester', desc: 'Rincian mingguan mengikuti Prota dan minggu efektif.' },
+  { key: 'analisis_cp', langkah: '02', nama: 'Analisis CP', desc: 'Bedah CP per elemen jadi komponen operasional siap dirumuskan jadi TP.' },
+  { key: 'tp', langkah: '03', nama: 'Tujuan Pembelajaran', desc: 'Rumuskan TP operasional dan terukur dari hasil analisis CP.' },
+  { key: 'atp', langkah: '04', nama: 'ATP', desc: 'Alur Tujuan Pembelajaran diturunkan dari TP.' },
+  { key: 'minggu_efektif', langkah: '05', nama: 'Minggu Efektif', desc: 'Hitung minggu efektif semester ini sebagai acuan alokasi.' },
+  { key: 'distribusi_jp', langkah: '06', nama: 'Distribusi Alokasi JP', desc: 'Bagi JP per materi pokok selama satu semester.' },
+  { key: 'prota', langkah: '07', nama: 'Program Tahunan', desc: 'Distribusi materi setahun mengikuti ATP dan minggu efektif.' },
+  { key: 'prosem', langkah: '08', nama: 'Prosem', desc: 'Rincian mingguan mengikuti Prota dan minggu efektif.' },
 ];
 
 export const FIELD_LABEL = {

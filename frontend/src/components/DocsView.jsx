@@ -96,9 +96,9 @@ export default function DocsView({ onBack, onMasukan }) {
           <S id="paket" kicker="Otomatisasi" judul="Generator Paket">
             <p>Tiga mode paket:</p>
             <ul>
-              <li><b>Paket Lengkap:</b> CP, ATP, Minggu Efektif, Prota, Prosem, KKTP, lalu Modul + LKPD per topik dan satu Bank Soal. Satu klik, tanpa jeda.</li>
-              <li><b>Paket Perencanaan:</b> hanya 6 dokumen perencanaan, pas untuk awal semester.</li>
-              <li><b>Paket Pelaksanaan:</b> Modul + LKPD per topik dan Bank Soal. Dokumen acuan (ATP/Prosem) opsional: tempel yang sudah ada, susun dulu dengan tombol <b>Susun dengan AI</b>, atau kosongkan — AI menyusun draf acuannya otomatis saat paket berjalan.</li>
+              <li><b>Paket Lengkap:</b> CP, Analisis CP, TP, ATP, Minggu Efektif, Distribusi JP, Prota, Prosem, KKTP, lalu Modul + Asesmen & Rubrik + LKPD + Bahan Ajar per topik dan satu Bank Soal. Satu klik, tanpa jeda.</li>
+              <li><b>Paket Perencanaan:</b> hanya 9 dokumen perencanaan, pas untuk awal semester.</li>
+              <li><b>Paket Pelaksanaan:</b> Modul + Asesmen & Rubrik + LKPD + Bahan Ajar per topik dan Bank Soal. Dokumen acuan (ATP/Prosem) opsional: tempel yang sudah ada, susun dulu dengan tombol <b>Susun dengan AI</b>, atau kosongkan — AI menyusun draf acuannya otomatis saat paket berjalan.</li>
             </ul>
             <p>
               Paket dikerjakan <b>server</b>: browser boleh ditutup, pekerjaan tetap

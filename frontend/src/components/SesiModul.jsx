@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MODEL } from '../lib/referensi';
-import { generateDocStream, getProfile, extractTitle } from '../lib/api';
+import { generateDocStream, getProfile, saveProfile, extractTitle } from '../lib/api';
 import { getProject, getModul, saveModul, updateModul, getPaket } from '../lib/db';
 import { buatTugas, tugasTahap, tugasTulisan, tugasSelesai, tugasGagal, tutupTugas } from '../lib/tugasLatar';
 import { kunciAkun } from '../lib/akunLokal';
@@ -83,7 +83,7 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
       try {
         const paket = p.paketId ? await getPaket(p.paketId).catch(() => null) : null;
         const docsMap = paket?.docs || {};
-        for (const k of ['cp', 'atp', 'prota', 'prosem']) {
+        for (const k of ['cp', 'analisis_cp', 'tp', 'atp', 'distribusi_jp', 'prota', 'prosem']) {
           if (docsMap[k]) {
             const md = await getModul(docsMap[k]).catch(() => null);
             if (md) d[k] = md.markdown || '';
@@ -314,15 +314,19 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
       <h1 className="page">Buat Banyak Modul Sekaligus</h1>
       <p className="lead">
         {project.nama || project.mapel} · {project.kelas} · {project.semester}.
-        AI menyusun modul per topik berdasarkan CP, ATP, Prota, Prosem.
+        AI menyusun modul per topik berdasarkan CP, Analisis CP, TP, ATP, dan Prosem.
         Setiap modul dikonfirmasi sebelum lanjut.
       </p>
 
       {tahap === 'wawancara' && (
         <WawancaraGuru
-          onSelesai={({ jawaban, catatan }) => {
-            setPersona(kompilasiPersona(jawaban, catatan));
-            setPersonaRingkasan(ringkasanPersona(jawaban, catatan));
+          konteks={{ jenjang: project?.jenjang, fase: project?.fase, kelas: project?.kelas, mapel: project?.mapel }}
+          onSelesai={({ jawaban, catatan, daftarTanya }) => {
+            const p = kompilasiPersona(jawaban, catatan, daftarTanya);
+            const r = ringkasanPersona(jawaban, catatan);
+            setPersona(p);
+            setPersonaRingkasan(r);
+            try { saveProfile({ persona: p, personaRingkasan: r }); } catch { /* abaikan */ }
             setTahap('setup');
           }}
           onLewati={() => { setPersona(''); setPersonaRingkasan(''); setTahap('setup'); }}

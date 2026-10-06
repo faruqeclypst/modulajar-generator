@@ -52,7 +52,7 @@ const FAQ = [
   ['Apakah ModulAjar gratis?',
     'Ya. Setiap akun mendapat 10 kredit gratis setiap minggu, diperbarui setiap Minggu jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Tidak ada kartu kredit, tidak ada masa coba yang tiba-tiba menagih.'],
   ['Dokumen apa saja yang bisa dibuat?',
-    'CP, ATP, Minggu Efektif, Prota, Prosem, Modul Ajar (lengkap dengan materi, bank soal, rubrik, dan lembar pengesahan), LKPD, Bank Soal, dan KKTP. Semuanya mengikuti alur Kurikulum Merdeka.'],
+    'CP, Analisis CP, TP, ATP, Minggu Efektif, Distribusi JP, Prota, Prosem, Modul Ajar, Asesmen & Rubrik, LKPD, Bahan Ajar, Bank Soal, dan KKTP. Semuanya mengikuti alur Kurikulum Merdeka.'],
   ['Apakah saya harus menyusun CP dan ATP dulu?',
     'Tidak wajib. Kalau sudah punya, tempel atau pilih sebagai acuan agar hasilnya selaras. Kalau belum, AI menyusun drafnya dari data yang kamu isi, lalu kamu periksa dan sesuaikan.'],
   ['Bagaimana paket satu klik bekerja?',

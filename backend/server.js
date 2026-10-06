@@ -1106,6 +1106,98 @@ ${ANTI_SLOP} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia formal. Gunakan kata kerja operasional.`,
 
+  analisis_cp: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
+Susun ANALISIS CAPAIAN PEMBELAJARAN (CP): bedah CP per elemen menjadi komponen yang operasional untuk perencanaan. WAJIB ikuti struktur markdown persis di bawah.
+${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (CP), analisis WAJIB merujuk CP tersebut; jangan menambah kompetensi di luar CP acuan.
+
+# Analisis Capaian Pembelajaran: [Mata Pelajaran] Fase [X]
+
+## A. Informasi Umum
+- **Nama Penyusun**: [dari data]
+- **Sekolah**: [dari data]
+- **Tahun Ajaran**: [dari data]
+- **Jenjang / Fase**: ...
+- **Mata Pelajaran**: ...
+
+## B. Ringkasan CP
+Parafrase CP fase yang relevan per elemen, singkat dan setia pada teks acuan.
+
+## C. Bedah per Elemen
+Untuk setiap elemen, susun tabel:
+
+| Elemen | Kompetensi Inti (dari CP) | Kata Kerja Operasional | Materi Esensial Terkait | Catatan |
+|--------|---------------------------|------------------------|-------------------------|---------|
+| ... | ... | ... | ... | ... |
+
+## D. Implikasi untuk TP
+Butir-butir turunan yang siap dirumuskan menjadi Tujuan Pembelajaran (TP): operasional, terukur, berurutan dari mudah ke sulit.
+
+${ANTI_SLOP} ${KONSISTENSI}
+
+Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
+
+  tp: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
+Susun DAFTAR TUJUAN PEMBELAJARAN (TP) yang diturunkan dari CP/analisis CP. WAJIB ikuti struktur markdown persis di bawah.
+${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (analisis CP atau CP), setiap TP WAJIB dapat ditelusur kembali ke CP acuan; jangan mengarang TP di luar CP.
+
+# Tujuan Pembelajaran: [Mata Pelajaran] Kelas [X] Semester [X]
+
+## A. Informasi Umum
+- **Nama Penyusun**: [dari data]
+- **Sekolah**: [dari data]
+- **Tahun Ajaran**: [dari data]
+- **Jenjang / Fase / Kelas**: ...
+- **Mata Pelajaran**: ...
+
+## B. Daftar Tujuan Pembelajaran
+Susun tabel TP bernomor, diurutkan dari yang paling dasar ke yang kompleks:
+
+| No | Tujuan Pembelajaran | Elemen CP Terkait | Profil Lulusan Terkait |
+|----|---------------------|-------------------|------------------------|
+| 1 | Peserta didik mampu ... | ... | ... |
+
+Setiap TP memakai kata kerja operasional yang dapat diamati/diukur (mengidentifikasi, menjelaskan, menganalisis, membuat, dsb.).
+
+## C. Catatan
+Keterkaitan antar TP dan saran pengelompokan menjadi bab/materi pokok untuk ATP.
+
+${ANTI_SLOP} ${KONSISTENSI}
+
+Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
+
+  distribusi_jp: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
+Susun DISTRIBUSI ALOKASI JAM PELAJARAN (JP): pembagian JP per materi pokok/bab selama satu semester. WAJIB ikuti struktur markdown persis di bawah.
+${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (ATP atau minggu efektif), alokasi WAJIB konsisten dengan total JP efektif pada acuan tersebut.
+
+# Distribusi Alokasi JP: [Mata Pelajaran] Kelas [X] Semester [X]
+
+## A. Informasi Umum
+- **Nama Penyusun**: [dari data]
+- **Sekolah**: [dari data]
+- **Tahun Ajaran**: [dari data]
+- **Jenjang / Fase / Kelas**: ...
+- **Mata Pelajaran**: ...
+- **JP per Minggu**: [dari data]
+
+## B. Rekapitulasi JP
+Total JP efektif semester ini dan dasar perhitungannya (JP/minggu × minggu efektif).
+
+## C. Tabel Distribusi JP
+WAJIB format tabel markdown:
+
+| No | Materi Pokok / Bab | Jumlah JP | Pertemuan ke- | Keterangan |
+|----|--------------------|-----------|---------------|------------|
+| 1 | ... | ... | 1–3 | ... |
+
+Total JP pada tabel WAJIB sama dengan rekapitulasi. Sisakan JP untuk asesmen sumatif dan cadangan/remedial.
+
+## D. Catatan
+Penyesuaian bila ada minggu tidak efektif susulan.
+
+${ANTI_SLOP} ${KONSISTENSI}
+
+Aturan: Bahasa Indonesia formal.`,
+
   prota: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
 Susun PROGRAM TAHUNAN (PROTA) satu tahun ajaran. WAJIB ikuti struktur markdown persis di bawah.
 Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', pastikan distribusi materi mencakup semester ganjil dan genap secara seimbang dalam satu tahun ajaran penuh.
@@ -1241,6 +1333,66 @@ ${ANTI_SLOP} ${KONSISTENSI}
 
 Aturan: Bahasa Indonesia yang mudah dipahami sesuai jenjang. Tugas autentik dan kontekstual. ${ISTILAH_BARU}`,
 
+  asesmen: `Kamu adalah asisten penyusun asesmen Kurikulum Merdeka untuk guru Indonesia.
+Susun ASESMEN & RUBRIK yang selaras dengan modul ajar: mencakup asesmen diagnostik, formatif, dan sumatif beserta rubrik penilaiannya. WAJIB ikuti struktur markdown persis di bawah.
+${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (modul ajar), setiap butir asesmen WAJIB mengukur TP pada modul tersebut; jangan mengarang materi di luar modul.
+
+# Asesmen & Rubrik: [Judul Modul/Topik]
+
+## A. Informasi Umum
+- **Nama Penyusun**: [dari data]
+- **Sekolah**: [dari data]
+- **Tahun Ajaran**: [dari data]
+- **Jenjang / Fase / Kelas**: ...
+- **Mata Pelajaran**: ...
+
+## B. Pemetaan TP ke Asesmen
+Tabel: TP → jenis asesmen (diagnostik/formatif/sumatif) → teknik (tes tulis, observasi, unjuk kerja, proyek, portofolio).
+
+## C. Asesmen Diagnostik
+Instrumen singkat awal pembelajaran (kognitif & non-kognitif).
+
+## D. Asesmen Formatif
+Butir-butir/formatif per kegiatan inti beserta kunci/indikator ketercapaian.
+
+## E. Asesmen Sumatif
+Soal sumatif akhir (bentuk pilihan ganda dan uraian) beserta kunci jawaban dan pedoman penskoran.
+
+## F. Rubrik Penilaian
+Rubrik untuk tiap teknik: aspek, kriteria per level, skor. Kriteria konkret dan dapat diamati.
+
+## G. Tindak Lanjut
+Rencana remedial dan pengayaan berdasarkan hasil.
+
+${ANTI_SLOP} ${KONSISTENSI}
+
+Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
+
+  bahan_ajar: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
+Susun BAHAN AJAR: materi bacaan/ringkasan yang selaras dengan modul ajar, siap dibagikan ke siswa. WAJIB ikuti struktur markdown persis di bawah. Gunakan bahasa yang ramah untuk siswa (sapaan "kamu/kalian") sesuai jenjang.
+${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (modul ajar), materi WAJIB selaras dengan TP dan urutan materi pada modul tersebut.
+
+# Bahan Ajar: [Judul Topik]
+
+## A. Tujuan
+TP yang dicapai dari bahan ajar ini (diringkas dari modul).
+
+## B. Uraian Materi
+Penjelasan konsep yang runtut, lengkap dengan contoh konkret dan ilustrasi deskriptif. Bagi menjadi sub-bagian berjudul jelas.
+
+## C. Istilah Penting
+Glosarium istilah + definisi singkat.
+
+## D. Rangkuman
+Poin-poin kunci dalam daftar ringkas.
+
+## E. Latihan Mandiri
+5–8 pertanyaan latihan tanpa kunci (untuk dikerjakan mandiri).
+
+${ANTI_SLOP} ${KONSISTENSI}
+
+Aturan: Bahasa Indonesia yang mudah dipahami sesuai jenjang. ${ISTILAH_BARU}`,
+
   soal: () => {
     // Jumlah soal (PG/Uraian) TIDAK disematkan di system prompt: nilainya ada di
     // user message (cache prefix system tetap stabil → hit rate context caching).
@@ -1373,15 +1525,20 @@ function rencanaJob(mode, topiks) {
     langkah.push({ key: docType + (topik ? ':' + topik : ''), docType, label, topik, status: 'antri' });
   if (mode === 'lengkap' || mode === 'perencanaan') {
     add('cp', 'Capaian Pembelajaran');
+    add('analisis_cp', 'Analisis CP');
+    add('tp', 'Tujuan Pembelajaran');
     add('atp', 'ATP');
     add('minggu_efektif', 'Minggu Efektif');
+    add('distribusi_jp', 'Distribusi Alokasi JP');
     add('prota', 'Prota');
     add('prosem', 'Prosem');
     add('kktp', 'KKTP');
   }
   if (mode === 'lengkap' || mode === 'pelaksanaan') {
     for (const t of topiks) add('modul', 'Modul Ajar', t);
+    for (const t of topiks) add('asesmen', 'Asesmen & Rubrik', t);
     for (const t of topiks) add('lkpd', 'LKPD', t);
+    for (const t of topiks) add('bahan_ajar', 'Bahan Ajar', t);
     add('soal', 'Paket Soal');
   }
   return langkah;
@@ -1582,12 +1739,17 @@ async function jalankanJobInti(jobId) {
       const me = md['minggu_efektif'] ? `\n\n[DOKUMEN MINGGU EFEKTIF]\n${md['minggu_efektif']}` : '';
       switch (docType) {
         case 'cp': return uploads.cpResmi || '';
-        case 'atp': return md['cp'] || '';
+        case 'analisis_cp': return md['cp'] || uploads.cpResmi || '';
+        case 'tp': return md['analisis_cp'] || md['cp'] || '';
+        case 'atp': return md['tp'] || md['cp'] || '';
+        case 'distribusi_jp': return (md['atp'] || '') + me;
         case 'prota': return (md['atp'] || '') + me;
         case 'prosem': return (md['prota'] || '') + me;
-        case 'kktp': return md['atp'] || '';
+        case 'kktp': return md['atp'] || md['tp'] || '';
         case 'modul': return md['atp'] || uploads.acuan || '';
+        case 'asesmen': return md['modul:' + topik] || '';
         case 'lkpd': return md['modul:' + topik] || '';
+        case 'bahan_ajar': return md['modul:' + topik] || '';
         case 'soal': return md['atp'] || uploads.acuan || '';
         default: return '';
       }
@@ -2034,7 +2196,9 @@ app.post('/api/generate-doc', requireAuth(async (req, res) => {
 // Nama dokumen untuk label tahap stream
 const NAMA_DOKUMEN = {
   modul: 'Modul Ajar', lkpd: 'LKPD', soal: 'Paket Soal', kktp: 'KKTP',
-  cp: 'CP', atp: 'ATP', prota: 'Prota', prosem: 'Prosem', minggu_efektif: 'Minggu Efektif',
+  cp: 'CP', analisis_cp: 'Analisis CP', tp: 'Tujuan Pembelajaran',
+  atp: 'ATP', prota: 'Prota', prosem: 'Prosem', minggu_efektif: 'Minggu Efektif',
+  distribusi_jp: 'Distribusi Alokasi JP', asesmen: 'Asesmen & Rubrik', bahan_ajar: 'Bahan Ajar',
 };
 // Validasi umum payload generate dokumen tunggal
 function validasiGenerate({ docType, infoRaw, materi, sumber }) {
@@ -3070,6 +3234,42 @@ app.post('/api/rekomendasi', requireAuth(async (req, res) => {
     const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
     const rekomendasi = await aiKeyCtx.run(kunciUser, () => rekomendasiAIInternal(req.body || {}));
     res.json({ ok: true, rekomendasi });
+  } catch (e) {
+    kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
+  }
+}));
+
+// Pertanyaan persona guru yang disesuaikan AI berdasarkan konteks mengajar.
+// Mengembalikan array pertanyaan pilihan ganda + isian untuk sesi wawancara.
+app.post('/api/persona/pertanyaan', requireAuth(async (req, res) => {
+  try {
+    if (!cekRateLimit(req.user.id, 'persona-tanya', 20))
+      return kirimGagal(res, 429, 'Terlalu banyak permintaan. Coba lagi nanti.');
+    const { jenjang = '', fase = '', kelas = '', mapel = '' } = req.body || {};
+    const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
+    const daftar = await aiKeyCtx.run(kunciUser, async () => {
+      const system = `Kamu membantu mengenali gaya mengajar guru Indonesia untuk menyusun perangkat ajar Kurikulum Merdeka yang sesuai.
+Susun 5 pertanyaan untuk menggali persona guru. Format: kembalikan HANYA JSON valid (tanpa markdown, tanpa penjelasan) dengan struktur:
+{"pertanyaan":[{"key":"gaya","tanya":"...","tipe":"radio","opsi":["...","...","...","..."]}, ...]}
+Aturan:
+- tipe "radio" = pilih satu; "cek" = boleh pilih lebih dari satu; "teks" = isian bebas (tanpa opsi).
+- Pertanyaan 1-2: gaya mengajar & karakteristik siswa. Pertanyaan 3: fasilitas kelas. Pertanyaan 4: preferensi bentuk modul. Pertanyaan 5: tipe "teks" — metode mengajar favorit / hal khusus yang perlu AI tahu.
+- Sesuaikan opsi dengan konteks: jenjang, fase, dan mata pelajaran di bawah. Bahasa santai tapi sopan (sapaan Bapak/Ibu).
+- key harus unik: gaya, siswa, fasilitas, preferensi, catatan.`;
+      const user = `Jenjang: ${jenjang}\nFase: ${fase}\nKelas: ${kelas}\nMata pelajaran: ${mapel}\n\nSusun 5 pertanyaan persona guru untuk konteks di atas.`;
+      const teks = await ai(system, user, 2000, 0.7);
+      const m = String(teks).match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('Format pertanyaan tidak valid.');
+      const j = JSON.parse(m[0]);
+      if (!Array.isArray(j.pertanyaan) || !j.pertanyaan.length) throw new Error('Daftar pertanyaan kosong.');
+      return j.pertanyaan.slice(0, 6).map((p, i) => ({
+        key: String(p.key || 'q' + i),
+        tanya: String(p.tanya || ''),
+        tipe: ['radio', 'cek', 'teks'].includes(p.tipe) ? p.tipe : 'radio',
+        opsi: Array.isArray(p.opsi) ? p.opsi.slice(0, 5).map(String) : [],
+      }));
+    });
+    res.json({ ok: true, pertanyaan: daftar });
   } catch (e) {
     kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
   }

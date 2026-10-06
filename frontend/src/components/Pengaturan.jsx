@@ -3,6 +3,7 @@ import Paywall from './Paywall';
 import Konfirmasi from './Konfirmasi';
 import { getAiConfig, saveAiConfig, deleteAiConfig, getAiStatus, setAiPilihan, getReferal, getProfile, saveProfile } from '../lib/api';
 import { SkelForm, Skel } from './Kerangka';
+import WawancaraGuru, { kompilasiPersona, ringkasanPersona } from './WawancaraGuru';
 
 // Sumber AI: pilih "AI bawaan web" atau "AI sendiri (BYOK)".
 // AI bawaan memotong kuota mingguan; AI sendiri tidak.
@@ -383,6 +384,8 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
   });
   const [catatanPegawai, setCatatanPegawai] = useState('');
   const [konf, setKonf] = useState(null); // {judul,pesan,teksYa,berbahaya,aksi}
+  const [profil, setProfil] = useState(() => getProfile());
+  const [tanyaUlang, setTanyaUlang] = useState(false);
 
   function simpanPegawai() {
     saveProfile({
@@ -449,6 +452,50 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
             <p className="hint" style={{ margin: '4px 0 0' }}>Diambil dari akun Google, tidak bisa diubah di sini.</p>
           </div>
         </div>
+      </section>
+
+      <section className="card" aria-labelledby="set-persona">
+        <h2 className="sec" id="set-persona" style={{ marginTop: 0 }}>Persona Mengajar</h2>
+        <p className="hint" style={{ marginTop: 0 }}>
+          Gaya mengajar Bapak/Ibu — AI menyesuaikan nada, detail, dan metode modul dari sini.
+          Cukup isi sekali, berlaku untuk semua generate.
+        </p>
+        {profil.personaRingkasan ? (
+          <>
+            <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, margin: '0 0 12px', background: 'var(--paper-2)', padding: 12, border: 'var(--bd)' }}>
+              {profil.personaRingkasan}
+            </pre>
+            <div className="btn-row">
+              <button type="button" className="btn btn-sm" onClick={() => setTanyaUlang(true)}>Isi ulang</button>
+              <button type="button" className="btn btn-sm" onClick={() => setKonf({
+                judul: 'Hapus persona mengajar?',
+                pesan: 'AI tidak lagi menyesuaikan modul dengan gaya mengajar Bapak/Ibu.',
+                teksYa: 'Ya, hapus', berbahaya: true,
+                aksi: () => { saveProfile({ persona: '', personaRingkasan: '', personaDilewati: false }); setProfil(getProfile()); },
+              })}>Hapus</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="hint">Belum ada persona. Isi sekali agar modul lebih sesuai gaya Bapak/Ibu.</p>
+            <button type="button" className="btn btn-sm btn-primary" onClick={() => setTanyaUlang(true)}>Isi persona</button>
+          </>
+        )}
+        {tanyaUlang && (
+          <div style={{ marginTop: 16 }}>
+            <WawancaraGuru
+              konteks={{}}
+              onSelesai={({ jawaban, catatan, daftarTanya }) => {
+                const p = kompilasiPersona(jawaban, catatan, daftarTanya);
+                const r = ringkasanPersona(jawaban, catatan);
+                saveProfile({ persona: p, personaRingkasan: r, personaDilewati: false });
+                setProfil(getProfile());
+                setTanyaUlang(false);
+              }}
+              onLewati={() => setTanyaUlang(false)}
+            />
+          </div>
+        )}
       </section>
 
       <section className="card" aria-labelledby="set-pegawai">

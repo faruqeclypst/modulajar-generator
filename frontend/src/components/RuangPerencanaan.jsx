@@ -8,6 +8,7 @@ import DocEditor from './DocEditor';
 import FormulirDasar from './FormulirDasar';
 import ProsesLive from './ProsesLive';
 import Paywall from './Paywall';
+import GerbangPersona from './GerbangPersona';
 import Konfirmasi from './Konfirmasi';
 import MenuTitik from './MenuTitik';
 import { SkelKartu } from './Kerangka';
@@ -249,7 +250,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
   const docs = paket.docs || {};
   const prog = paketProgress(paket);
 
-  return (
+  const konten = (
     <div className="wrap">
       <span className="kicker">Ruang Perencanaan</span>
       <h1 className="page">{project.nama || [project.mapel, project.kelas].filter(Boolean).join(' ')}</h1>
@@ -347,6 +348,12 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
       )}
     </div>
   );
+  // Sesi persona guru sebelum mulai menyusun — hanya bila belum pernah diisi/dilewati.
+  return (
+    <GerbangPersona konteks={{ jenjang: project.jenjang, fase: project.fase, kelas: project.kelas, mapel: project.mapel }}>
+      {konten}
+    </GerbangPersona>
+  );
 }
 
 function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClose, onOpenDoc, tugasId }) {
@@ -434,6 +441,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
     nama: profile.nama, nip: profile.nip, sekolah: profile.sekolah, tahunAjaran: paket.tahunAjaran || profile.tahunAjaran,
     jenjang: paket.jenjang, fase: paket.fase, kelas: paket.kelas, semester: paket.semester, mapel: paket.mapel,
     kepalaSekolah: profile.kepalaSekolah, nipKepalaSekolah: profile.nipKepalaSekolah,
+    personaGuru: profile.persona || '',
   };
 
   function tandaiTahap(key, label) {

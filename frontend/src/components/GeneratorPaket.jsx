@@ -11,17 +11,18 @@ import Paywall from './Paywall';
 import TulisanAI from './TulisanAI';
 import StempelSelesai from './StempelSelesai';
 import Konfirmasi from './Konfirmasi';
+import GerbangPersona from './GerbangPersona';
 import { buatTugas, tugasSetProgress, tugasSetMeta, tugasSelesai, tugasGagal, tugasBerjalan, tutupTugas, cariTugas } from '../lib/tugasLatar';
 
 // Generator Paket via job backend: browser boleh ditutup, job tetap jalan di server.
 const RANTAI_LABEL = {
-  lengkap: ['CP', 'ATP', 'Minggu Efektif', 'Prota', 'Prosem', 'KKTP', 'Modul 1..N', 'LKPD 1..N', 'Paket Soal'],
-  perencanaan: ['CP', 'ATP', 'Minggu Efektif', 'Prota', 'Prosem', 'KKTP'],
-  pelaksanaan: ['Modul 1..N', 'LKPD 1..N', 'Paket Soal'],
+  lengkap: ['CP', 'Analisis CP', 'TP', 'ATP', 'Minggu Efektif', 'Distribusi JP', 'Prota', 'Prosem', 'KKTP', 'Modul 1..N', 'Asesmen 1..N', 'LKPD 1..N', 'Bahan Ajar 1..N', 'Paket Soal'],
+  perencanaan: ['CP', 'Analisis CP', 'TP', 'ATP', 'Minggu Efektif', 'Distribusi JP', 'Prota', 'Prosem', 'KKTP'],
+  pelaksanaan: ['Modul 1..N', 'Asesmen 1..N', 'LKPD 1..N', 'Bahan Ajar 1..N', 'Paket Soal'],
 };
-const MODE_INFO = {  lengkap: { nama: 'Paket Lengkap', meta: 'Perencanaan + N modul + N LKPD + soal', desc: 'Dari CP sampai KKTP, lalu Modul dan LKPD per topik, terus sampai Paket Soal. Satu klik, tanpa jeda.' },
-  perencanaan: { nama: 'Paket Perencanaan', meta: '6 dokumen', desc: 'CP, ATP, Minggu Efektif, Prota, Prosem, KKTP. Pas untuk awal semester.' },
-  pelaksanaan: { nama: 'Paket Pelaksanaan', meta: 'N modul + N LKPD + soal', desc: 'Modul Ajar, LKPD, dan Paket Soal per topik, dengan ATP/Prosem sebagai acuan (tempel sendiri atau biarkan AI menyusun).' },
+const MODE_INFO = {  lengkap: { nama: 'Paket Lengkap', meta: 'Perencanaan + N modul + N asesmen + N LKPD + N bahan ajar + soal', desc: 'Dari CP sampai KKTP, lalu Modul, Asesmen & Rubrik, LKPD, dan Bahan Ajar per topik, terus sampai Paket Soal. Satu klik, tanpa jeda.' },
+  perencanaan: { nama: 'Paket Perencanaan', meta: '9 dokumen', desc: 'CP, Analisis CP, TP, ATP, Minggu Efektif, Distribusi JP, Prota, Prosem, KKTP. Pas untuk awal semester.' },
+  pelaksanaan: { nama: 'Paket Pelaksanaan', meta: 'N modul + N asesmen + N LKPD + N bahan ajar + soal', desc: 'Modul Ajar, Asesmen & Rubrik, LKPD, dan Bahan Ajar per topik, dengan ATP/Prosem sebagai acuan (tempel sendiri atau biarkan AI menyusun).' },
 };
 
 // Label status job dalam Bahasa Indonesia
@@ -352,6 +353,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
           kepalaSekolah: prof.kepalaSekolah || undefined,
           nipKepalaSekolah: prof.nipKepalaSekolah || undefined,
           projectId: pid || undefined,
+          personaGuru: prof.persona || undefined,
         },
         materi: form.materi,
         topiks: daftarTopik(),
@@ -408,12 +410,12 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   const live = job?.progress?.live || null; // tulisan AI realtime dari worker backend
   const selesaiCount = langkah.filter((s) => s.status === 'ok').length;
 
-  return (
+  const konten = (
     <div className="wrap">
       <span className="kicker">Generator Paket</span>
       <h1 className="page">Paket Semester, Satu Klik</h1>
       <p className="lead">
-        CP, ATP, Minggu Efektif, Prota, Prosem, KKTP, lalu Modul Ajar dan LKPD
+        CP, Analisis CP, TP, ATP, Minggu Efektif, Distribusi JP, Prota, Prosem, KKTP, lalu Modul Ajar, Asesmen & Rubrik, LKPD, dan Bahan Ajar
         untuk tiap topik. Dikerjakan server: browser boleh ditutup, paket tetap jalan.
       </p>
 
@@ -742,4 +744,13 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
       )}
     </div>
   );
+  // Sesi persona guru sebelum mengisi form — hanya bila belum pernah diisi/dilewati.
+  if (tahap === 'form') {
+    return (
+      <GerbangPersona konteks={{ jenjang: form.jenjang, fase: form.fase, kelas: form.kelas, mapel: form.mapel }}>
+        {konten}
+      </GerbangPersona>
+    );
+  }
+  return konten;
 }
