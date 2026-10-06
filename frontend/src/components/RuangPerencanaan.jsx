@@ -5,6 +5,7 @@ import { buatTugas, tugasTahap, tugasTulisan, tugasSelesai, tugasGagal, tutupTug
 import { kunciAkun } from '../lib/akunLokal';
 import { saveModul, updateModul, getModul, savePaket, updatePaket, getPaket, paketProgress, listProjects, getProject, saveProject, updateProject, deleteProject, arsipkanProyek } from '../lib/db';
 import DocEditor from './DocEditor';
+import DocPaper from './DocPaper';
 import FormulirDasar from './FormulirDasar';
 import ProsesLive from './ProsesLive';
 import Paywall from './Paywall';
@@ -394,6 +395,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   const [sumber, setSumber] = useState('');     // markdown dokumen acuan
   const [sumberJudul, setSumberJudul] = useState('');
   const [markdown, setMarkdown] = useState('');
+  const [modeTampil, setModeTampil] = useState('pratinjau'); // pratinjau | edit
   const [busy, setBusy] = useState(false);
   const [tahapLive, setTahapLive] = useState([]);   // tahapan asli dari server
   const [statusLive, setStatusLive] = useState({});
@@ -645,14 +647,33 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
 
       {markdown && !busy && (
         <>
-          <DocEditor
-            initialMarkdown={markdown}
-            images={[]}
-            docType={dt.nama}
-            docTitle={extractTitle(markdown)}
-            topic={paket.mapel}
-            onChange={(md) => setFinalMd(md)}
-          />
+          <div className="btn-row no-print" style={{ marginBottom: 12 }}>
+            <button
+              type="button" className={'btn btn-sm' + (modeTampil === 'pratinjau' ? ' btn-ink' : '')}
+              onClick={() => setModeTampil('pratinjau')}
+            >
+              Pratinjau
+            </button>
+            <button
+              type="button" className={'btn btn-sm' + (modeTampil === 'edit' ? ' btn-ink' : '')}
+              onClick={() => setModeTampil('edit')}
+            >
+              Edit blok
+            </button>
+          </div>
+          {modeTampil === 'pratinjau' ? (
+            <DocPaper doc={{ markdown: finalMd || markdown, judul: extractTitle(finalMd || markdown) }} />
+          ) : (
+            <DocEditor
+              key={stepKey + '-edit'}
+              initialMarkdown={finalMd || markdown}
+              images={[]}
+              docType={dt.nama}
+              docTitle={extractTitle(markdown)}
+              topic={paket.mapel}
+              onChange={(md) => setFinalMd(md)}
+            />
+          )}
           {error && <div className="alert alert-error">{error}</div>}
           <div className="btn-row no-print">
             <button className="btn" onClick={() => { if (tugasIdRef.current) { tutupTugas(tugasIdRef.current); tugasIdRef.current = null; } setMarkdown(''); setFinalMd(''); }}>Generate Ulang</button>
