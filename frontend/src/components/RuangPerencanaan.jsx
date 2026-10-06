@@ -636,10 +636,6 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
 
       {markdown && !busy && (
         <>
-          <div className="toolbar no-print">
-            <span className="kicker" style={{ margin: 0 }}>Editor Blok</span>
-            <span className="draft-note">Periksa hasil AI. Edit langsung bila perlu</span>
-          </div>
           <DocEditor
             initialMarkdown={markdown}
             images={[]}

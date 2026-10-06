@@ -644,6 +644,8 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   font: inherit; font-weight: 700; font-size: 14px;
 }
 .tugas-bubble:hover { background: #2e2823; }
+/* Bubble "Selesai" pindah ke kanan bawah; yang berjalan tetap di kiri bawah */
+.tugas-bubble-selesai { left: auto; right: 16px; }
 .tugas-bubble-spinner {
   width: 18px; height: 18px; border-radius: 50%;
   border: 3px solid var(--paper); border-top-color: var(--red);

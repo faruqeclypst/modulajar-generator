@@ -32,17 +32,18 @@ export default function TugasFloating({ onKembali, onBuka, awalMinim }) {
 
   // Mode minimize: bubble kecil dengan indikator jumlah proses berjalan
   if (!buka) {
+    const selesaiSemua = jalan.length === 0;
     return (
       <button
         type="button"
-        className="tugas-bubble"
+        className={'tugas-bubble' + (selesaiSemua ? ' tugas-bubble-selesai' : '')}
         onClick={() => { userTutup.current = true; setBuka(true); }}
-        aria-label={`${jalan.length} proses berjalan. Buka untuk melihat.`}
+        aria-label={selesaiSemua ? 'Proses selesai. Buka untuk melihat.' : `${jalan.length} proses berjalan. Buka untuk melihat.`}
         title="Lihat proses berjalan"
       >
         <span className="tugas-bubble-spinner" aria-hidden="true" />
         <span className="tugas-bubble-teks">
-          {jalan.length > 0 ? `${jalan.length} proses` : 'Selesai'}
+          {selesaiSemua ? 'Selesai' : `${jalan.length} proses`}
         </span>
       </button>
     );
