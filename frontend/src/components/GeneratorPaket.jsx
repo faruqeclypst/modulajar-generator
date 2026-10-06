@@ -18,7 +18,7 @@ const RANTAI_LABEL = {
 };
 const MODE_INFO = {  lengkap: { nama: 'Paket Lengkap', meta: 'Perencanaan + N modul + N LKPD + soal', desc: 'Dari CP sampai KKTP, lalu Modul dan LKPD per topik, terus sampai Paket Soal. Satu klik, tanpa jeda.' },
   perencanaan: { nama: 'Paket Perencanaan', meta: '6 dokumen', desc: 'CP, ATP, Minggu Efektif, Prota, Prosem, KKTP. Pas untuk awal semester.' },
-  pelaksanaan: { nama: 'Paket Pelaksanaan', meta: 'N modul + N LKPD + soal', desc: 'Modul Ajar, LKPD, dan Paket Soal per topik, dengan ATP/Prosem yang ditempel sebagai acuan.' },
+  pelaksanaan: { nama: 'Paket Pelaksanaan', meta: 'N modul + N LKPD + soal', desc: 'Modul Ajar, LKPD, dan Paket Soal per topik, dengan ATP/Prosem sebagai acuan (tempel sendiri atau biarkan AI menyusun).' },
 };
 
 // Label status job dalam Bahasa Indonesia
@@ -72,6 +72,10 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState('');
   const [proyekBaru, setProyekBaru] = useState('');
+  const [drafAI, setDrafAI] = useState({}); // loading tombol "Susun dengan AI" per kolom
+  const [infoDraf, setInfoDraf] = useState(''); // catatan hasil susun AI / simpan draft
+  const [draftAda, setDraftAda] = useState(null); // draft tersimpan di perangkat ini
+  const DRAFT_KEY = 'ma-paket-draft';
   const pollRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -83,6 +87,14 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   }, [form.jenjang]);
   useEffect(() => () => { hentikanPoll(); }, []);
   useEffect(() => { cekJobAktif(); }, []);
+  // Tawarkan draft yang tersimpan di perangkat ini (tidak otomatis menimpa isian)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) setDraftAda(JSON.parse(raw));
+    } catch { /* abaikan */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -103,9 +115,67 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
     if (!form.sekolah.trim()) e.sekolah = 'Wajib diisi.';
     if (!form.mapel.trim()) e.mapel = 'Wajib diisi.';
     if (mode !== 'perencanaan' && !daftarTopik().length) e.topiks = 'Isi minimal satu topik (satu baris satu topik).';
-    if (mode === 'pelaksanaan' && !form.acuan.trim()) e.acuan = 'Tempel ATP/Prosem sebagai acuan.';
+    // Kolom acuan & materi opsional: bila dikosongkan, AI menyusun drafnya otomatis saat job berjalan.
     setErrForm(e);
     return Object.keys(e).length === 0;
+  }
+
+  // Susun draf kolom (acuan ATP/Prosem atau materi) dengan AI, lalu isi ke textarea.
+  async function susunDraf(jenis) {
+    const key = jenis === 'materi' ? 'materi' : 'acuan';
+    if (!form.mapel.trim()) { setInfoDraf('Isi mata pelajaran dulu sebelum menyusun draf dengan AI.'); return; }
+    if ((form[key] || '').trim() && !window.confirm('Kolom ini sudah terisi. Ganti dengan draf dari AI?')) return;
+    setDrafAI((d) => ({ ...d, [key]: true }));
+    setInfoDraf('');
+    try {
+      const t = await getToken().catch(() => '');
+      const r = await fetch('/api/paket/draf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) },
+        body: JSON.stringify({
+          jenis,
+          info: { jenjang: form.jenjang, fase: form.fase, kelas: form.kelas, semester: form.semester, mapel: form.mapel },
+          topiks: daftarTopik(),
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!d.ok) throw new Error(d.error || 'Server tidak merespons.');
+      set(key, d.text);
+      setInfoDraf('Draf ' + (jenis === 'materi' ? 'materi' : 'acuan ATP/Prosem') + ' selesai disusun AI. Periksa dan sesuaikan sebelum dipakai.');
+    } catch (e) {
+      setInfoDraf('Gagal menyusun draf: ' + (e.message || 'coba lagi.'));
+    } finally {
+      setDrafAI((d) => ({ ...d, [key]: false }));
+    }
+  }
+
+  function simpanDraft() {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        mode, reviewJeda, form, projectId, proyekBaru, waktu: Date.now(),
+      }));
+      setInfoDraf('Draft tersimpan di perangkat ini. Buka lagi halaman ini untuk memuatnya.');
+    } catch {
+      setInfoDraf('Gagal menyimpan draft di perangkat ini.');
+    }
+  }
+  function muatDraft() {
+    try {
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+      if (!d) return;
+      setMode(d.mode || 'lengkap');
+      setReviewJeda(!!d.reviewJeda);
+      setForm({ ...emptyForm, ...getProfile(), ...(d.form || {}) });
+      setProjectId(d.projectId || '');
+      setProyekBaru(d.proyekBaru || '');
+      setDraftAda(null);
+      setInfoDraf('Draft dimuat kembali.');
+      window.scrollTo(0, 0);
+    } catch { /* abaikan */ }
+  }
+  function hapusDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* abaikan */ }
+    setDraftAda(null);
   }
 
   async function cekJobAktif() {
@@ -234,6 +304,16 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
         untuk tiap topik. Dikerjakan server: browser boleh ditutup, paket tetap jalan.
       </p>
 
+      {tahap === 'form' && draftAda && (
+        <div className="alert alert-info">
+          <b>Ada draft tersimpan</b> ({new Date(draftAda.waktu).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}).
+          <div className="btn-row">
+            <button className="btn btn-sm btn-primary" onClick={muatDraft}>Muat draft</button>
+            <button className="btn btn-sm" onClick={hapusDraft}>Hapus</button>
+          </div>
+        </div>
+      )}
+
       {tahap === 'form' && jobAktif.length > 0 && (
         <div className="alert alert-info">
           <b>Ada paket yang sedang berjalan</b> ({jobAktif.length}).
@@ -287,9 +367,11 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
             </div>
           ) : (
             <div className="alert alert-info" style={{ marginTop: 14 }}>
-              <b>Mode ini butuh acuan.</b> Tempel ATP atau Prosem yang sudah ada pada
-              kolom Dokumen Acuan di bawah, agar Modul Ajar dan turunannya selaras
-              dengan perencanaanmu.
+              <b>Acuan ATP/Prosem opsional.</b> Tempel yang sudah ada pada kolom
+              Dokumen Acuan agar Modul Ajar selaras dengan perencanaanmu — atau
+              kosongkan saja, AI akan menyusun draf acuannya otomatis saat paket
+              berjalan. Kamu juga bisa menekan <b>Susun dengan AI</b> untuk melihat
+              drafnya dulu sebelum paket dibuat.
             </div>
           )}
 
@@ -354,16 +436,25 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
               <input type="number" min="0" value={form.jmlUraian} onChange={(e) => set('jmlUraian', e.target.value)} /></div>
           </div>
 
-          <div className="field"><label>Materi Sumber <span className="hint">(opsional)</span></label>
+          <div className="field"><label>Materi Sumber <span className="hint">(opsional — kosongkan untuk disusun AI otomatis)</span></label>
             <textarea value={form.materi} onChange={(e) => set('materi', e.target.value)}
               placeholder="Tempel ringkasan materi dari buku atau sumber tepercaya" rows={3} />
+            <div className="btn-row" style={{ marginTop: 8, marginBottom: 0 }}>
+              <button type="button" className="btn btn-sm" onClick={() => susunDraf('materi')} disabled={!!drafAI.materi}>
+                {drafAI.materi ? 'Menyusun…' : '✨ Susun dengan AI'}
+              </button>
+            </div>
             <UnggahDokumen onTeks={(t, n) => gabung('materi', t, n)} /></div>
 
           {mode === 'pelaksanaan' && (
-            <div className="field"><label>Dokumen Acuan (ATP/Prosem)</label>
+            <div className="field"><label>Dokumen Acuan (ATP/Prosem) <span className="hint">(opsional — kosongkan untuk disusun AI otomatis)</span></label>
               <textarea value={form.acuan} onChange={(e) => set('acuan', e.target.value)}
                 placeholder="Tempel ATP atau Prosem yang sudah ada" rows={4} />
-              {errForm.acuan && <p className="hint" style={{ color: 'var(--red)' }}>{errForm.acuan}</p>}
+              <div className="btn-row" style={{ marginTop: 8, marginBottom: 0 }}>
+                <button type="button" className="btn btn-sm" onClick={() => susunDraf('acuan')} disabled={!!drafAI.acuan}>
+                  {drafAI.acuan ? 'Menyusun…' : '✨ Susun dengan AI'}
+                </button>
+              </div>
               <UnggahDokumen onTeks={(t, n) => gabung('acuan', t, n)} /></div>
           )}
 
@@ -390,8 +481,10 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
           )}
           <div className="btn-row">
             <button className="btn btn-primary" onClick={mulai}>Buat {MODE_INFO[mode].nama}</button>
+            <button className="btn" onClick={simpanDraft}>Simpan Draft</button>
             <button className="btn" onClick={onBack}>Kembali</button>
           </div>
+          {infoDraf && <p className="hint" role="status" style={{ marginTop: 8 }}>{infoDraf}</p>}
           <p className="hint">Dikerjakan server. Halaman ini boleh ditutup, pantau lagi nanti dari sini.</p>
         </>
       )}

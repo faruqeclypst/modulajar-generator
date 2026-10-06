@@ -1351,6 +1351,22 @@ async function jalankanJobInti(jobId) {
     // bila beberapa worker paralel sama-sama menulis.
     let liveAktif = null;
 
+    // Draf otomatis: kolom opsional yang dikosongkan (acuan ATP/Prosem, materi)
+    // disusun AI sekali di awal job agar langkah berikutnya tetap punya acuan.
+    // Berjalan dalam konteks kunci AI job (aiKeyCtx), jadi pakai ai() langsung.
+    if (job.mode === 'pelaksanaan' && !(uploads.acuan || '').trim() && !md['atp']) {
+      try {
+        const { system, user, maxTokens } = promptDrafPaket('acuan', info0, topiks);
+        md['atp'] = (await ai(system, user, maxTokens, 0.7)).trim();
+      } catch (e) { console.warn('[modulajar] draf acuan otomatis gagal:', e.message || e); }
+    }
+    if (job.mode !== 'perencanaan' && !(cfg.materi || '').trim()) {
+      try {
+        const { system, user, maxTokens } = promptDrafPaket('materi', info0, topiks);
+        cfg.materi = (await ai(system, user, maxTokens, 0.7)).trim();
+      } catch (e) { console.warn('[modulajar] draf materi otomatis gagal:', e.message || e); }
+    }
+
     let rekomendasi = null, rekDiminta = false;
     async function pastikanRekomendasi() {
       if (!rekDiminta) {
@@ -2527,6 +2543,36 @@ app.post('/api/rekomendasi', requireAuth(async (req, res) => {
   try {
     const rekomendasi = await rekomendasiAIInternal(req.body || {});
     res.json({ ok: true, rekomendasi });
+  } catch (e) {
+    kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
+  }
+}));
+
+// Draf AI untuk kolom opsional Generator Paket: susun draf ATP/Prosem (acuan)
+// atau ringkasan materi dari info dasar. Dipakai tombol "Susun dengan AI"
+// dan otomatis oleh worker bila kolom dikosongkan.
+function promptDrafPaket(jenis, { jenjang = '', fase = '', kelas = '', semester = '', mapel = '' }, topiks = []) {
+  if (jenis === 'materi') {
+    return {
+      system: `Kamu membantu guru menyusun ringkasan materi sumber untuk Modul Ajar Kurikulum Merdeka. Tulis dalam Bahasa Indonesia formal dengan format markdown (heading dan list). Materi harus benar dan kredibel, jangan mengarang fakta. Kembalikan HANYA isi materi, tanpa pembuka/penutup.`,
+      user: `Jenjang: ${jenjang}\nFase: ${fase}\nKelas: ${kelas}\nMata pelajaran: ${mapel}\nTopik:\n${topiks.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nSusun ringkasan materi per topik di atas: konsep kunci, definisi penting, dan contoh yang relevan dengan kehidupan peserta didik Indonesia.`,
+      maxTokens: 4000,
+    };
+  }
+  return {
+    system: `Kamu membantu guru menyusun draf ATP (Alur Tujuan Pembelajaran) dan Prosem (Program Semester) Kurikulum Merdeka. Tulis dalam Bahasa Indonesia formal dengan format markdown. Jangan mengarang: tujuan pembelajaran harus realistis sesuai fase/kelas. Kembalikan HANYA isi dokumen, tanpa pembuka/penutup.`,
+    user: `Jenjang: ${jenjang}\nFase: ${fase}\nKelas: ${kelas}\nSemester: ${semester}\nMata Pelajaran: ${mapel}\nTopik: ${topiks.join('; ')}\n\nSusun draf ATP (tujuan pembelajaran per elemen, runtut) dan draf Prosem (alokasi per minggu untuk semester ${semester}) sebagai acuan penyusunan Modul Ajar.`,
+    maxTokens: 4000,
+  };
+}
+app.post('/api/paket/draf', requireAuth(async (req, res) => {
+  try {
+    const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
+    const { jenis = 'acuan', info = {}, topiks = [] } = req.body || {};
+    if (!String(info.mapel || '').trim()) return kirimGagal(res, 400, 'Isi mata pelajaran dulu sebelum menyusun draf.');
+    const { system, user, maxTokens } = promptDrafPaket(jenis === 'materi' ? 'materi' : 'acuan', info, topiks);
+    const text = await aiKeyCtx.run(kunciUser, () => ai(system, user, maxTokens, 0.7));
+    res.json({ ok: true, text: text.trim() });
   } catch (e) {
     kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
   }
