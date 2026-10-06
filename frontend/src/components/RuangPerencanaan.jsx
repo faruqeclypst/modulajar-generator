@@ -44,10 +44,29 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
     if (onStepChange) onStepChange(stepKey);
   }, [stepKey]);
 
+  // Kunci localStorage untuk deteksi auto-generate yang terputus refresh
+  const kunciAuto = () => kunciAkun('ma-auto-ruang-' + (paket?.id || 'x'));
+  // Cek apakah ada auto-generate berjalan untuk paket ini (cegah duplikat)
+  const adaAutoBerjalan = () => tugasBerjalan('ruang').some((t) => t.meta?.auto && t.meta?.paketId === paket?.id);
+
   // Generate semua langkah berurutan otomatis: CP → ATP → Minggu Efektif → Distribusi JP → Prota → Prosem
+  // Terdaftar di tugas latar agar: terlihat di kartu floating, tahan pindah halaman,
+  // dan tidak bisa diduplikat (klik 2x / refresh tidak membuat request ganda).
   async function generateSemuaOtomatis() {
-    if (autoJalan) return;
+    if (autoJalan || adaAutoBerjalan()) {
+      setAutoError('Auto-generate sudah berjalan untuk proyek ini. Lihat kartu "Proses berjalan".');
+      return;
+    }
     setAutoJalan(true); setAutoError(''); autoBatalRef.current = false;
+    // Tandai berjalan (untuk deteksi terputus saat refresh)
+    try { localStorage.setItem(kunciAuto(), JSON.stringify({ mulai: Date.now() })); } catch {}
+    // Daftarkan ke tugas latar
+    const tid = buatTugas({
+      judul: 'Auto-generate 6 dokumen perencanaan',
+      konteks: 'ruang',
+      aksi: { kembali: 'Lihat proses' },
+      meta: { auto: true, paketId: paket.id, projectId: project?.id || null },
+    });
     const docsBaru = { ...(paket.docs || {}) };
     const profile = getProfile();
     const infoAuto = {
@@ -61,6 +80,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
       for (const s of ALUR_PERENCANAAN) {
         if (autoBatalRef.current) { setAutoProgress('Dibatalkan.'); break; }
         const key = s.key;
+        tugasTahap(tid, key, s.nama);
         if (docsBaru[key]) { setAutoProgress(s.nama + ' — sudah ada, lewati'); continue; }
         setAutoProgress('Menyusun ' + s.nama + '...');
         // Bangun sumber dari rantai (pakai docsBaru yang sudah terisi run ini)
@@ -77,9 +97,11 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
         const sumberAuto = bagian.join('\n');
         let md = '';
         await generateDocStream(key, infoAuto, '', key === 'cp' ? '' : sumberAuto, null, (ev) => {
-          if (ev.tipe === 'selesai') md = ev.markdown || '';
+          if (ev.tipe === 'tahap') tugasTahap(tid, key + ':' + ev.key, ev.label);
+          else if (ev.tipe === 'selesai') md = ev.markdown || '';
           else if (ev.tipe === 'gagal') throw new Error(ev.error || 'Generate gagal.');
         });
+        if (autoBatalRef.current) { setAutoProgress('Dibatalkan.'); break; }
         if (!md.trim()) throw new Error(s.nama + ': AI mengembalikan dokumen kosong.');
         // Simpan
         const payload = {
@@ -98,15 +120,38 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
         setPaket((p) => p ? { ...p, docs: { ...docsBaru } } : p);
         setAutoProgress(s.nama + ' — selesai ✓');
       }
-      setAutoProgress('Semua selesai ✓');
+      const dibatalkan = autoBatalRef.current;
+      setAutoProgress(dibatalkan ? 'Dibatalkan.' : 'Semua selesai ✓');
+      if (dibatalkan) tugasGagal(tid, 'Dibatalkan pengguna.');
+      else tugasSelesai(tid, { auto: true, paketId: paket.id });
+      try { localStorage.removeItem(kunciAuto()); } catch {}
       onKuotaChanged && onKuotaChanged();
     } catch (e) {
-      setAutoError('Otomatis berhenti: ' + (e.code === 'kuota_habis' ? 'Kredit habis.' : (e.message || 'Generate gagal.')));
-      setAutoProgress('Berhenti — ' + (e.message || 'gagal'));
+      const msg = e.code === 'kuota_habis' ? 'Kredit habis.' : (e.message || 'Generate gagal.');
+      setAutoError('Otomatis berhenti: ' + msg);
+      setAutoProgress('Berhenti — ' + msg);
+      tugasGagal(tid, msg);
+      // Biarkan penanda localStorage agar refresh bisa tawarkan lanjutkan
     } finally {
       setAutoJalan(false);
     }
   }
+
+  // Deteksi auto-generate terputus refresh: tawarkan lanjutkan (dokumen yang sudah jadi dilewati)
+  useEffect(() => {
+    if (!paket?.id || autoJalan) return;
+    try {
+      const raw = localStorage.getItem(kunciAuto());
+      if (raw && !adaAutoBerjalan()) {
+        const d = JSON.parse(raw);
+        if (d && d.mulai && Date.now() - d.mulai < 30 * 60 * 1000) {
+          setAutoError('Auto-generate terputus (halaman di-refresh). Klik "Generate Semua Otomatis" untuk lanjutkan dari dokumen yang belum jadi.');
+        } else {
+          localStorage.removeItem(kunciAuto());
+        }
+      }
+    } catch {}
+  }, [paket?.id]);
 
   // Pastikan setiap proyek punya baris paket tertaut (dipakai StepWorkspace
   // dan pemilih "Paket Perencanaan" di Wizard; tidak terlihat di UI).
