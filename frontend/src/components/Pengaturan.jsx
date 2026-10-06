@@ -522,6 +522,9 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
               <option value={35}>35 menit</option>
               <option value={40}>40 menit</option>
               <option value={45}>45 menit</option>
+              <option value={50}>50 menit</option>
+              <option value={55}>55 menit</option>
+              <option value={60}>60 menit</option>
             </select>
             <div className="hint">Dipakai AI saat menghitung alokasi waktu. Sesuaikan dengan sekolah Bapak/Ibu.</div>
           </div>
