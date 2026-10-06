@@ -5,10 +5,19 @@ Live: https://modulajar.alfaruqasri.my.id/
 
 ## Fitur
 
-- **Ruang Perencanaan** — alur runtut CP → ATP → Prota → Prosem per paket
-  (mapel/kelas/semester), tiap dokumen menjadi acuan resmi dokumen berikutnya.
-- **8 jenis dokumen**: Modul Ajar, ATP, Capaian Pembelajaran (CP), Program
-  Tahunan (Prota), Program Semester (Prosem), LKPD, Bank Soal, KKTP.
+- **Ruang Perencanaan** — alur administrasi 12 langkah per paket
+  (mapel/kelas/semester): CP → Analisis CP → TP → ATP → Minggu Efektif →
+  Distribusi Alokasi JP → Prota → Prosem → Modul Ajar → Asesmen & Rubrik →
+  LKPD & Bahan Ajar (tiap dokumen menjadi acuan resmi dokumen berikutnya;
+  tiap tahap bisa unggah dokumen sendiri atau dibiarkan AI menyusun otomatis).
+- **14 jenis dokumen**: Modul Ajar, Capaian Pembelajaran (CP), Analisis CP,
+  Tujuan Pembelajaran (TP), ATP, Minggu Efektif, Distribusi Alokasi JP,
+  Program Tahunan (Prota), Prosem, LKPD, Bahan Ajar, Asesmen & Rubrik,
+  Bank Soal, KKTP.
+- **Sesi persona guru** — sebelum generate, AI menyusun 5 pertanyaan pilihan
+  ganda yang disesuaikan dengan jenjang/fase/mapel (gaya AutoPRD: chip,
+  tombol Lewati per pertanyaan); persona tersimpan per akun dan dipakai AI
+  untuk memilih metode mengajar yang cocok.
 - **Rantai dokumen eksplisit**: dari halaman modul bisa langsung
   *Buat LKPD / Bank Soal / KKTP* — info terisi otomatis, modul jadi acuan AI.
 - **Editor blok** ala Gutenberg: edit langsung, pindah/hapus blok,

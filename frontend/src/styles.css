@@ -1252,26 +1252,3 @@ hr.nmenu-sep { border: none; border-top: var(--bd); margin: 6px 4px; }
   .nblk-gutter { width: 40px; opacity: 1; }
 }
 
-/* Wawancara Guru ala AutoPRD: satu halaman, chip pilihan, Lewati per pertanyaan */
-.wg-blok { padding: 16px 0; border-bottom: 1px dashed var(--bd); }
-.wg-blok:last-of-type { border-bottom: none; }
-.wg-blok.dilewati { opacity: .55; }
-.wg-kepala { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
-.wg-nomor { flex: none; width: 28px; height: 28px; display: grid; place-items: center;
-  background: var(--ink); color: var(--paper); font-weight: 700; font-size: 13px; }
-.wg-tanya { flex: 1; margin: 0; font-weight: 700; font-size: 15px; line-height: 1.45; }
-.wg-lewati { flex: none; background: none; border: none; color: var(--red); font: inherit;
-  font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 2px; text-decoration: underline; }
-.wg-lewati:hover { color: var(--ink); }
-.wg-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.wg-chip { font: inherit; font-size: 13.5px; padding: 8px 14px; border: var(--bd);
-  background: var(--paper); cursor: pointer; transition: box-shadow .12s ease; }
-.wg-chip:hover { box-shadow: 2px 2px 0 var(--ink); }
-.wg-chip.aktif { background: var(--ink); color: var(--paper); font-weight: 700; box-shadow: 3px 3px 0 var(--red); }
-.wg-teks { width: 100%; font: inherit; font-size: 14px; padding: 10px 12px;
-  border: var(--bd); background: var(--paper); resize: vertical; min-height: 72px; }
-.wg-status { font-size: 13px; color: var(--muted); margin: 0 0 4px; }
-.wg-skeleton { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.wg-kerangka { height: 34px; width: 120px; background: var(--paper-2); border: var(--bd); }
-.wg-pulsa { animation: pulsa 1.2s ease-in-out infinite; }
-@keyframes pulsa { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
