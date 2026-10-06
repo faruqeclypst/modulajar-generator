@@ -450,11 +450,18 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   const need = BUTUH[stepKey];
   // Mode terlampir: kembali dari kartu floating saat generate berjalan di latar.
   // Juga otomatis menempel bila langkah ini sudah ada tugas berjalan (cegah generate dobel).
-  const [tugasIdEfektif] = useState(() => {
+  const [tugasIdEfektif, setTugasIdEfektif] = useState(() => {
     if (tugasId) return tugasId;
     const jalan = tugasBerjalan('ruang').find((t) => t.meta?.stepKey === stepKey);
     return jalan ? jalan.id : null;
   });
+  // Reaktif: bila prop tugasId berubah (klik "Lihat proses" dari kartu floating), tempel ke tugas baru
+  useEffect(() => {
+    if (tugasId && tugasId !== tugasIdEfektif) {
+      setTugasIdEfektif(tugasId);
+      terhidrasi.current = false;
+    }
+  }, [tugasId]);
   const [tugas, setTugas] = useState(() => (tugasIdEfektif ? cariTugas(tugasIdEfektif) : null));
   const terhidrasi = useRef(false);
   useEffect(() => {
