@@ -1228,10 +1228,15 @@ WAJIB format tabel markdown:
 
 | No | Materi Pokok / Bab | Jumlah JP | Pertemuan ke- | Keterangan |
 |----|--------------------|-----------|---------------|------------|
-| 1 | ... | 2 | 1–2 | ... |
-| 2 | ... | 3 | 3–5 | ... |
+| 1 | ... | 4 | 1–2 | ... |
+| 2 | ... | 6 | 3–5 | ... |
 
-ATURAN KERAS NOMOR PERTEMUAN: kolom "Pertemuan ke-" WAJIB berurutan menyambung tanpa lompat dan tanpa mengulang dari 1. Pertemuan pertama selalu mulai dari 1. Baris berikutnya melanjutkan dari nomor terakhir + 1. Contoh: bila baris 1 = 2 JP → "1–2", maka baris 2 = 3 JP → "3–5", baris 3 = 2 JP → "6–7", dan seterusnya. DILARANG menulis "1–1", "1–2", "1–3" berulang di tiap baris.
+(Contoh di atas untuk 2 JP/minggu: 4 JP = 2 pertemuan, 6 JP = 3 pertemuan.)
+
+ATURAN KERAS NOMOR PERTEMUAN:
+- 1 pertemuan = 1 minggu kalender = (JP per minggu) JP. CONTOH: bila 2 JP/minggu, maka materi 4 JP = 2 pertemuan; materi 6 JP = 3 pertemuan.
+- Kolom "Pertemuan ke-" menghitung PERTEMUAN (minggu), BUKAN JP satuan. Contoh dengan 2 JP/minggu: baris 1 = 4 JP → "1–2", baris 2 = 6 JP → "3–5", baris 3 = 4 JP → "6–7".
+- Nomor pertemuan WAJIB berurutan menyambung tanpa lompat: baris berikutnya melanjutkan dari nomor terakhir + 1. DILARANG menulis "1–4", "5–10" untuk materi 4 JP dan 6 JP (itu menghitung JP, bukan pertemuan).
 
 PEMBAGIAN SEMESTER: bila Semester = "Ganjil + Genap (1 tahun ajaran)", tabel WAJIB dibagi dua bagian yang jelas: tulis sub-heading "**Semester Ganjil**" sebelum baris-baris semester ganjil dan "**Semester Genap**" sebelum baris-baris semester genap (sebagai baris pemisah di dalam tabel atau heading di antara dua tabel). Nomor pertemuan di semester genap MELANJUTKAN dari semester ganjil (tidak mengulang dari 1). Bila hanya satu semester, tidak perlu pembagian ini.
 
