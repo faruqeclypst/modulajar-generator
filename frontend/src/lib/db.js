@@ -162,6 +162,7 @@ function proyekKeApp(r) {
     nama: r.nama || '', mapel: r.mapel || '', jenjang: r.jenjang || '',
     fase: r.fase || '', kelas: r.kelas || '', semester: r.semester || '',
     tahunAjaran: r.tahun_ajaran || '', paketId: r.paket_id || null,
+    arsip: r.arsip === true,
     createdAt: r.created_at,
   };
 }
@@ -194,14 +195,21 @@ function urutProyek(list) {
   return list.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 }
 
-export async function listProjects() {
+export async function listProjects(termasukArsip = false) {
+  let list;
   if (await cekProyekDB()) {
     const c = await getSupabase();
     const { data, error } = await c.from('proyek').select('*').order('created_at', { ascending: false });
     if (error) throw new Error('Gagal memuat proyek: ' + error.message);
-    return (data || []).map(proyekKeApp);
+    list = (data || []).map(proyekKeApp);
+    // Gabung status arsip lokal (fallback bila kolom `arsip` di DB belum ada)
+    const lok = bacaArsipLokal();
+    if (lok.size) list = list.map((p) => (lok.has(String(p.id)) ? { ...p, arsip: true } : p));
+  } else {
+    list = urutProyek(bacaProyek());
   }
-  return urutProyek(bacaProyek());
+  if (!termasukArsip) list = list.filter((p) => !p.arsip);
+  return list;
 }
 
 export async function getProject(id) {
@@ -241,13 +249,56 @@ export async function saveProject(data) {
   return p.id;
 }
 
+// Arsip proyek: kolom `arsip` di DB bila SQL terbaru sudah dijalankan,
+// fallback ke localStorage per-akun bila kolom belum ada (tetap berfungsi).
+const ARSIP_KEY = 'ma-arsip-proyek';
+function bacaArsipLokal() {
+  try { return new Set(JSON.parse(localStorage.getItem(kunciAkun(ARSIP_KEY)) || '[]')); }
+  catch { return new Set(); }
+}
+function tulisArsipLokal(set) {
+  try { localStorage.setItem(kunciAkun(ARSIP_KEY), JSON.stringify([...set])); } catch { /* abaikan */ }
+}
+let kolomArsipAda = null; // null = belum dicek
+async function cekKolomArsip() {
+  if (kolomArsipAda !== null) return kolomArsipAda;
+  try {
+    if (!await cekProyekDB()) { kolomArsipAda = false; return false; }
+    const c = await getSupabase();
+    const { error } = await c.from('proyek').select('arsip').limit(1);
+    kolomArsipAda = !error || !(error.code === '42703' || /arsip/i.test(error.message || ''));
+  } catch { kolomArsipAda = false; }
+  return kolomArsipAda;
+}
+export async function arsipkanProyek(id) { await setArsipProyek(id, true); }
+export async function batalArsipProyek(id) { await setArsipProyek(id, false); }
+async function setArsipProyek(id, nilai) {
+  if (await cekKolomArsip()) {
+    try {
+      await updateProject(id, { arsip: nilai });
+      const s = bacaArsipLokal();
+      if (s.delete(String(id))) tulisArsipLokal(s);
+      return;
+    } catch (e) {
+      if (!(e && (e.code === '42703' || /arsip/i.test(e.message || '')))) throw e;
+      kolomArsipAda = false;
+    }
+  }
+  const s = bacaArsipLokal();
+  if (nilai) s.add(String(id)); else s.delete(String(id));
+  tulisArsipLokal(s);
+}
+
 export async function updateProject(id, patch) {
   if (await cekProyekDB()) {
     const c = await getSupabase();
     const upd = {};
     const peta = { nama: 'nama', mapel: 'mapel', jenjang: 'jenjang', fase: 'fase', kelas: 'kelas', semester: 'semester', tahunAjaran: 'tahun_ajaran', paketId: 'paket_id' };
+    if (patch && patch.arsip !== undefined && await cekKolomArsip()) peta.arsip = 'arsip';
     for (const [k, kolom] of Object.entries(peta)) {
-      if (patch && patch[k] !== undefined) upd[kolom] = patch[k] == null ? null : String(patch[k]);
+      if (patch && patch[k] !== undefined) {
+        upd[kolom] = k === 'arsip' ? !!patch[k] : (patch[k] == null ? null : String(patch[k]));
+      }
     }
     upd.updated_at = new Date().toISOString();
     const { error, count } = await c.from('proyek').update(upd, { count: 'exact' }).eq('id', String(id));

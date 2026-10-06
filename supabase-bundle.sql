@@ -210,6 +210,8 @@ alter table proyek enable row level security;
 drop policy if exists "own_proyek" on proyek;
 create policy "own_proyek" on proyek for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- 12b) Arsip proyek: proyek yang diarsipkan disembunyikan dari daftar & select.
+alter table proyek add column if not exists arsip boolean not null default false;
 
 -- 13) Profil guru: ikut akun, lintas perangkat (sebelumnya localStorage).
 create table if not exists profil_guru (

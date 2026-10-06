@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { DOC_TYPES, ALUR_PERENCANAAN } from '../lib/docs';
-import { saveProject, updateProject, deleteProject, getPaket, deleteModul } from '../lib/db';
+import { saveProject, updateProject, deleteProject, getPaket, deleteModul, arsipkanProyek, batalArsipProyek, listProjects } from '../lib/db';
 import FormulirDasar from './FormulirDasar';
 
 function fmtDate(ts) {
@@ -93,6 +93,24 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
     try { await deleteProject(p.id); onChanged && onChanged(); }
     finally { setBusy(false); }
   }
+  async function arsipkan(p) {
+    setBusy(true);
+    try { await arsipkanProyek(p.id); onChanged && onChanged(); }
+    catch (e) { alert('Gagal mengarsipkan: ' + (e.message || e)); }
+    finally { setBusy(false); }
+  }
+  async function pulihkan(p) {
+    setBusy(true);
+    try { await batalArsipProyek(p.id); onChanged && onChanged(); }
+    catch (e) { alert('Gagal memulihkan: ' + (e.message || e)); }
+    finally { setBusy(false); }
+  }
+  // Proyek yang diarsipkan: disembunyikan dari daftar utama & semua select,
+  // bisa dipulihkan dari seksi Arsip di bawah.
+  const [arsip, setArsip] = useState([]);
+  useEffect(() => {
+    listProjects(true).then((all) => setArsip(all.filter((p) => p.arsip))).catch(() => {});
+  }, [projects]);
   async function hapusDokumen(m) {
     const nama = (DOC_TYPES[m.docType] || {}).nama || 'Dokumen';
     if (!confirm(`Hapus ${nama} "${m.judul}"? Tindakan ini tidak bisa dibatalkan.`)) return;
@@ -151,11 +169,37 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
               <div className="actions">
                 <button className="btn btn-sm btn-ink" onClick={() => onOpen(p.id)}>Buka</button>
                 <button className="btn btn-sm" onClick={() => { setEditId(p.id); setShowBaru(false); }}>Ubah</button>
-                <button className="btn btn-sm" onClick={() => hapus(p)}>Hapus</button>
+                <button className="btn btn-sm" onClick={() => arsipkan(p)} disabled={busy} title="Sembunyikan dari daftar & pilihan proyek">Arsipkan</button>
+                <button className="btn btn-sm btn-danger" onClick={() => hapus(p)} disabled={busy}>Hapus</button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {arsip.length > 0 && (
+        <>
+          <h2 className="sec" style={{ marginTop: 36 }}>Arsip</h2>
+          <p className="hint" style={{ marginTop: 0 }}>Proyek yang diarsipkan tidak tampil di pilihan proyek mana pun. Pulihkan untuk memakai lagi.</p>
+          <div className="modul-grid">
+            {arsip.map((p) => (
+              <div className="card modul-card" key={p.id} style={{ opacity: 0.85 }}>
+                <span className="chip" style={{ alignSelf: 'flex-start' }}>Diarsipkan</span>
+                <h3>{labelProyek(p)}</h3>
+                <div className="meta">
+                  {p.jenjang && <span className="chip fill">{p.jenjang}</span>}
+                  {p.kelas && <span className="chip">{p.kelas}</span>}
+                  {p.semester && <span className="chip">{p.semester}</span>}
+                </div>
+                {p.tahunAjaran && <time>Tahun ajaran {p.tahunAjaran}</time>}
+                <div className="actions">
+                  <button className="btn btn-sm btn-ink" onClick={() => pulihkan(p)} disabled={busy}>Pulihkan</button>
+                  <button className="btn btn-sm btn-danger" onClick={() => hapus(p)} disabled={busy}>Hapus</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {tanpaProyek.length > 0 && (

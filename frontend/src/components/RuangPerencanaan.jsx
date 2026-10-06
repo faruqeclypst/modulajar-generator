@@ -3,7 +3,7 @@ import { DOC_TYPES, ALUR_PERENCANAAN } from '../lib/docs';
 import { generateDocStream, extractTitle, getProfile } from '../lib/api';
 import { buatTugas, tugasTahap, tugasTulisan, tugasSelesai, tugasGagal, tutupTugas, cariTugas, langgananTugas, tugasBerjalan } from '../lib/tugasLatar';
 import { kunciAkun } from '../lib/akunLokal';
-import { saveModul, updateModul, getModul, savePaket, updatePaket, getPaket, paketProgress, listProjects, getProject, saveProject, updateProject } from '../lib/db';
+import { saveModul, updateModul, getModul, savePaket, updatePaket, getPaket, paketProgress, listProjects, getProject, saveProject, updateProject, deleteProject, arsipkanProyek } from '../lib/db';
 import DocEditor from './DocEditor';
 import FormulirDasar from './FormulirDasar';
 import ProsesLive from './ProsesLive';
@@ -82,6 +82,16 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
 
   function bukaProyek(id) { setProjectId(id); setStepKey(null); refresh(id); }
   function tutupProyek() { setProjectId(null); setProject(null); setPaket(null); refresh(); }
+  async function arsipkan(p) {
+    try { await arsipkanProyek(p.id); refresh(); }
+    catch (e) { alert('Gagal mengarsipkan: ' + (e.message || e)); }
+  }
+  async function hapusProyek(p) {
+    const nama = p.nama || [p.mapel, p.kelas].filter(Boolean).join(' ') || 'Proyek';
+    if (!confirm(`Hapus proyek "${nama}"? Dokumennya tidak ikut terhapus, pindah ke Tanpa proyek.`)) return;
+    try { await deleteProject(p.id); refresh(); }
+    catch (e) { alert('Gagal menghapus: ' + (e.message || e)); }
+  }
 
   if (!project || !paket) {
     return (
@@ -137,6 +147,8 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
                 </div>
                 <div className="actions">
                   <button className="btn btn-sm btn-ink" onClick={() => bukaProyek(p.id)}>Buka</button>
+                  <button className="btn btn-sm" onClick={() => arsipkan(p)} title="Sembunyikan dari daftar & pilihan proyek">Arsipkan</button>
+                  <button className="btn btn-sm btn-danger" onClick={() => hapusProyek(p)}>Hapus</button>
                 </div>
               </div>
             ))}
