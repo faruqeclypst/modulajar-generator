@@ -886,6 +886,11 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 
 /* ---------- landing: cara kerja ---------- */
 .land-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 14px; }
+/* Dua pilihan cara: otomatis sekaligus vs dipandu bertahap */
+.land-dua-cara { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 20px; }
+.land-cara { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.land-cara h3 { margin: 0; font-size: 20px; }
+.land-cara p { margin: 0; font-size: 14px; color: var(--slate); flex: 1; }
 .land-step { display: flex; gap: 18px; align-items: flex-start; margin: 0; }
 .land-step > b { font-size: 40px; font-weight: 900; color: var(--red); line-height: 1; flex: none; }
 .land-step h3 { margin: 2px 0 6px; font-size: 18px; }

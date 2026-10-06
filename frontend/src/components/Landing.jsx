@@ -33,10 +33,18 @@ const RANTAI = [
 ];
 
 const CARA_KERJA = [
-  ['01', 'Buat proyek', 'Satu proyek untuk satu mata pelajaran. Semua dokumen, dari CP sampai bank soal, terkumpul rapi di satu tempat.'],
-  ['02', 'Susun perencanaan', 'CP, ATP, Prota, Prosem di Ruang Perencanaan. Belum punya? AI menyusun drafnya dari data jenjang, fase, dan mapel.'],
-  ['03', 'Generate', 'Pilih satu dokumen, atau paket satu klik untuk satu semester sekaligus. Tulisan AI bisa dilihat langsung saat disusun.'],
-  ['04', 'Periksa, edit, unduh', 'Edit per blok, tulis ulang bagian dengan AI, sisipkan gambar, lalu unduh sebagai Word atau cetak PDF.'],
+  ['01', 'Pilih caramu', 'Mau beres sekaligus atau dipandu tahap demi tahap? Dua-duanya bisa — AI yang menyusun, kamu yang memeriksa.'],
+  ['02', 'AI menyusun', 'Tulisan AI terlihat langsung saat disusun. Perencanaan jadi fondasi, lalu modul, LKPD, sampai bank soal mengikuti.'],
+  ['03', 'Periksa, edit, unduh', 'Klik dua kali untuk mengedit langsung, tulis ulang bagian dengan AI, sisipkan gambar, lalu unduh Word atau cetak PDF.'],
+];
+
+const DUA_CARA = [
+  ['Sekaligus otomatis',
+   'Isi satu formulir, satu klik. AI buatkan seluruh perangkat satu semester: perencanaan, modul ajar, LKPD, sampai bank soal. Cocok kalau mau cepat beres.',
+   'Generator Paket'],
+  ['Dipandu langkah demi langkah',
+   'Disetir tahap per tahap — CP, ATP, Prota, Prosem, baru modul. Tiap tahap terkunci sampai sebelumnya selesai, jadi urutannya selalu benar.',
+   'Ruang Perencanaan'],
 ];
 
 const FAQ = [
@@ -123,8 +131,23 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
 
       <section id="cara-kerja" style={{ marginTop: 56 }}>
         <span className="kicker">Cara Kerja</span>
-        <h2 className="sec-title">Dari ide ke dokumen<br />siap cetak.</h2>
-        <ol className="land-steps">
+        <h2 className="sec-title">Pilih caramu,<br />AI yang menyusun.</h2>
+        <p className="lead" style={{ maxWidth: '62ch' }}>
+          Dua jalan menuju dokumen jadi — pilih yang sesuai gayamu.
+          Semua hasil tersimpan rapi per mata pelajaran di <b>Proyek Saya</b>,
+          bisa dibuka, diedit, dan diunduh kapan saja.
+        </p>
+        <div className="land-dua-cara">
+          {DUA_CARA.map(([t, d, tag]) => (
+            <div key={t} className="card land-cara">
+              <span className="chip red">{tag}</span>
+              <h3>{t}</h3>
+              <p>{d}</p>
+              <button type="button" className="btn btn-primary" onClick={onStart}>Mulai gratis</button>
+            </div>
+          ))}
+        </div>
+        <ol className="land-steps" style={{ marginTop: 32 }}>
           {CARA_KERJA.map(([n, t, d]) => (
             <li key={n} className="card land-step">
               <b aria-hidden="true">{n}</b>
@@ -142,7 +165,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
         <h2 className="sec-title">Gratis untuk<br />kebutuhan mingguan.</h2>
         <div className="card land-price">
           <div className="land-price-main">
-            <b className="land-price-num">20</b>
+            <b className="land-price-num">10</b>
             <div>
               <b>kredit gratis setiap minggu</b>
               <p>Diperbarui setiap Minggu jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Cukup untuk perangkat satu kelas.</p>
