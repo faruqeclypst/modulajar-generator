@@ -1577,6 +1577,27 @@ function bangunMatriksProsem(md, info) {
 
   const bangunTabel = (daftar, bulan, tanda) => {
     if (!Array.isArray(daftar) || daftar.length === 0) return '';
+    // Jaring pengaman: pecah otomatis item > 6 JP menjadi beberapa baris
+    // (AI kadang mengelompokkan banyak TP jadi satu baris).
+    const MAKS_JP_PER_BARIS = 6;
+    const daftarPecah = [];
+    daftar.forEach((it) => {
+      const jp = Math.max(0, Number(it.jp) || 0);
+      if (jp <= MAKS_JP_PER_BARIS || !it.materi) { daftarPecah.push(it); return; }
+      const n = Math.ceil(jp / MAKS_JP_PER_BARIS);
+      const perBaris = Math.ceil(jp / n);
+      let sisa = jp;
+      for (let i = 0; i < n; i++) {
+        const j = Math.min(perBaris, sisa);
+        sisa -= j;
+        daftarPecah.push({
+          materi: it.materi + ' (' + (i + 1) + '/' + n + ')',
+          jp: j,
+          ket: it.ket || '',
+        });
+      }
+    });
+    daftar = daftarPecah;
     // Header kolom minggu: Bln-1 .. Bln-5 per bulan
     const kolomMinggu = [];
     bulan.forEach(([, kode]) => { for (let w = 1; w <= 5; w++) kolomMinggu.push(kode + '-' + w); });
