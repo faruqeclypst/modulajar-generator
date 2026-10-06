@@ -567,41 +567,26 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   body { background: #fff; background-image: none; }
   .topbar, .toolbar, .btn-row, .footer, .steps, .no-print { display: none !important; }
   .wrap { padding: 0; max-width: none; }
-  /* dasar cetak (semua tema): hitam di atas putih, tanpa dekorasi layar */
-  /* ruang putih kertas dipindah ke padding karena @page margin = 0 */
-  .paper { box-shadow: none; border: none; padding: 3cm 3cm 3cm 4cm; margin: 0; color: #000; background: #fff; }
-  .paper-head { border-bottom: 3px solid #000; padding-bottom: 16px; margin-bottom: 20px; }
-  .paper-head .doclabel { color: #000; }
-  .paper-head h1 { color: #000; }
+  /* WYSIWYG: tampilan cetak mengikuti tema yang dipilih di layar.
+     Warna latar dipaksa ikut tercetak agar sama dengan pratinjau. */
+  .paper {
+    box-shadow: none; border: none; padding: 3cm 3cm 3cm 4cm; margin: 0;
+    background: #fff;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
   .card { box-shadow: none; }
-  /* font mengikuti tema yang dipilih di layar (WYSIWYG) */
+  /* font mengikuti tema yang dipilih di layar */
   .tema-resmi .paper { font-family: "Times New Roman", Georgia, serif; font-size: 12pt; line-height: 1.5; }
   .tema-modern .paper, .tema-hangat .paper { font-family: "Archivo", "Segoe UI", system-ui, sans-serif; font-size: 11pt; line-height: 1.6; }
-  /* heading cetak: klasik, hemat tinta */
-  .md h2 {
-    background: none; color: #000; display: block;
-    border-bottom: 2px solid #000; border-left: none; padding: 0 0 6px;
-    font-family: inherit; font-size: 14pt; text-align: left;
-  }
-  .tema-resmi .md h2 { text-align: center; border-bottom: 3px double #000; }
-  .md h3, .md h4 { font-family: inherit; color: #000; border-color: #000; }
+  /* heading: pakai gaya tema layar (blok tinta hangat / aksen bata modern / klasik resmi) */
   .md h2, .md h3, .md h4 { break-after: avoid; page-break-after: avoid; }
-  .md p, .md li { orphans: 3; widows: 3; color: #000; }
-  .md strong { color: #000; }
-  .md hr { border-top-color: #000; }
-  /* tabel: kembali jadi tabel (bukan blok scroll), header terang */
+  .md p, .md li { orphans: 3; widows: 3; }
+  /* tabel: kembali jadi tabel (bukan blok scroll), warna header tema ikut tercetak */
   .md table, .info-table { display: table; overflow: visible; width: 100%; }
-  .md th, .info-table th { background: #ededed !important; color: #000 !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  .md th, .md td, .info-table th, .info-table td { border-color: #000; color: #000; }
   .figure, .md table, .info-table, .pengesahan { break-inside: avoid; page-break-inside: avoid; }
-  .figure { border-color: #000; }
-  .figure img { border-bottom: 1px solid #000; max-height: 19cm; object-fit: contain; }
+  .figure img { border-bottom: 1px solid var(--ink); max-height: 19cm; object-fit: contain; }
   .figure .credit a { display: none; }
-  .md img { border-color: #000; }
-  /* pengesahan: dua kolom, tidak terbelah halaman; serif hanya di tema resmi */
-  .pengesahan { color: #000; border-top-color: #000; }
-  .tema-resmi .pengesahan { font-family: "Times New Roman", Georgia, serif; }
-  .sah-judul { color: #000; }
+  /* pengesahan: dua kolom, tidak terbelah halaman */
   .ttd-ruang { height: 3cm; }
 }
 
