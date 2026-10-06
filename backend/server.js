@@ -287,7 +287,14 @@ function requireAuth(handler) {
   };
 }
 
-async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = null) {
+async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = null, onAntre = null) {
+  // Antrean global: batasi panggilan AI bersamaan agar server tidak kebanjiran
+  // saat banyak guru generate di waktu yang sama. FIFO; onAntre(posisi) dipanggil
+  // saat menunggu agar UI bisa menampilkan "Antrean #N".
+  // onAntre bisa lewat parameter atau konteks aiKeyCtx (untuk panggilan bertingkat).
+  const cbAntre = onAntre || (() => { try { return aiKeyCtx.getStore()?.onAntre || null; } catch { return null; } })();
+  await antreAI(cbAntre);
+  try {
   // Kunci efektif sudah diresolusi per request/job via resolveKunciEfektif
   // (prioritas: BYOK sendiri → key admin → key umum → env).
   const kunci = aiKeyCtx.getStore() || null;
@@ -343,6 +350,40 @@ async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = n
   catatUsage(model, usageStream);
   if (!full.trim()) throw new Error('AI mengembalikan respons kosong.');
   return full;
+  } finally {
+    lepasAI();
+  }
+}
+
+// ================= ANTREAN AI GLOBAL =================
+// Batasi panggilan AI yang berjalan bersamaan (default 5, via env AI_MAX_BARENG).
+// Kelebihan permintaan menunggu FIFO; posisi antrean dilaporkan via onAntre.
+const AI_MAX_BARENG = Math.max(1, Number(process.env.AI_MAX_BARENG || 5));
+let aiJalan = 0;
+const aiAntre = []; // [{ resolve, onAntre }]
+
+function antreAI(onAntre) {
+  if (aiJalan < AI_MAX_BARENG) { aiJalan++; return Promise.resolve(); }
+  return new Promise((resolve) => {
+    const entri = { resolve, onAntre };
+    aiAntre.push(entri);
+    try { onAntre && onAntre(aiAntre.length); } catch { /* abaikan */ }
+  }).then(() => { aiJalan++; });
+}
+
+function lepasAI() {
+  aiJalan = Math.max(0, aiJalan - 1);
+  const next = aiAntre.shift();
+  if (next) {
+    // Kabari sisa antrean bahwa posisi mereka maju
+    aiAntre.forEach((q, i) => { try { q.onAntre && q.onAntre(i + 1); } catch { /* abaikan */ } });
+    next.resolve();
+  }
+}
+
+// Status antrean untuk endpoint monitoring
+function statusAntreanAI() {
+  return { berjalan: aiJalan, menunggu: aiAntre.length, maks: AI_MAX_BARENG };
 }
 
 // Catat pemakaian token per panggilan AI (termasuk cache hit bila provider melaporkannya).
@@ -1650,7 +1691,7 @@ async function jalankanJob(jobId) {
       try { await sbUpdateJob(jobId, { status: 'gagal', error: e.message || String(e) }); } catch {}
       return;
     }
-    await aiKeyCtx.run(kunciJob, () => jalankanJobInti(jobId));
+    await aiKeyCtx.run({ ...kunciJob, onAntre: null }, () => jalankanJobInti(jobId));
   } finally {
     workerAktif.delete(jobId);
   }
@@ -2281,6 +2322,11 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
     };
     const namaDoc = NAMA_DOKUMEN[docType] || 'dokumen';
     const onTahap = async (key) => {
+      if (String(key).startsWith('antre:')) {
+        const pos = String(key).slice(6);
+        kirim({ tipe: 'tahap', key: 'antre', label: 'Antrean #' + pos + ' — menunggu giliran AI…' });
+        return;
+      }
       kirim({ tipe: 'tahap', key, label: key === 'susun' ? 'Menyusun ' + namaDoc : (TAHAP_LABEL[key] || key) });
     };
     // Teruskan tulisan AI apa adanya agar user bisa melihat prosesnya realtime
@@ -2291,7 +2337,7 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
       kirim({ tipe: 'teks', key, delta });
     };
     try {
-      let markdown = await aiKeyCtx.run(kunciUser, () =>
+      let markdown = await aiKeyCtx.run({ ...kunciUser, onAntre: (pos) => onTahap('antre:' + pos) }, () =>
         generateDocInternal(docType, info, materi, sumber, rekomendasi, onTahap, onTeks));
       // Gambar relevan langsung disisipkan (modul/LKPD), tanpa persetujuan
       let images = [];
@@ -3013,6 +3059,11 @@ app.post('/api/admin/daftar-ai/:id/pakai', requireAdmin(async (req, res) => {
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });
   }
+}));
+
+// Status antrean AI global (admin): pantau beban saat banyak guru generate bersamaan
+app.get('/api/admin/antrean-ai', requireAdmin(async (req, res) => {
+  res.json({ ok: true, ...statusAntreanAI() });
 }));
 
 app.get('/api/admin/ringkasan', requireAdmin(async (req, res) => {
