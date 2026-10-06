@@ -1065,6 +1065,9 @@ ${ANTI_FIKSI} ${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
 - **Materi Pokok**: ...
 - **Alokasi Waktu**: ...
 - **Model Pembelajaran**: ...
+- **Kompetensi Awal**: pengetahuan/keterampilan prasyarat yang harus dimiliki peserta didik sebelum mengikuti pembelajaran ini
+- **Sarana dan Prasarana**: daftar alat, media, dan fasilitas yang dibutuhkan (sesuaikan dengan kondisi sekolah pada umumnya)
+- **Target Peserta Didik**: karakteristik peserta didik yang menjadi sasaran (mis. reguler, kebutuhan khusus, atau diferensiasi)
 
 ## B. Komponen Inti
 
