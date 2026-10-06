@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DOC_TYPES, ALUR_PERENCANAAN } from '../lib/docs';
 import { saveProject, updateProject, deleteProject, getPaket, deleteModul } from '../lib/db';
 import FormulirDasar from './FormulirDasar';
@@ -66,8 +66,16 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
   const [showBaru, setShowBaru] = useState(false);
   const [editId, setEditId] = useState(null);
   const [busy, setBusy] = useState(false);
+  const formRef = useRef(null);
   const hitung = hitungDokumen(projects, docs);
   const tanpaProyek = docs.filter((d) => !d.projectId);
+
+  // Form tambah/ubah tampil full-width di atas grid; scroll ke sana saat dibuka.
+  useEffect(() => {
+    if ((showBaru || editId) && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showBaru, editId]);
 
   async function buat(data) {
     setBusy(true);
@@ -104,7 +112,21 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
       </div>
       <p className="hint" style={{ marginTop: 0 }}>Satu proyek untuk satu mata pelajaran. Klik untuk melihat semua dokumennya.</p>
 
-      {showBaru && <FormProyek onSimpan={buat} onBatal={() => setShowBaru(false)} busy={busy} />}
+      {(showBaru || editId) && (
+        <div ref={formRef} style={{ scrollMarginTop: 90 }}>
+          {showBaru ? (
+            <FormProyek onSimpan={buat} onBatal={() => setShowBaru(false)} busy={busy} />
+          ) : (
+            <FormProyek
+              key={editId}
+              awal={projects.find((p) => p.id === editId)}
+              onSimpan={(d) => ubah(editId, d)}
+              onBatal={() => setEditId(null)}
+              busy={busy}
+            />
+          )}
+        </div>
+      )}
 
       {projects.length === 0 && !showBaru ? (
         <div className="empty">
@@ -116,27 +138,21 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
         <div className="modul-grid">
           {projects.map((p) => (
             <div className="card modul-card" key={p.id}>
-              {editId === p.id ? (
-                <FormProyek awal={p} onSimpan={(d) => ubah(p.id, d)} onBatal={() => setEditId(null)} busy={busy} />
-              ) : (
-                <>
-                  <span className="chip red" style={{ alignSelf: 'flex-start' }}>
-                    {hitung[p.id] || 0} dokumen
-                  </span>
-                  <h3>{labelProyek(p)}</h3>
-                  <div className="meta">
-                    {p.jenjang && <span className="chip fill">{p.jenjang}</span>}
-                    {p.kelas && <span className="chip">{p.kelas}</span>}
-                    {p.semester && <span className="chip">{p.semester}</span>}
-                  </div>
-                  {p.tahunAjaran && <time>Tahun ajaran {p.tahunAjaran}</time>}
-                  <div className="actions">
-                    <button className="btn btn-sm btn-ink" onClick={() => onOpen(p.id)}>Buka</button>
-                    <button className="btn btn-sm" onClick={() => { setEditId(p.id); setShowBaru(false); }}>Ubah</button>
-                    <button className="btn btn-sm" onClick={() => hapus(p)}>Hapus</button>
-                  </div>
-                </>
-              )}
+              <span className="chip red" style={{ alignSelf: 'flex-start' }}>
+                {hitung[p.id] || 0} dokumen
+              </span>
+              <h3>{labelProyek(p)}</h3>
+              <div className="meta">
+                {p.jenjang && <span className="chip fill">{p.jenjang}</span>}
+                {p.kelas && <span className="chip">{p.kelas}</span>}
+                {p.semester && <span className="chip">{p.semester}</span>}
+              </div>
+              {p.tahunAjaran && <time>Tahun ajaran {p.tahunAjaran}</time>}
+              <div className="actions">
+                <button className="btn btn-sm btn-ink" onClick={() => onOpen(p.id)}>Buka</button>
+                <button className="btn btn-sm" onClick={() => { setEditId(p.id); setShowBaru(false); }}>Ubah</button>
+                <button className="btn btn-sm" onClick={() => hapus(p)}>Hapus</button>
+              </div>
             </div>
           ))}
         </div>
