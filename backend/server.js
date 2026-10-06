@@ -1337,7 +1337,11 @@ Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — buk
 MINGGU NON-EFEKTIF: Lihat dokumen Analisis Minggu Efektif pada acuan. Catat SEMUA minggu yang TIDAK EFEKTIF (libur nasional/bersama, jeda tengah semester, pekan ujian di luar KBM, dll.) ke dalam \"nonEfektif_ganjil\" / \"nonEfektif_genap\" dengan format \"Jul-1\", \"Agu-3\", \"Des-5\" (singkatan: Jul Agu Sep Okt Nov Des Jan Feb Mar Apr Mei Jun + nomor minggu 1-5). Minggu-minggu ini akan dikosongkan otomatis (tidak diisi materi).
 
 ATURAN JSON:
-1. Ikuti RANCANGAN AJAR pada dokumen acuan (CP > ATP > PROTA > Minggu Efektif). Alokasi JP per materi mengikuti acuan — bisa 1 JP, 2 JP, 5 JP, dst. Bersifat DINAMIS, bukan pola tetap.
+1. ACUAN WAJIB (JANGAN mengarang di luar ini):
+   a. PROTA (Program Tahunan) — SUMBER UTAMA. Prosem DITURUNKAN LANGSUNG dari PROTA: materi, urutan, dan alokasi bulan mengikuti PROTA persis.
+   b. Analisis Minggu Efektif — menentukan minggu mana yang efektif vs libur (untuk nonEfektif_ganjil/genap).
+   c. Distribusi Alokasi JP — acuan pembagian JP per pertemuan/topik.
+   Alokasi JP per materi mengikuti acuan — bisa 1 JP, 2 JP, 5 JP, dst. Bersifat DINAMIS, bukan pola tetap.
 2. Nama "materi" harus KONKRET dan SPESIFIK sesuai rincian TP di ATP (contoh: "Sorting dan searching array", bukan "Struktur Data lanjutan"). Jika ATP mengelompokkan banyak TP dalam satu judul umum, pecah menjadi sub-topik yang lebih spesifik.
 3. Urutan array = urutan pengajaran.
 4. Total "jp" per semester HARUS sama dengan total JP efektif semester itu. Jika kurang, tambahkan {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}.
