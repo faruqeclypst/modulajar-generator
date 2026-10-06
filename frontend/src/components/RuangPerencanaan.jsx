@@ -73,7 +73,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
 
   if (!project || !paket) {
     return (
-      <div className="wrap narrow">
+      <div className="wrap">
         <span className="kicker">Ruang Perencanaan</span>
         <h1 className="page">Alur Perangkat Ajar</h1>
         <p className="lead">

@@ -305,7 +305,7 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
   }
 
   return (
-    <div className="wrap narrow">
+    <div className="wrap pengaturan">
       <span className="kicker">Akun</span>
       <h1 className="page">Pengaturan</h1>
       <p className="lead">Profil, kredit, kunci AI, bonus, tampilan, data, dan bantuan. Semua yang ada di sini benar-benar berfungsi.</p>

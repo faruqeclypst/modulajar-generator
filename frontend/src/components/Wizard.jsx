@@ -348,7 +348,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
   const showMateri = dt.materi;
 
   return (
-    <div className="wrap narrow">
+    <div className="wrap wizard">
       <div className="steps">
         {STEPS.map((s, i) => {
           const n = i + 1;

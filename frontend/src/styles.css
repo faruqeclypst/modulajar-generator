@@ -145,6 +145,10 @@ img { max-width: 100%; }
 /* ---------- layout: lebar fluid menyesuaikan layar ---------- */
 .wrap { width: 100%; max-width: 1440px; margin: 0 auto; padding: 32px clamp(20px, 4vw, 56px) 80px; }
 .wrap.narrow { max-width: 720px; }
+/* Sistem lebar konsisten: semua halaman pakai .wrap fluid; konten formulir dibatasi .col-form / scope halaman */
+.col-form { max-width: 760px; }
+.pengaturan .card { max-width: 760px; }
+.wizard .steps, .wizard > .card { max-width: 760px; }
 .card {
   background: var(--paper-2); border: var(--bd); box-shadow: var(--sh);
   padding: 26px; margin-bottom: 22px; border-radius: 0;
