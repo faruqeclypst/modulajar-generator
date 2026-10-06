@@ -77,22 +77,29 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
   return (
     <div className="wrap">
       <section className="hero-land">
-        <img src="/logo.svg" alt="Logo ModulAjar" className="hero-logo" width="76" height="76" />
-        <span className="kicker kicker-light">Untuk Guru Indonesia</span>
-        <h1>Perangkat Ajar<br />Lengkap dalam<br /><span className="accent">Hitungan Menit.</span></h1>
-        <p>
-          Dari CP sampai modul ajar, LKPD, dan bank soal. AI menyusun mengikuti
-          alur Kurikulum Merdeka yang runtut dan acuan yang kamu pilih.
-          Kamu yang memeriksa, mengedit, dan mengesahkan.
-        </p>
-        <div className="btn-row">
-          <button className="btn btn-primary" onClick={onStart}>Mulai Membuat</button>
-          <a className="btn btn-ghost-light" href="#cara-kerja">Lihat Cara Kerja</a>
+        <div className="hero-grid">
+          <div className="hero-teks">
+            <img src="/logo.svg" alt="Logo ModulAjar" className="hero-logo" width="76" height="76" />
+            <span className="kicker kicker-light">Untuk Guru Indonesia</span>
+            <h1>Perangkat Ajar<br />Lengkap dalam<br /><span className="accent">Hitungan Menit.</span></h1>
+            <p>
+              Dari CP sampai modul ajar, LKPD, dan bank soal. AI menyusun mengikuti
+              alur Kurikulum Merdeka yang runtut dan acuan yang kamu pilih.
+              Kamu yang memeriksa, mengedit, dan mengesahkan.
+            </p>
+            <div className="btn-row">
+              <button className="btn btn-primary" onClick={onStart}>Mulai Membuat</button>
+              <a className="btn btn-ghost-light" href="#cara-kerja">Lihat Cara Kerja</a>
+            </div>
+            <p className="hero-note">Gratis 10 kredit setiap minggu. Tanpa kartu kredit.</p>
+            {onLogin && (
+              <p className="hero-login">Sudah punya akun? <button type="button" onClick={onLogin}>Masuk</button></p>
+            )}
+          </div>
+          <figure className="hero-maskot">
+            <img src="/maskot.png" alt="Maskot guru ModulAjar menunjuk ke atas sambil memegang tablet" width="640" height="600" loading="eager" />
+          </figure>
         </div>
-        <p className="hero-note">Gratis 10 kredit setiap minggu. Tanpa kartu kredit.</p>
-        {onLogin && (
-          <p className="hero-login">Sudah punya akun? <button type="button" onClick={onLogin}>Masuk</button></p>
-        )}
       </section>
 
       <div className="marquee" aria-hidden="true">
