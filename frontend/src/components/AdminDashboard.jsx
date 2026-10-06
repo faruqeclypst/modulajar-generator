@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getToken } from '../lib/supabase';
+import { SkelStat, SkelTabel, SkelKartu, SkelForm } from './Kerangka';
 
 // Panggilan API admin: pola sama seperti apiJob di GeneratorPaket.jsx.
 async function apiAdmin(path, method, body) {
@@ -201,7 +202,7 @@ function PengaturanAI() {
   }
 
   if (err && !cfg) return <div className="alert alert-error">{err}</div>;
-  if (!cfg) return <p className="muted">Memuat…</p>;
+  if (!cfg) return <SkelForm baris={5} />;
 
   const fieldKey = (id, label, name, masked) => (
     <div className="field">
@@ -312,7 +313,7 @@ function PengaturanAI() {
       </p>
 
       {preset === null ? (
-        <p className="muted">Memuat…</p>
+        <SkelTabel baris={3} kolom={6} />
       ) : preset.length === 0 ? (
         <div className="alert alert-info">Belum ada AI tersimpan. Tambahkan di bawah.</div>
       ) : (
@@ -435,21 +436,23 @@ export default function AdminDashboard({ onBack }) {
       <h1 className="page">Dashboard Admin</h1>
       <p className="lead">Pantau pengguna, dokumen, kredit, job paket, dan masukan yang masuk.</p>
 
-      <div className="admin-tabs" role="tablist" aria-label="Bagian dashboard admin">
-        {TABS.map(([k, label]) => (
-          <button
-            key={k} type="button" role="tab" aria-selected={tab === k}
-            className={'admin-tab' + (tab === k ? ' aktif' : '')}
-            onClick={() => setTab(k)}
-          >
-            {label}
-            {k === 'masukan' && Array.isArray(masukan) && masukan.some((m) => !m.dibaca) && (
-              <span className="chip red" style={{ marginLeft: 8 }}>{masukan.filter((m) => !m.dibaca).length}</span>
-            )}
-          </button>
-        ))}
-      </div>
+      <div className="admin-layout">
+        <nav className="admin-side" aria-label="Bagian dashboard admin">
+          {TABS.map(([k, label]) => (
+            <button
+              key={k} type="button" aria-current={tab === k ? 'page' : undefined}
+              className={'admin-nav' + (tab === k ? ' aktif' : '')}
+              onClick={() => setTab(k)}
+            >
+              <span>{label}</span>
+              {k === 'masukan' && Array.isArray(masukan) && masukan.some((m) => !m.dibaca) && (
+                <span className="chip red">{masukan.filter((m) => !m.dibaca).length}</span>
+              )}
+            </button>
+          ))}
+        </nav>
 
+        <div className="admin-main">
       {tab === 'ringkasan' && (
         <section aria-label="Ringkasan">
           {err.ringkasan ? (
@@ -464,7 +467,7 @@ export default function AdminDashboard({ onBack }) {
                 <KartuAngka label="Job Paket Aktif" nilai={r.jobAktif} loading={!ringkasan} />
                 <KartuAngka label="Referral Diklaim" nilai={r.referralDiklaim} loading={!ringkasan} />
               </div>
-              {!ringkasan && <p className="hint" role="status">Memuat ringkasan…</p>}
+              {!ringkasan && <SkelStat />}
             </>
           )}
         </section>
@@ -475,7 +478,7 @@ export default function AdminDashboard({ onBack }) {
           {err.pengguna ? (
             <div className="alert alert-error">Gagal memuat daftar pengguna: {err.pengguna}<MuatUlang onClick={() => muat('pengguna', setPengguna, '/api/admin/pengguna', true)} /></div>
           ) : !pengguna ? (
-            <p className="hint" role="status">Memuat daftar pengguna…</p>
+            <SkelTabel baris={6} kolom={5} />
           ) : pengguna.length === 0 ? (
             <div className="alert alert-info">Belum ada pengguna terdaftar.</div>
           ) : (
@@ -505,7 +508,7 @@ export default function AdminDashboard({ onBack }) {
           {err.masukan ? (
             <div className="alert alert-error">Gagal memuat masukan: {err.masukan}<MuatUlang onClick={() => muat('masukan', setMasukan, '/api/admin/masukan', true)} /></div>
           ) : !masukan ? (
-            <p className="hint" role="status">Memuat masukan…</p>
+            <SkelKartu jumlah={3} />
           ) : masukan.length === 0 ? (
             <div className="alert alert-info">Belum ada masukan.</div>
           ) : (
@@ -537,7 +540,7 @@ export default function AdminDashboard({ onBack }) {
           {err.jobs ? (
             <div className="alert alert-error">Gagal memuat job: {err.jobs}<MuatUlang onClick={() => muat('jobs', setJobs, '/api/admin/jobs', true)} /></div>
           ) : !jobs ? (
-            <p className="hint" role="status">Memuat job terbaru…</p>
+            <SkelTabel baris={6} kolom={4} />
           ) : jobs.length === 0 ? (
             <div className="alert alert-info">Belum ada job paket.</div>
           ) : (
@@ -568,6 +571,8 @@ export default function AdminDashboard({ onBack }) {
       <div className="btn-row">
         <button type="button" className="btn" onClick={onBack}>Kembali</button>
       </div>
+        </div>{/* /.admin-main */}
+      </div>{/* /.admin-layout */}
     </div>
   );
 }

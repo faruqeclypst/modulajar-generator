@@ -2328,35 +2328,20 @@ app.post('/api/admin/daftar-ai/:id/pakai', requireAdmin(async (req, res) => {
 app.get('/api/admin/ringkasan', requireAdmin(async (req, res) => {
   try {
     if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
-    const r = { totalUser: 0, dokumenTotal: 0, dokumenHariIni: 0, kreditTerpakaiHariIni: 0, jobAktif: 0, referralDiklaim: 0 };
-    try {
-      const { data } = await sb.auth.admin.listUsers({ perPage: 1 });
-      r.totalUser = data?.total || (data?.users ? data.users.length : 0);
-    } catch { /* abaikan */ }
-    try {
-      const { count } = await sb.from('dokumen').select('id', { count: 'exact', head: true });
-      r.dokumenTotal = count || 0;
-    } catch { /* abaikan */ }
-    try {
-      const wibTengahMalam = new Date(Date.now() + 7 * 3600 * 1000);
-      wibTengahMalam.setUTCHours(0, 0, 0, 0);
-      const awal = new Date(wibTengahMalam.getTime() - 7 * 3600 * 1000).toISOString();
-      const { count } = await sb.from('dokumen').select('id', { count: 'exact', head: true }).gte('created_at', awal);
-      r.dokumenHariIni = count || 0;
-    } catch { /* abaikan */ }
-    try {
-      const { data } = await sb.from('kuota_harian').select('dipakai').eq('tanggal', periodeKuota());
-      r.kreditTerpakaiHariIni = (data || []).reduce((a, b) => a + (b.dipakai || 0), 0);
-    } catch { /* abaikan */ }
-    try {
-      const { count } = await sb.from('jobs').select('id', { count: 'exact', head: true }).in('status', ['antri', 'berjalan']);
-      r.jobAktif = count || 0;
-    } catch { /* abaikan */ }
-    try {
-      const { count } = await sb.from('referal').select('id', { count: 'exact', head: true });
-      r.referralDiklaim = count || 0;
-    } catch { /* abaikan: tabel referral mungkin belum ada */ }
-    res.json({ ok: true, ...r });
+    // 6 query independen: jalan paralel, bukan berurutan (jauh lebih cepat).
+    const wibTengahMalam = new Date(Date.now() + 7 * 3600 * 1000);
+    wibTengahMalam.setUTCHours(0, 0, 0, 0);
+    const awalHari = new Date(wibTengahMalam.getTime() - 7 * 3600 * 1000).toISOString();
+    const hariIni = periodeKuota();
+    const [totalUser, dokumenTotal, dokumenHariIni, kreditTerpakaiHariIni, jobAktif, referralDiklaim] = await Promise.all([
+      (async () => { try { const { data } = await sb.auth.admin.listUsers({ perPage: 1 }); return data?.total || (data?.users ? data.users.length : 0); } catch { return 0; } })(),
+      (async () => { try { const { count } = await sb.from('dokumen').select('id', { count: 'exact', head: true }); return count || 0; } catch { return 0; } })(),
+      (async () => { try { const { count } = await sb.from('dokumen').select('id', { count: 'exact', head: true }).gte('created_at', awalHari); return count || 0; } catch { return 0; } })(),
+      (async () => { try { const { data } = await sb.from('kuota_harian').select('dipakai').eq('tanggal', hariIni); return (data || []).reduce((a, b) => a + (b.dipakai || 0), 0); } catch { return 0; } })(),
+      (async () => { try { const { count } = await sb.from('jobs').select('id', { count: 'exact', head: true }).in('status', ['antri', 'berjalan']); return count || 0; } catch { return 0; } })(),
+      (async () => { try { const { count } = await sb.from('referal').select('id', { count: 'exact', head: true }); return count || 0; } catch { return 0; } })(),
+    ]);
+    res.json({ ok: true, totalUser, dokumenTotal, dokumenHariIni, kreditTerpakaiHariIni, jobAktif, referralDiklaim });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });
   }
@@ -2373,15 +2358,14 @@ app.get('/api/admin/pengguna', requireAdmin(async (req, res) => {
       const k = await sb.from('kunci_ai').select('user_id');
       byokSet = new Set((k.data || []).map((x) => x.user_id));
     } catch { /* abaikan: tabel BYOK mungkin belum ada */ }
-    const daftar = [];
-    for (const u of users) {
+    const daftar = await Promise.all(users.map(async (u) => {
       let jmlDokumen = 0;
       try {
         const c = await sb.from('dokumen').select('id', { count: 'exact', head: true }).eq('user_id', u.id);
         jmlDokumen = c.count || 0;
       } catch { /* abaikan */ }
-      daftar.push({ id: u.id, email: u.email, dibuat: u.created_at, byok: byokSet.has(u.id), jmlDokumen });
-    }
+      return { id: u.id, email: u.email, dibuat: u.created_at, byok: byokSet.has(u.id), jmlDokumen };
+    }));
     res.json({ ok: true, data: daftar, total: data?.total ?? users.length });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });

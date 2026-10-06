@@ -743,14 +743,39 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
    Keputusan (R-31): tabel scroll horizontal di dalam kontainer agar aman di HP;
    tab berupa tombol native agar keyboard-accessible; badge "Baru" bata sebagai
    satu-satunya aksen status penting. */
-.admin-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0 24px; }
-.admin-tab {
-  font-family: var(--font); font-size: 14px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: .5px; padding: 12px 18px; min-height: 44px; cursor: pointer;
-  background: var(--paper-2); color: var(--ink); border: var(--bd); border-radius: 0;
+/* ---------- Admin: layout sidebar ---------- */
+.admin-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 22px; }
+.admin-side {
+  border: var(--bd); background: var(--paper-2); box-shadow: var(--sh);
+  padding: 12px; position: sticky; top: 92px;
+  display: flex; flex-direction: column; gap: 8px;
 }
-.admin-tab.aktif { background: var(--ink); color: var(--paper); box-shadow: var(--sh-btn); }
-.admin-tab:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.admin-nav {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-family: var(--font); font-size: 14px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .5px; padding: 12px 14px; min-height: 44px; cursor: pointer;
+  background: var(--paper); color: var(--ink); border: var(--bd); border-radius: 0;
+  text-align: left; width: 100%;
+}
+.admin-nav:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
+.admin-nav.aktif { background: var(--ink); color: var(--paper); box-shadow: var(--sh-btn); }
+.admin-nav:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.admin-main { min-width: 0; }
+@media (max-width: 900px) {
+  .admin-layout { grid-template-columns: 1fr; }
+  .admin-side { position: static; flex-direction: row; overflow-x: auto; padding: 10px; }
+  .admin-nav { width: auto; white-space: nowrap; flex: none; }
+}
+
+/* ---------- Skeleton loading ---------- */
+.skel { background: var(--wash); position: relative; overflow: hidden; }
+.skel::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.65) 50%, transparent 70%);
+  animation: skel-geser 1.3s infinite;
+}
+@keyframes skel-geser { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .skel::after { animation: none; } }
 .admin-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 8px; }
 .admin-stat {
   background: var(--paper-2); border: var(--bd); box-shadow: var(--sh);

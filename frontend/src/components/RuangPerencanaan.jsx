@@ -6,6 +6,7 @@ import DocEditor from './DocEditor';
 import FormulirDasar from './FormulirDasar';
 import ProsesLive from './ProsesLive';
 import Paywall from './Paywall';
+import { SkelKartu } from './Kerangka';
 
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
 const BUTUH = { cp: null, atp: 'cp', minggu_efektif: 'atp', prota: 'minggu_efektif', prosem: 'prota' };
@@ -106,10 +107,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
         )}
 
         {memuatAwal ? (
-          <div className="loader-wrap">
-            <div className="spinner" role="status" aria-label="Memuat proyek" />
-            <p className="stage">Memuat proyek…</p>
-          </div>
+          <SkelKartu jumlah={3} />
         ) : projects.length === 0 ? (
           <div className="empty">
             <h3>Belum ada proyek</h3>

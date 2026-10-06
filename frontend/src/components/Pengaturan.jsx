@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Paywall from './Paywall';
 import { getAiConfig, saveAiConfig, deleteAiConfig, getAiStatus, setAiPilihan, getReferal } from '../lib/api';
+import { SkelForm, Skel } from './Kerangka';
 
 // Sumber AI: pilih "AI bawaan web" atau "AI sendiri (BYOK)".
 // AI bawaan memotong kuota harian; AI sendiri tidak.
@@ -128,7 +129,7 @@ function KunciAISendiri() {
       {!pilihan && (
         <>
       <h3 className="sec" style={{ fontSize: 16 }}>Kunci AI Sendiri</h3>
-      {status === 'memuat' && <p>Memuat…</p>}
+      {status === 'memuat' && <SkelForm baris={3} />}
       {err && <div className="alert alert-error" role="alert">{err}</div>}
       {status === 'aktif' && cfg && !ganti && (
         <>
@@ -225,7 +226,7 @@ function BagikanBonus() {
     <section className="card" aria-labelledby="set-referal">
       <h2 className="sec" id="set-referal" style={{ marginTop: 0 }}>Bagikan &amp; Bonus</h2>
       <p style={{ marginTop: 0 }}>+3 kredit bonus untuk tiap teman yang bergabung lewat linkmu (maks 5 per 3 hari). Bonus dihitung ulang tiap 3 hari.</p>
-      {status === 'memuat' && <p>Memuat…</p>}
+      {status === 'memuat' && <><Skel tinggi={14} lebar="100%" gaya={{ marginBottom: 10 }} /><Skel tinggi={44} lebar="100%" /></>}
       {err && <div className="alert alert-error" role="alert">{err}</div>}
       {ref && (
         <>
