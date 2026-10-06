@@ -3,7 +3,7 @@ import { MODEL } from '../lib/referensi';
 import { generateDocStream, getProfile, saveProfile, extractTitle } from '../lib/api';
 import { getProject, getModul, saveModul, updateModul, getPaket } from '../lib/db';
 import { parseMatriksProsem } from '../lib/prosem';
-import { buatTugas, tugasTahap, tugasTulisan, tugasSelesai, tugasGagal, tutupTugas } from '../lib/tugasLatar';
+import { buatTugas, tugasTahap, tugasTulisan, tugasSelesai, tugasGagal, tutupTugas, tugasSetProgress, tugasSetMeta, cariTugas } from '../lib/tugasLatar';
 import { kunciAkun } from '../lib/akunLokal';
 import ProsesLive from './ProsesLive';
 import DocEditor from './DocEditor';
@@ -30,6 +30,9 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
   const [hasil, setHasil] = useState([]); // [{topik, docId, markdown}]
   const [skrg, setSkrg] = useState(null); // {topik, markdown, images} modul sedang dikonfirmasi
   const [busy, setBusy] = useState(false);
+  const [jobId, setJobId] = useState(null);
+  const [paywall, setPaywall] = useState(null);
+  const pollRef = useRef(null);
   const [tahapLive, setTahapLive] = useState([]);
   const [statusLive, setStatusLive] = useState({});
   const [tulisan, setTulisan] = useState([]);
@@ -53,6 +56,21 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
     if (!project) return;
     simpanDraft();
   }, [topiks, model, namaGuru, mapel, persona, personaRingkasan, idx, hasil]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Resume: bila ada job sesi-modul yang masih berjalan (HP mati / refresh), sambung polling
+  useEffect(() => {
+    if (!project?.id) return;
+    let jid = null;
+    try { jid = localStorage.getItem(kunciAkun('ma-sesi-job-' + project.id)); } catch {}
+    if (!jid) return;
+    setJobId(jid);
+    setTahap('jalan');
+    setBusy(true);
+    const tid = buatTugas({ judul: 'Paket Lengkap (lanjutan)', konteks: 'sesi-modul', aksi: { kembali: 'Lihat proses' }, meta: { projectId: project.id, jobId: jid } });
+    tugasIdRef.current = tid;
+    pantauJob(jid, tid);
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  }, [project?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     (async () => {
@@ -238,58 +256,98 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
     setSesiTerhenti(false);
     setTahap('jalan');
     setBusy(true);
-    const tid = buatTugas({ judul: `Paket Lengkap: ${topiks.length} Modul`, konteks: 'sesi-modul', aksi: { kembali: 'Lihat proses' } });
+    // Buat job server-side: AI tetap mengerjakan walau HP mati / browser ditutup.
+    // Hasil diambil via polling saat kembali.
+    const tid = buatTugas({ judul: `Paket Lengkap: ${topiks.length} Modul`, konteks: 'sesi-modul', aksi: { kembali: 'Lihat proses' }, meta: { projectId: project?.id || null } });
     tugasIdRef.current = tid;
     try {
-      for (let ix = 0; ix < topiks.length; ix++) {
-        setIdx(ix);
-        const topikObj = topiks[ix];
-        tugasTahap(tid, `modul-${ix}`, `Modul ${ix + 1}/${topiks.length}: ${topikObj.topik.slice(0, 40)}`);
-        const info = {
-          ...getProfile(),
-          topik: topikObj.topik, alokasi: topikObj.alokasi,
-          docType: 'modul',
-          personaGuru: persona,
-          menitPerJP: getProfile().menitPerJP || 45,
-          // Rantai: kirim semua dokumen perencanaan agar modul selaras
-          _rantai: ['cp', 'atp', 'minggu_efektif', 'distribusi_jp', 'prota', 'prosem'],
-        };
-        const sumberParts = [];
-        if (docs.cp) sumberParts.push('===== CP =====\n' + docs.cp.slice(0, 6000));
-        if (docs.atp) sumberParts.push('===== ATP =====\n' + docs.atp.slice(0, 4000));
-        if (docs.minggu_efektif) sumberParts.push('===== MINGGU EFEKTIF =====\n' + docs.minggu_efektif.slice(0, 2000));
-        if (docs.distribusi_jp) sumberParts.push('===== DISTRIBUSI JP =====\n' + docs.distribusi_jp.slice(0, 2000));
-        if (docs.prota) sumberParts.push('===== PROTA =====\n' + docs.prota.slice(0, 3000));
-        if (docs.prosem) sumberParts.push('===== PROSEM =====\n' + docs.prosem.slice(0, 3000));
-        const sumber = sumberParts.join('\n\n');
-        let md = '', imgs = [];
-        await generateDocStream('modul', info, topikObj.topik, sumber, null, (ev) => {
-          if (ev.tipe === 'selesai') { md = ev.markdown || ''; imgs = ev.images || []; }
-        });
-        if (!md) throw new Error(`Gagal generate modul ${ix + 1}.`);
-        const judul = extractTitle(md) || `Modul: ${topikObj.topik}`;
-        const prof = getProfile();
-        const docId = await saveModul({
-          docType: 'modul', judul,
-          jenjang: project.jenjang, fase: project.fase, kelas: project.kelas,
-          semester: project.semester, mapel: mapel || project.mapel, topik: topikObj.topik,
-          alokasi: topikObj.alokasi, model: model === 'auto' ? '' : model,
-          nama: namaGuru || prof.nama, sekolah: prof.sekolah, tahunAjaran: project.tahunAjaran || prof.tahunAjaran,
-          markdown: md, images: imgs, projectId: project.id,
-        });
-        setHasil((prev) => [...prev, { topik: topikObj.topik, docId, markdown: md }]);
+      const prof = getProfile();
+      // Gabungkan dokumen acuan sebagai satu teks acuan
+      const sumberParts = [];
+      if (docs.cp) sumberParts.push('===== CP =====\n' + docs.cp.slice(0, 4000));
+      if (docs.atp) sumberParts.push('===== ATP =====\n' + docs.atp.slice(0, 4000));
+      if (docs.minggu_efektif) sumberParts.push('===== MINGGU EFEKTIF =====\n' + docs.minggu_efektif.slice(0, 2000));
+      if (docs.distribusi_jp) sumberParts.push('===== DISTRIBUSI JP =====\n' + docs.distribusi_jp.slice(0, 2000));
+      if (docs.prota) sumberParts.push('===== PROTA =====\n' + docs.prota.slice(0, 3000));
+      if (docs.prosem) sumberParts.push('===== PROSEM =====\n' + docs.prosem.slice(0, 3000));
+      const acuanGabung = sumberParts.join('\n\n');
+      const t = await getToken().catch(() => '');
+      const r = await fetch('/api/paket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) },
+        body: JSON.stringify({
+          mode: 'sesi-modul',
+          info: {
+            nama: namaGuru || prof.nama, sekolah: prof.sekolah, tahunAjaran: project.tahunAjaran || prof.tahunAjaran,
+            jenjang: project.jenjang, fase: project.fase, kelas: project.kelas, semester: project.semester,
+            mapel: mapel || project.mapel, model: model === 'auto' ? 'auto' : model,
+            kepalaSekolah: prof.kepalaSekolah || undefined, nipKepalaSekolah: prof.nipKepalaSekolah || undefined,
+            projectId: project.id, personaGuru: persona || undefined, menitPerJP: prof.menitPerJP || 45,
+          },
+          topiks: topiks.map((x) => ({ topik: x.topik, alokasi: x.alokasi || '' })),
+          uploads: { acuan: acuanGabung },
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!d.ok) {
+        const err = new Error(d.error || 'Gagal membuat sesi generate.');
+        err.code = d.code; err.detail = d;
+        throw err;
       }
-      tugasSelesai(tid, {});
-      setTahap('selesai');
-      onKuotaChanged && onKuotaChanged();
+      const jobId = d.jobId;
+      // Simpan jobId agar tahan refresh — polling dilanjutkan saat kembali
+      try { localStorage.setItem(kunciAkun('ma-sesi-job-' + project.id), jobId); } catch {}
+      tugasSetMeta(tid, { jobId });
+      setJobId(jobId);
+      // Mulai polling progress
+      pantauJob(jobId, tid);
     } catch (e) {
-      tugasGagal(tid, e.message || 'Paket gagal.');
-      setError(e.message || 'Paket gagal.');
+      tugasGagal(tid, e.code === 'kuota_habis' ? 'Kredit habis.' : (e.message || 'Paket gagal.'));
+      if (e.code === 'kuota_habis') setPaywall({ mode: 'kuota_habis', detail: e.detail });
+      else setError(e.message || 'Paket gagal.');
       setTahap('setup');
-    } finally {
       setBusy(false);
       tugasIdRef.current = null;
     }
+  }
+
+  // Polling progress job sesi-modul (tahan refresh / HP mati — job jalan di server)
+  async function pantauJob(jobId, tid) {
+    if (pollRef.current) clearInterval(pollRef.current);
+    const t = await getToken().catch(() => '');
+    const ambil = async () => {
+      try {
+        const r = await fetch('/api/paket/' + jobId, {
+          headers: { ...(t ? { Authorization: 'Bearer ' + t } : {}) },
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!d.ok) return; // gangguan sesaat, coba lagi nanti
+        const job = d.job;
+        const langkah = job?.progress?.langkah || [];
+        const st = {};
+        for (const s of langkah) st[s.key] = s.status === 'ok' ? 'ok' : (s.status === 'jalan' ? 'jalan' : 'tunggu');
+        tugasSetProgress(tid, langkah.map((s) => ({ key: s.key, label: (s.label || '') + (s.topik ? ': ' + String(s.topik).slice(0, 40) : '') })), st);
+        if (['selesai', 'gagal', 'dibatalkan'].includes(job.status)) {
+          clearInterval(pollRef.current); pollRef.current = null;
+          try { localStorage.removeItem(kunciAkun('ma-sesi-job-' + project.id)); } catch {}
+          if (job.status === 'selesai') {
+            const hasilJob = (job.hasil || []).map((h) => ({ topik: h.topik, docId: h.dokumenId, judul: h.judul }));
+            setHasil(hasilJob);
+            tugasSelesai(tid, { jobId });
+            setTahap('selesai');
+            onKuotaChanged && onKuotaChanged();
+          } else {
+            tugasGagal(tid, job.status === 'dibatalkan' ? 'Dibatalkan.' : (job.error || 'Gagal.'));
+            setError(job.status === 'dibatalkan' ? 'Dibatalkan.' : (job.error || 'Gagal.'));
+            setTahap('setup');
+          }
+          setBusy(false);
+          tugasIdRef.current = null;
+        }
+      } catch { /* gangguan sesaat, coba lagi */ }
+    };
+    await ambil();
+    pollRef.current = setInterval(ambil, 5000);
   }
 
   function mulaiUlang() {
@@ -518,6 +576,7 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
             </div>
           )}
 
+          {paywall?.mode === 'kuota_habis' && <div className="alert alert-error">Kredit habis. Kredit diperbarui setiap Minggu jam 15:00 WIB.</div>}
           {error && <div className="alert alert-error">{error}</div>}
           {sesiTerhenti && hasil.length > 0 && (
             <div className="alert alert-info" role="status">

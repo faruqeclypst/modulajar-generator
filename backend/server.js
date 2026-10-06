@@ -1893,6 +1893,16 @@ function rencanaJob(mode, topiks) {
     for (const t of topiks) add('bahan_ajar', 'Bahan Ajar', t);
     add('soal', 'Paket Soal');
   }
+  if (mode === 'sesi-modul') {
+    // Topik bisa string atau {topik, alokasi}; alokasi disimpan di step
+    for (const t of topiks) {
+      const topik = typeof t === 'object' ? t.topik : t;
+      const alokasi = typeof t === 'object' ? (t.alokasi || '') : '';
+      const s = { key: 'modul:' + topik, docType: 'modul', label: 'Modul Ajar', topik, status: 'antri' };
+      if (alokasi) s.alokasi = alokasi;
+      langkah.push(s);
+    }
+  }
   return langkah;
 }
 
@@ -2143,9 +2153,16 @@ async function jalankanJobInti(jobId) {
           const infoStep = { ...info };
           let rek;
           if (step.docType === 'modul') {
-            rek = await pastikanRekomendasi();
-            if (!infoStep.model || infoStep.model === 'auto') infoStep.model = rek?.model || '';
-            if (!infoStep.alokasi) infoStep.alokasi = rek?.alokasi || '';
+            // Alokasi per-topik dari sesi-modul diutamakan
+            if (step.alokasi) infoStep.alokasi = step.alokasi;
+            if (!infoStep.alokasi) {
+              rek = await pastikanRekomendasi();
+              if (!infoStep.model || infoStep.model === 'auto') infoStep.model = rek?.model || '';
+              if (!infoStep.alokasi) infoStep.alokasi = rek?.alokasi || '';
+            } else if (!infoStep.model || infoStep.model === 'auto') {
+              rek = await pastikanRekomendasi();
+              if (!infoStep.model || infoStep.model === 'auto') infoStep.model = rek?.model || '';
+            }
           }
           // Live progress: subfase per tahap + akumulasi tulisan AI.
           // Tulis ke DB maksimal 1x per 2 detik agar tidak membanjiri Supabase.
@@ -2325,9 +2342,18 @@ function cekRateLimit(userId, endpoint, maksPerJam) {
 // Mengembalikan { daftar } bila valid, atau { galat } bila tidak.
 function validasiTopiks(topiksRaw) {
   if (topiksRaw !== undefined && !Array.isArray(topiksRaw)) return { galat: 'Daftar topik harus berupa list.' };
-  const daftar = [...new Set((topiksRaw || []).map((t) => String(t).trim()).filter(Boolean))].slice(0, 20);
-  const panjang = daftar.find((t) => t.length > 200);
-  if (panjang) return { galat: 'Topik terlalu panjang (maks 200 karakter): "' + panjang.slice(0, 60) + '".' };
+  const lihat = (t) => typeof t === 'object' && t !== null ? String(t.topik || '').trim() : String(t).trim();
+  const daftar = [];
+  const sudah = new Set();
+  for (const t of (topiksRaw || [])) {
+    const nama = lihat(t);
+    if (!nama || sudah.has(nama)) continue;
+    sudah.add(nama);
+    if (nama.length > 200) return { galat: 'Topik terlalu panjang (maks 200 karakter): "' + nama.slice(0, 60) + '".' };
+    if (typeof t === 'object' && t !== null && t.alokasi) daftar.push({ topik: nama, alokasi: String(t.alokasi).slice(0, 100) });
+    else daftar.push(nama);
+    if (daftar.length >= 20) break;
+  }
   return { daftar };
 }
 
@@ -2335,7 +2361,7 @@ app.post('/api/paket', requireAuth(async (req, res) => {
   try {
     if (!butuhSb(req, res)) return;
     const { mode = 'lengkap', info: infoRaw = {}, materi = '', topiks: topiksRaw = [], uploads: uploadsRaw = {}, reviewJeda = false } = req.body || {};
-    if (!['lengkap', 'perencanaan', 'pelaksanaan'].includes(mode))
+    if (!['lengkap', 'perencanaan', 'pelaksanaan', 'sesi-modul'].includes(mode))
       return kirimGagal(res, 400, 'Mode tidak dikenal.');
     const info = objekAman(infoRaw);
     const uploads = objekAman(uploadsRaw);
@@ -2343,7 +2369,7 @@ app.post('/api/paket', requireAuth(async (req, res) => {
       return kirimGagal(res, 400, 'Mata pelajaran wajib diisi.');
     const { daftar: daftarTopik, galat: galatTopik } = validasiTopiks(topiksRaw);
     if (galatTopik) return kirimGagal(res, 400, galatTopik);
-    if ((mode === 'lengkap' || mode === 'pelaksanaan') && !daftarTopik.length)
+    if ((['lengkap', 'pelaksanaan', 'sesi-modul'].includes(mode)) && !daftarTopik.length)
       return kirimGagal(res, 400, 'Daftar topik kosong. Tambahkan minimal satu topik.');
     const errMateri = validasiPanjang(materi, 20000, 'Materi');
     if (errMateri) return kirimGagal(res, 400, errMateri);
