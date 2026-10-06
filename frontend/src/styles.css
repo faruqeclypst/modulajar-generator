@@ -63,7 +63,7 @@ img { max-width: 100%; }
   display: grid; place-items: center; font-weight: 900; font-size: 22px;
   border: 2px solid var(--paper); border-radius: 0;
 }
-.logo-mark.logo-img { object-fit: cover; padding: 0; display: block; }
+.logo-mark.logo-img { object-fit: cover; padding: 0; display: block; border: none; box-shadow: none; background: none; }
 .logo b { font-size: 18px; font-weight: 900; letter-spacing: .4px; text-transform: uppercase; display: block; line-height: 1.1; }
 .logo small { display: block; font-weight: 600; color: #D9D4C6; font-size: 11px; letter-spacing: .6px; }
 .topbar .spacer { flex: 1; }
@@ -886,11 +886,11 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .land-faq-item p { margin: 0; padding: 0 20px 18px 58px; color: var(--slate); font-size: 14.5px; }
 
 /* ---------- landing: footer ---------- */
-.hero-logo { width: 76px; height: 76px; border: var(--bd); box-shadow: 4px 4px 0 var(--red); margin-bottom: 20px; position: relative; z-index: 2; }
+.hero-logo { width: 76px; height: 76px; margin-bottom: 20px; position: relative; z-index: 2; }
 .land-footer { border-top: var(--bd); margin-top: 64px; padding: 36px 0 12px; }
 .land-footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 32px; margin-bottom: 28px; }
 .land-footer-brand { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; align-content: flex-start; }
-.land-footer-logo { width: 60px; height: 60px; border: var(--bd); box-shadow: var(--sh-btn); flex: none; }
+.land-footer-logo { width: 60px; height: 60px; flex: none; }
 .land-footer-brand > div { display: flex; flex-direction: column; }
 .land-footer-brand > div b { font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; }
 .land-footer-brand > div span { font-size: 13px; color: var(--muted); }
