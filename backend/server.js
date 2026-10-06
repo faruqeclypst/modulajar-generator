@@ -245,8 +245,12 @@ async function resolveKunciEfektif(userId, user) {
   }
   throw new Error('AI bawaan sedang nonaktif. Pasang kunci AI sendiri di Pengaturan untuk tetap bisa memakai.');
 }
-// Kuota dipotong hanya bila memakai AI bawaan (umum/env), bukan BYOK/admin.
-function potongKuota(sumber) { return sumber === 'umum' || sumber === 'env'; }
+// Kuota dipotong hanya bila memakai AI bawaan (umum/env), bukan BYOK.
+// Admin tidak pernah kena kuota, apa pun sumber kuncinya.
+function potongKuota(sumber, user) {
+  if (isAdmin(user)) return false;
+  return sumber === 'umum' || sumber === 'env';
+}
 function maskKey(k) {
   const s = String(k || '');
   return s.length <= 4 ? '••••' : '••••' + s.slice(-4);
@@ -1801,7 +1805,7 @@ app.post('/api/paket', requireAuth(async (req, res) => {
     // Kuota hanya dipotong bila memakai AI bawaan (bukan BYOK/admin).
     const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
     let kuotaDireservasi = 0;
-    if (potongKuota(kunciUser.sumber)) {
+    if (potongKuota(kunciUser.sumber, req.user)) {
       const ok = await potongKuotaAtomik(req.user.id, langkah.length);
       if (!ok) {
         const cek = await kuotaInfo(req.user.id);
@@ -1960,7 +1964,7 @@ app.post('/api/generate-doc', requireAuth(async (req, res) => {
     // Reservasi atomik di awal; bila generate gagal, reservasi dikembalikan.
     const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
     const kunciSendiri = kunciUser.sumber === 'sendiri';
-    const potong = potongKuota(kunciUser.sumber);
+    const potong = potongKuota(kunciUser.sumber, req.user);
     let direservasi = false;
     if (potong) {
       direservasi = await potongKuotaAtomik(req.user.id, 1);
@@ -2043,7 +2047,7 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
     const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
     const kunciSendiri = kunciUser.sumber === 'sendiri';
     let direservasi = false;
-    if (potongKuota(kunciUser.sumber)) {
+    if (potongKuota(kunciUser.sumber, req.user)) {
       direservasi = await potongKuotaAtomik(req.user.id, 1);
       if (!direservasi) {
         const cek = await kuotaInfo(req.user.id);
