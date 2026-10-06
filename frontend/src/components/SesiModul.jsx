@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MODEL } from '../lib/referensi';
 import { generateDocStream, getProfile, saveProfile, extractTitle } from '../lib/api';
+import { getToken } from '../lib/supabase';
 import { getProject, getModul, saveModul, updateModul, getPaket } from '../lib/db';
 import { parseMatriksProsem } from '../lib/prosem';
 import { buatTugas, tugasTahap, tugasTulisan, tugasSelesai, tugasGagal, tutupTugas, tugasSetProgress, tugasSetMeta, cariTugas } from '../lib/tugasLatar';
