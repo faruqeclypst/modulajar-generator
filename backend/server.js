@@ -287,6 +287,25 @@ function requireAuth(handler) {
   };
 }
 
+// Klasifikasi error: mana yang layak retry
+function bisaRetryAI(e) {
+  const msg = String(e?.message || '');
+  if (/HTTP 429|HTTP 5\d\d|timeout|abort|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|fetch failed/i.test(msg)) return true;
+  return false; // 400/401/403/404/422: jangan retry
+}
+const tidur = (ms) => new Promise((r) => setTimeout(r, ms));
+async function panggilAIDenganRetry(fn, { maxRetry = 3 } = {}) {
+  for (let a = 0; a <= maxRetry; a++) {
+    try { return await fn(); }
+    catch (e) {
+      if (!bisaRetryAI(e) || a === maxRetry) throw e;
+      const backoff = Math.min(1000 * 2 ** a, 15000);
+      const jitter = backoff * (0.5 + Math.random() * 0.5);
+      await tidur(jitter);
+    }
+  }
+}
+
 async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = null, onAntre = null) {
   // Antrean global: batasi panggilan AI bersamaan agar server tidak kebanjiran
   // saat banyak guru generate di waktu yang sama. FIFO; onAntre(posisi) dipanggil
@@ -294,6 +313,7 @@ async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = n
   // onAntre bisa lewat parameter atau konteks aiKeyCtx (untuk panggilan bertingkat).
   const cbAntre = onAntre || (() => { try { return aiKeyCtx.getStore()?.onAntre || null; } catch { return null; } })();
   await antreAI(cbAntre);
+  return panggilAIDenganRetry(async () => {
   try {
   // Kunci efektif sudah diresolusi per request/job via resolveKunciEfektif
   // (prioritas: BYOK sendiri → key admin → key umum → env).
@@ -322,8 +342,20 @@ async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = n
   const reader = r.body.getReader();
   const dec = new TextDecoder();
   let buf = '', full = '', usageStream = null;
+  // Stall detection: jika tidak ada chunk selama 45 detik, anggap macet
+  const bacaDenganTimeout = async () => {
+    const timer = setTimeout(() => {}, 45000);
+    try {
+      const hasil = await Promise.race([
+        reader.read(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('AI stall: tidak ada respons selama 45 detik.')), 45000)),
+      ]);
+      clearTimeout(timer);
+      return hasil;
+    } catch (e) { clearTimeout(timer); throw e; }
+  };
   for (;;) {
-    const { done, value } = await reader.read();
+    const { done, value } = await bacaDenganTimeout();
     if (done) break;
     buf += dec.decode(value, { stream: true });
     let idx;
@@ -351,8 +383,10 @@ async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = n
   if (!full.trim()) throw new Error('AI mengembalikan respons kosong.');
   return full;
   } finally {
-    lepasAI();
+    // lepasAI dipindah ke luar retry wrapper
   }
+  }, { maxRetry: 2 });
+  lepasAI();
 }
 
 // ================= ANTREAN AI GLOBAL =================
@@ -2580,9 +2614,14 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
       'Connection': 'keep-alive',
       'X-Accel-Buffering': 'no', // penting: nginx tidak boleh buffer, kalau tidak "live" gagal
     });
+    // Heartbeat tiap 20 detik: cegah proxy/LB menutup koneksi idle
+    const heartbeat = setInterval(() => {
+      if (!res.writableEnded) res.write(': keep-alive\n\n');
+    }, 20000);
     // Bila klien terputus (refresh/tutup tab) sebelum selesai, kembalikan reservasi kuota.
     let selesaiOk = false;
     req.on('close', () => {
+      clearInterval(heartbeat);
       if (!selesaiOk && direservasi) {
         tambahKuota(req.user.id, -1).catch(() => {});
       }
@@ -2618,7 +2657,9 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
       }
       kirim({ tipe: 'selesai', markdown, images, kunciSendiri });
       selesaiOk = true;
+      clearInterval(heartbeat);
     } catch (e) {
+      clearInterval(heartbeat);
       if (direservasi) await tambahKuota(req.user.id, -1); // kembalikan reservasi
       kirim({ tipe: 'gagal', error: e.message || String(e) });
     }
