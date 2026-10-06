@@ -68,7 +68,7 @@ export default function Landing({ onStart, onDocs, waLink }) {
   return (
     <div className="wrap">
       <section className="hero-land">
-        <span className="kicker">Untuk Guru Indonesia</span>
+        <span className="kicker kicker-light">Untuk Guru Indonesia</span>
         <h1>Perangkat Ajar<br />Lengkap dalam<br /><span className="accent">Hitungan Menit.</span></h1>
         <p>
           Dari CP sampai modul ajar, LKPD, dan bank soal. AI menyusun mengikuti
@@ -77,11 +77,16 @@ export default function Landing({ onStart, onDocs, waLink }) {
         </p>
         <div className="btn-row">
           <button className="btn btn-primary" onClick={onStart}>Mulai Membuat</button>
-          <a className="btn" href="#cara-kerja">Lihat Cara Kerja</a>
+          <a className="btn btn-ghost-light" href="#cara-kerja">Lihat Cara Kerja</a>
         </div>
         <p className="hero-note">Gratis 20 kredit setiap hari. Tanpa kartu kredit.</p>
       </section>
 
+      <div className="marquee" aria-hidden="true">
+        <div className="marquee-track">
+          {Array(2).fill('MODUL AJAR · ATP · CP · PROTA · PROSEM · LKPD · BANK SOAL · KKTP · ').map((t, i) => <span key={i}>{t}</span>)}
+        </div>
+      </div>
 
       <section id="alur" style={{ marginTop: 56 }}>
         <span className="kicker">Alur Dokumen</span>
@@ -169,7 +174,7 @@ export default function Landing({ onStart, onDocs, waLink }) {
         <FeedbackForm mode="kontak" />
       </section>
 
-      <section className="card cta-band">
+      <section className="cta-band">
         <h2>Siap menyusun perangkat ajarmu?</h2>
         <p>Masuk dengan Google, langsung jalan di browser. Tanpa instal apa pun.</p>
         <button className="btn btn-primary" onClick={onStart}>Buat Dokumen Sekarang</button>
