@@ -1546,6 +1546,53 @@ Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 };
 
 // Inti generate satu dokumen — dipakai route langsung maupun job paket
+
+// Pembersih Prosem: AI sering "curhat" perhitungannya (analisis selisih JP,
+// peta minggu, koreksi asumsi) di antara heading dan tabel matriks, walau
+// prompt sudah melarang. Fungsi ini memotong SEMUA teks non-tabel di section B,
+// menyisakan hanya: heading B + subheading semester + <table> + section C dst.
+// Deterministik — tidak bergantung pada kepatuhan AI terhadap prompt.
+function bersihkanProsem(md) {
+  if (!md || typeof md !== 'string') return md;
+  const idxB = md.search(/##\s*B\.\s*Matriks/i);
+  if (idxB < 0) return md;
+  const idxC = md.search(/##\s*C\.\s*Pengesahan/i);
+  const sebelumB = md.slice(0, idxB);
+  const sesudahC = idxC >= 0 ? md.slice(idxC) : '';
+  const isiB = idxC >= 0 ? md.slice(idxB, idxC) : md.slice(idxB);
+
+  // Pecah isi B berdasarkan subheading semester (### Semester Ganjil / Genap)
+  const bagian = [];
+  const reHead = /###\s*Semester\s+(Ganjil|Genap)[^\n]*/gi;
+  let m, terakhir = 0, heads = [];
+  while ((m = reHead.exec(isiB)) !== null) heads.push({ judul: m[0].trim(), idx: m.index });
+  const ambilTabel = (teks) => {
+    const t = [];
+    const re = /<table[\s\S]*?<\/table>/gi;
+    let x;
+    while ((x = re.exec(teks)) !== null) t.push(x[0]);
+    return t;
+  };
+  if (heads.length === 0) {
+    // Tidak ada subheading: ambil semua tabel apa adanya
+    const tabel = ambilTabel(isiB);
+    if (tabel.length === 0) return md; // tidak ada tabel — jangan rusak dokumen
+    return sebelumB + '## B. Matriks Program Semester\n\n' + tabel.join('\n\n') + '\n\n' + sesudahC;
+  }
+  let hasil = sebelumB + '## B. Matriks Program Semester\n';
+  heads.forEach((h, i) => {
+    const awal = h.idx;
+    const akhir = i + 1 < heads.length ? heads[i + 1].idx : isiB.length;
+    const potongan = isiB.slice(awal, akhir);
+    const tabel = ambilTabel(potongan);
+    if (tabel.length === 0) return; // semester tanpa tabel — lewati
+    // Normalisasi judul subheading
+    const nama = /Genap/i.test(h.judul) ? 'Semester Genap' : 'Semester Ganjil';
+    hasil += '\n### ' + nama + '\n\n' + tabel.join('\n\n') + '\n';
+  });
+  return hasil + '\n' + sesudahC;
+}
+
 async function generateDocInternal(docType = 'modul', info = {}, materi = '', sumber = '', rekomendasi = null, onTahap = () => {}, onTeks = () => {}) {
   // (Gate KENARI_API_KEY dihapus: ai() sudah melempar error yang benar bila
   // konteks kunci kosong, dan gate itu mematikan BYOK/key-admin saat env kosong.)
@@ -1565,7 +1612,9 @@ async function generateDocInternal(docType = 'modul', info = {}, materi = '', su
   info = (await siapkanInfo(info)).info;
   await onTahap('susun');
   const userMsg = `Susun dokumen dengan data berikut:\n${IDENT(info)}\n- Materi Pokok/Topik: ${info.topik || '-'}\n- Alokasi Waktu: ${info.alokasi || '-'}\n- Model Pembelajaran: ${info.model || '-'}\n- Jumlah Soal PG: ${info.jmlPG || '-'} | Uraian: ${info.jmlUraian || '-'}\n\n${konteksSumber(materi, sumber)}`;
-  return await ai(system, userMsg, 8000, 0.7, (d) => onTeks('susun', d));
+  let hasil = await ai(system, userMsg, 8000, 0.7, (d) => onTeks('susun', d));
+  if (docType === 'prosem') hasil = bersihkanProsem(hasil);
+  return hasil;
 }
 
 async function rekomendasiAIInternal({ jenjang = '', fase = '', mapel = '', topik = '', prosem = [] }) {
