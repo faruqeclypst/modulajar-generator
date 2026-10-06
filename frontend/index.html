@@ -55,27 +55,37 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
 <style>
   /* Konten statis pra-render: dibaca crawler tanpa JS, diganti React saat aplikasi dimuat. */
-  .seo-static { font-family: Archivo, system-ui, sans-serif; background: #FBF6EE; color: #1E1914; max-width: 880px; margin: 0 auto; padding: 32px 24px 64px; line-height: 1.65; }
-  .seo-static nav { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 32px; font-weight: 700; }
-  .seo-static nav a { color: #1E1914; }
-  .seo-static h1 { font-size: 40px; line-height: 1.15; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; margin: 0 0 16px; }
-  .seo-static h2 { font-size: 24px; font-weight: 800; margin: 40px 0 8px; }
-  .seo-static p { margin: 0 0 12px; color: #3d362d; }
-  .seo-static ul { margin: 0 0 12px; padding-left: 22px; color: #3d362d; }
-  .seo-static .kicker { display: inline-block; background: #1E1914; color: #FBF6EE; font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; padding: 5px 12px; margin-bottom: 16px; }
-  .seo-static footer { margin-top: 48px; border-top: 2px solid #1E1914; padding-top: 16px; font-size: 14px; }
+  .seo-static { font-family: Archivo, system-ui, sans-serif; background: #FBF6EE; color: #1E1914; line-height: 1.65; }
+  .seo-topbar { background: #1E1914; color: #FBF6EE; display: flex; align-items: center; gap: 12px; padding: 12px 24px; }
+  .seo-topbar .brand { font-weight: 900; font-size: 18px; letter-spacing: .5px; }
+  .seo-topbar .brand small { display: block; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; opacity: .75; }
+  .seo-topbar nav { display: flex; gap: 18px; flex-wrap: wrap; margin-left: auto; font-weight: 700; font-size: 14px; }
+  .seo-topbar nav a { color: #FBF6EE; text-decoration: none; }
+  .seo-topbar .masuk { background: #FBF6EE; color: #1E1914; font-weight: 800; font-size: 14px; padding: 8px 18px; border-radius: 999px; text-decoration: none; }
+  .seo-body { max-width: 880px; margin: 0 auto; padding: 32px 24px 64px; }
+  .seo-body h1 { font-size: 40px; line-height: 1.15; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; margin: 0 0 16px; }
+  .seo-body h2 { font-size: 24px; font-weight: 800; margin: 40px 0 8px; }
+  .seo-body p { margin: 0 0 12px; color: #3d362d; }
+  .seo-body ul { margin: 0 0 12px; padding-left: 22px; color: #3d362d; }
+  .seo-body .kicker { display: inline-block; background: #1E1914; color: #FBF6EE; font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; padding: 5px 12px; margin-bottom: 16px; }
+  .seo-body footer { margin-top: 48px; border-top: 2px solid #1E1914; padding-top: 16px; font-size: 14px; }
 </style>
 </head>
 <body>
 <div id="root">
   <!-- Konten statis untuk SEO/crawler tanpa JavaScript. React menggantikannya saat dimuat. -->
   <div class="seo-static">
-    <nav aria-label="Navigasi">
-      <a href="#alur">Alur Dokumen</a>
-      <a href="#cara-kerja">Cara Kerja</a>
-      <a href="#harga">Harga</a>
-      <a href="#faq">Tanya Jawab</a>
-    </nav>
+    <div class="seo-topbar">
+      <div class="brand">MODULAJAR<small>PERANGKAT AJAR AI</small></div>
+      <nav aria-label="Navigasi">
+        <a href="#alur">Alur Dokumen</a>
+        <a href="#cara-kerja">Cara Kerja</a>
+        <a href="#harga">Harga</a>
+        <a href="#faq">Tanya Jawab</a>
+      </nav>
+      <a class="masuk" href="#masuk">Masuk</a>
+    </div>
+    <div class="seo-body">
     <span class="kicker">Untuk Guru Indonesia</span>
     <h1>Perangkat Ajar Lengkap dalam Hitungan Menit</h1>
     <p>ModulAjar adalah generator perangkat ajar Kurikulum Merdeka bertenaga AI. Dari CP sampai modul ajar, LKPD, dan bank soal — AI menyusun mengikuti alur Kurikulum Merdeka yang runtut dan acuan yang kamu pilih. Kamu yang memeriksa, mengedit, dan mengesahkan.</p>
@@ -91,12 +101,13 @@
     <h2 id="harga">Harga</h2>
     <p>Setiap akun mendapat 10 kredit gratis setiap minggu, diperbarui setiap Minggu jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Tanpa kartu kredit.</p>
     <h2 id="faq">Tanya jawab</h2>
-    <p><strong>Apakah ModulAjar gratis?</strong> Ya — 20 kredit gratis setiap minggu, diperbarui setiap Minggu jam 15:00 WIB.</p>
+    <p><strong>Apakah ModulAjar gratis?</strong> Ya — 10 kredit gratis setiap minggu, diperbarui setiap Minggu jam 15:00 WIB.</p>
     <p><strong>Dokumen apa saja yang bisa dibuat?</strong> CP, ATP, Minggu Efektif, Prota, Prosem, Modul Ajar lengkap (materi, bank soal, rubrik, lembar pengesahan), LKPD, Bank Soal, dan KKTP.</p>
     <p><strong>Bisakah memakai API key AI sendiri?</strong> Bisa — di Pengaturan ada opsi kunci AI sendiri; generate tidak memotong kredit.</p>
     <footer>
       <p>© 2026 ModulAjar · Dibuat untuk guru Indonesia.</p>
     </footer>
+    </div>
   </div>
 </div>
 <script type="module" src="/src/main.jsx"></script>
