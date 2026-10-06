@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ekstrakTeks } from '../lib/ekstrakDokumen';
 
-// Tombol unggah dokumen panduan: PDF/DOCX/TXT dibaca di browser,
+// Tombol unggah dokumen panduan: PDF/DOCX/XLSX/TXT dibaca di browser,
 // teksnya diteruskan ke onTeks untuk mengisi kolom formulir.
 export default function UnggahDokumen({ onTeks, label }) {
   const inputRef = useRef(null);
@@ -25,11 +25,11 @@ export default function UnggahDokumen({ onTeks, label }) {
   return (
     <div style={{ marginTop: 8 }}>
       <input
-        ref={inputRef} type="file" accept=".pdf,.docx,.txt,.md"
+        ref={inputRef} type="file" accept=".pdf,.docx,.xlsx,.xls,.txt,.md"
         onChange={pilih} style={{ display: 'none' }} aria-label={label || 'Unggah dokumen panduan'}
       />
       <button type="button" className="btn btn-sm" onClick={() => inputRef.current && inputRef.current.click()}>
-        {label || 'Unggah dokumen (PDF/DOCX/TXT)'}
+        {label || 'Unggah dokumen (PDF/DOCX/XLSX/TXT)'}
       </button>
       {status && <p className="hint" style={{ margin: '6px 0 0' }}>{status}</p>}
     </div>

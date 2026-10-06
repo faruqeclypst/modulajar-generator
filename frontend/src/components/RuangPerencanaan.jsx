@@ -608,7 +608,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
                 <textarea rows={3} placeholder="cth: fokus pada materi X, alokasi khusus…" value={teks} onChange={(e) => setTeks(e.target.value)} />
                 {bisaUnggah && (
                   <UnggahDokumen
-                    label="Unggah dokumen untuk dianalisis AI (PDF/DOCX/TXT)"
+                    label="Unggah dokumen untuk dianalisis AI (PDF/DOCX/XLSX/TXT)"
                     onTeks={(isi, namaFile) => setTeks((t) => (t ? t + '\n\n' : '') + `[Dokumen terlampir: ${namaFile}]\n${isi}`)}
                   />
                 )}
