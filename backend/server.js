@@ -1316,8 +1316,10 @@ CONTOH:
   "genap": [
     {"materi": "Proyek Sistem Digital", "jp": 12, "ket": "Proyek"}
   ],
-  "minggu_ganjil": ["Jul-3", "Jul-4", "Agu-1", "Agu-2", "Agu-4", "Sep-1"],
-  "minggu_genap": ["Jan-2", "Jan-3", "Jan-4"]
+  "minggu_ganjil": ["Jul-1", "Jul-2", "Jul-3", "Jul-4", "Agu-1", "Agu-2"],
+  "minggu_genap": ["Jan-1", "Jan-2", "Jan-3"],
+  "libur_ganjil": {"Jul-2": "Lomba sekolah", "Agu-1": "Libur nasional"},
+  "libur_genap": {}
 }
 \`\`\`
 
@@ -1334,7 +1336,7 @@ Contoh BENAR (ditiru polanya):
 
 Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — bukan judul bab yang umum.
 
-STRUKTUR MINGGU (WAJIB): Dari dokumen Analisis Minggu Efektif dan PROTA, susun daftar minggu EFEKTIF saja (bukan semua minggu kalender) secara berurutan ke dalam "minggu_ganjil" / "minggu_genap". Format tiap minggu: "Jul-3" (3 huruf bulan + nomor minggu). Hanya cantumkan minggu yang ada KBM; minggu libur/ujian JANGAN dicantumkan. Contoh: jika Juli efektif mulai minggu ke-3, maka "minggu_ganjil" diawali "Jul-3", "Jul-4", lalu "Agu-1". PENTING: Total JP = (jumlah minggu di daftar ini) × (JP per minggu). JANGAN alokasikan JP ke minggu yang tidak ada di daftar.
+STRUKTUR MINGGU (WAJIB): Dari dokumen Analisis Minggu Efektif dan PROTA, susun SEMUA minggu secara berurutan ke dalam "minggu_ganjil" / "minggu_genap". Format tiap minggu: "Jul-3" (3 huruf bulan + nomor minggu). Untuk minggu TIDAK EFEKTIF (mis. minggu ke-2 ada lomba sekolah), cantumkan di "libur_ganjil" / "libur_genap" sebagai objek {"Jul-2": "Lomba sekolah"}. Minggu libur tetap ditampilkan dengan warna khusus dan tidak diisi materi. PENTING: Total JP = (jumlah minggu efektif SAJA) × (JP per minggu). JANGAN alokasikan JP ke minggu yang tidak ada di daftar.
 
 ATURAN JSON:
 1. ACUAN WAJIB (JANGAN mengarang di luar ini):
@@ -1602,7 +1604,7 @@ function bangunMatriksProsem(md, info) {
   if (!data || (!Array.isArray(data.ganjil) && !Array.isArray(data.genap))) return md;
   const jpPerMinggu = Number(info?.jpPerMinggu) || 2;
 
-  const bangunTabel = (daftar, bulan, tanda, daftarMinggu) => {
+  const bangunTabel = (daftar, bulan, tanda, daftarMinggu, libur) => {
     if (!Array.isArray(daftar) || daftar.length === 0) return '';
 
     // Kolom minggu DINAMIS dari daftar minggu efektif (AI).
@@ -1654,6 +1656,17 @@ function bangunMatriksProsem(md, info) {
       });
     }
     const clsKolom = (c) => kolomTanda[c] ? ' class="' + kolomTanda[c] + '"' : '';
+    // Minggu libur/tidak efektif: tetap tampil dengan warna, tidak diisi materi
+    const liburSet = new Set();
+    const liburAlasan = {}; // idx -> alasan
+    if (libur && typeof libur === 'object') {
+      Object.entries(libur).forEach(([k, alasan]) => {
+        const n = normKode(k);
+        if (!n) return;
+        const i = kolomMinggu.indexOf(n.kode);
+        if (i >= 0) { liburSet.add(i); kolomTanda[i] = 'td-libur'; liburAlasan[i] = String(alasan || 'Tidak efektif'); jumlah[i] = ''; }
+      });
+    }
     let mingguIdx = 0;
     const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     // Bin-packing: satu minggu bisa diisi beberapa materi (mis. 1 JP A + 1 JP B).
@@ -1665,6 +1678,8 @@ function bangunMatriksProsem(md, info) {
       const sel = {};
       let sisa = jp;
       while (sisa > 0 && mingguAktif < kolomMinggu.length) {
+        while (mingguAktif < kolomMinggu.length && liburSet.has(mingguAktif)) { mingguAktif++; sisaKap = jpPerMinggu; }
+        if (mingguAktif >= kolomMinggu.length) break;
         const ambil = Math.min(sisaKap, sisa);
         sel[mingguAktif] = (sel[mingguAktif] || 0) + ambil;
         jumlah[mingguAktif] = String((Number(jumlah[mingguAktif]) || 0) + ambil);
@@ -1684,6 +1699,13 @@ function bangunMatriksProsem(md, info) {
     html += '<tr><td>Jumlah</td><td>' + totalJP + '</td>';
     jumlah.forEach((j, c) => { html += '<td' + clsKolom(c) + '>' + j + '</td>'; });
     html += '<td></td></tr>\n</tbody>\n</table>';
+    // Legenda warna di bawah tabel
+    const alasanUnik = [...new Set(Object.values(liburAlasan))];
+    if (alasanUnik.length > 0) {
+      html += '\n<div class="legenda-prosem"><span class="legenda-judul">Keterangan:</span> ';
+      html += '<span class="legenda-item"><span class="legenda-warna warna-libur"></span> Minggu tidak efektif</span> ';
+      html += '<span class="legenda-detail">(' + alasanUnik.map((a) => esc(a)).join('; ') + ')</span></div>';
+    }
     return html;
   };
 
@@ -1692,8 +1714,8 @@ function bangunMatriksProsem(md, info) {
   const sebelumB = idxB >= 0 ? md.slice(0, idxB) : md;
   const sesudahC = idxC >= 0 ? md.slice(idxC) : '';
   let hasil = sebelumB + '## B. Matriks Program Semester\n';
-  const tGanjil = bangunTabel(data.ganjil, BULAN_GANJIL, data.tanda_ganjil, data.minggu_ganjil);
-  const tGenap = bangunTabel(data.genap, BULAN_GENAP, data.tanda_genap, data.minggu_genap);
+  const tGanjil = bangunTabel(data.ganjil, BULAN_GANJIL, data.tanda_ganjil, data.minggu_ganjil, data.libur_ganjil);
+  const tGenap = bangunTabel(data.genap, BULAN_GENAP, data.tanda_genap, data.minggu_genap, data.libur_genap);
   if (tGanjil) hasil += '\n### Semester Ganjil\n\n' + tGanjil + '\n';
   if (tGenap) hasil += '\n### Semester Genap\n\n' + tGenap + '\n';
   if (!tGanjil && !tGenap) return md; // gagal bangun — jangan rusak dokumen
