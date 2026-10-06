@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import './DocEditor.css';
 import { mdToBlocks, blocksToMd, figToImage, BLOCK_LABEL } from '../lib/blocks';
 import { regenBlock } from '../lib/api';
+import { bukaPratinjauBaru } from '../lib/pratinjau';
+import DocPaper from './DocPaper';
 import ImagePicker from './ImagePicker';
 
 let uid = 1;
@@ -66,7 +68,20 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
   const [menu, setMenu] = useState(null); // { id, kind: 'add' | 'block' }
   const [imgAt, setImgAt] = useState(null); // index tempat panel sisip gambar terbuka
   const [slashId, setSlashId] = useState(null); // id blok teks yang menu "/" nya terbuka
+  const [pratinjau, setPratinjau] = useState(false); // mode pratinjau side-by-side
   const rowRefs = useRef({});
+
+  const mdPratinjau = blocksToMd(blocks);
+  const imgsPratinjau = blocks.filter((b) => b.type === 'fig').map(figToImage);
+
+  function togglePratinjau() {
+    // Layar kecil (HP/Android): buka pratinjau di tab baru. Layar lebar: side-by-side.
+    if (!pratinjau && window.matchMedia('(max-width: 900px)').matches) {
+      bukaPratinjauBaru({ judul: docTitle, markdown: mdPratinjau, images: imgsPratinjau, docType });
+      return;
+    }
+    setPratinjau((v) => !v);
+  }
 
   // sinkron ke parent
   useEffect(() => {
@@ -296,7 +311,31 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
   const slashQuery = (b) => String(b.text || '').slice(1).split(/\s/)[0];
 
   return (
-    <div className="doceditor">
+    <div className="doceditor-wrap">
+      <div className="doceditor-toolbar no-print">
+        <span className="kicker" style={{ margin: 0 }}>Editor Blok</span>
+        <div className="btn-row" style={{ margin: 0 }}>
+          <button
+            type="button" className={'btn btn-sm' + (pratinjau ? ' btn-ink' : '')}
+            onClick={togglePratinjau} aria-pressed={pratinjau}
+            title="Lihat bentuk jadi dokumen"
+          >
+            {pratinjau ? 'Tutup pratinjau' : 'Pratinjau'}
+          </button>
+          {pratinjau && (
+            <button
+              type="button" className="btn btn-sm"
+              onClick={() => bukaPratinjauBaru({ judul: docTitle, markdown: mdPratinjau, images: imgsPratinjau, docType })}
+              title="Buka pratinjau di tab baru"
+            >
+              Tab baru
+            </button>
+          )}
+        </div>
+      </div>
+      <div className={'doceditor-cols' + (pratinjau ? ' side' : '')}>
+        <div className="doceditor-col-edit">
+          <div className="doceditor">
       {regenErr && <div className="alert alert-error">{regenErr}</div>}
       {imgAt === 0 && (
         <ImgInsertPanel picked={images} query={topic} onInsert={(imgs) => addFigBlocks(imgs, 0)} onCancel={() => setImgAt(null)} />
@@ -380,6 +419,16 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
           <button type="button" className="btn btn-sm btn-primary" onClick={() => addBlock('p', 0)}>Tambah blok pertama</button>
         </div>
       )}
+          </div>
+        </div>
+        {pratinjau && (
+          <div className="doceditor-col-preview">
+            <div className="doceditor-preview-inner">
+              <DocPaper doc={{ judul: docTitle, markdown: mdPratinjau, images: imgsPratinjau, docType }} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
