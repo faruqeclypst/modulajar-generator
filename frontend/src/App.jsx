@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import './styles.css';
 import Wizard, { getDraft } from './components/Wizard';
 import DocView from './components/DocView';
@@ -13,7 +13,7 @@ import Pengaturan from './components/Pengaturan';
 import { ProyekList, ProyekDetail } from './components/Proyek';
 import { DOC_TYPES } from './lib/docs';
 import { listModuls, getModul, listProjects, getProject, migrasiPaketKeProyek } from './lib/db';
-import { getSupabase, getSession } from './lib/supabase';
+import { getSupabase, getSession, getTurnstileSiteKey } from './lib/supabase';
 import { klaimReferal } from './lib/api';
 import { fetchKuota } from './lib/kuota';
 
@@ -33,10 +33,56 @@ function GoogleG() {
 function LayarLogin({ err }) {
   const [busy, setBusy] = useState(false);
   const [gagal, setGagal] = useState(err || '');
+  const [siteKey, setSiteKey] = useState(null); // null = memuat, '' = captcha nonaktif
+  const [captchaOk, setCaptchaOk] = useState(false);
+  const widgetRef = useRef(null);
+  const tokenRef = useRef('');
+
+  // Muat site key + widget Cloudflare Turnstile (bila dikonfigurasi)
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      const key = await getTurnstileSiteKey();
+      if (stop) return;
+      setSiteKey(key);
+      if (!key) return;
+      const pasang = () => {
+        if (stop || !widgetRef.current || !window.turnstile) return;
+        try {
+          window.turnstile.render(widgetRef.current, {
+            sitekey: key,
+            theme: 'light',
+            callback: (token) => { tokenRef.current = token; setCaptchaOk(true); },
+            'expired-callback': () => { tokenRef.current = ''; setCaptchaOk(false); },
+            'error-callback': () => { tokenRef.current = ''; setCaptchaOk(false); },
+          });
+        } catch { /* widget gagal dimuat: biarkan tombol nonaktif */ }
+      };
+      if (window.turnstile) { pasang(); return; }
+      const s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+      s.async = true; s.defer = true;
+      s.onload = pasang;
+      document.head.appendChild(s);
+    })();
+    return () => { stop = true; };
+  }, []);
+
   async function masuk() {
     setBusy(true);
     setGagal('');
     try {
+      // Bila captcha aktif, verifikasi token ke server dulu
+      if (siteKey) {
+        if (!tokenRef.current) throw new Error('Selesaikan verifikasi captcha dulu.');
+        const r = await fetch('/api/verifikasi-captcha', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenRef.current }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!d.ok) throw new Error(d.error || 'Verifikasi captcha gagal.');
+      }
       const sb = await getSupabase();
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
@@ -48,6 +94,7 @@ function LayarLogin({ err }) {
       setBusy(false);
     }
   }
+  const perluCaptcha = !!siteKey;
   return (
     <div className="login-wrap">
       <div className="login-card">
@@ -64,9 +111,17 @@ function LayarLogin({ err }) {
             <b>Gagal masuk.</b> {gagal}
           </div>
         )}
-        <button className="btn btn-google" onClick={masuk} disabled={busy}>
+        {perluCaptcha && (
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 16px' }}>
+            <div ref={widgetRef} aria-label="Verifikasi keamanan Cloudflare" />
+          </div>
+        )}
+        <button className="btn btn-google" onClick={masuk} disabled={busy || (perluCaptcha && !captchaOk)}>
           <GoogleG /> {busy ? 'Membuka Google…' : 'Masuk dengan Google'}
         </button>
+        {perluCaptcha && !captchaOk && (
+          <p className="hint" style={{ marginTop: 10 }}>Selesaikan verifikasi keamanan di atas untuk masuk.</p>
+        )}
         <p className="login-note">Datamu tersimpan di akunmu dan bisa dibuka dari perangkat mana pun.</p>
       </div>
     </div>

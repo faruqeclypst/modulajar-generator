@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DOC_TYPES, ALUR_PERENCANAAN } from '../lib/docs';
-import { saveProject, updateProject, deleteProject, getPaket } from '../lib/db';
+import { saveProject, updateProject, deleteProject, getPaket, deleteModul } from '../lib/db';
 import FormulirDasar from './FormulirDasar';
 
 function fmtDate(ts) {
@@ -85,6 +85,13 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
     try { await deleteProject(p.id); onChanged && onChanged(); }
     finally { setBusy(false); }
   }
+  async function hapusDokumen(m) {
+    const nama = (DOC_TYPES[m.docType] || {}).nama || 'Dokumen';
+    if (!confirm(`Hapus ${nama} "${m.judul}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setBusy(true);
+    try { await deleteModul(m.id); onChanged && onChanged(); }
+    finally { setBusy(false); }
+  }
 
   return (
     <>
@@ -153,6 +160,7 @@ export function ProyekList({ projects, docs, onOpen, onOpenDoc, onChanged }) {
                   <time>Diperbarui {fmtDate(m.updatedAt)}</time>
                   <div className="actions">
                     <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(m.id)}>Buka</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => hapusDokumen(m)} disabled={busy}>Hapus</button>
                   </div>
                 </div>
               );
@@ -205,6 +213,14 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onRuang, onBuat
     if (!nama) return;
     setBusy(true);
     try { await updateProject(project.id, { nama }); setEditNama(false); onChanged && onChanged(); }
+    finally { setBusy(false); }
+  }
+
+  async function hapusDokumen(m) {
+    const nama = (DOC_TYPES[m.docType] || {}).nama || 'Dokumen';
+    if (!confirm(`Hapus ${nama} "${m.judul}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setBusy(true);
+    try { await deleteModul(m.id); onChanged && onChanged(); }
     finally { setBusy(false); }
   }
 
@@ -272,6 +288,7 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onRuang, onBuat
                   <time>Diperbarui {fmtDate(m.updatedAt)}</time>
                   <div className="actions">
                     <button className="btn btn-sm btn-ink" onClick={() => onOpenDoc(m.id)}>Buka</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => hapusDokumen(m)} disabled={busy}>Hapus</button>
                   </div>
                 </div>
               ))}

@@ -1604,7 +1604,7 @@ setInterval(pulihkanJobBasi, 10 * 60 * 1000);
 // ================= ROUTES =================
 app.get('/api/config', (req, res) => {
   if (!SB_URL || !SB_ANON) return res.json({ ok: false, error: 'Supabase belum dikonfigurasi di server.' });
-  res.json({ ok: true, supabaseUrl: SB_URL, supabaseAnonKey: SB_ANON });
+  res.json({ ok: true, supabaseUrl: SB_URL, supabaseAnonKey: SB_ANON, turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '' });
 });
 
 app.post('/api/generate-doc', requireAuth(async (req, res) => {
@@ -1907,6 +1907,29 @@ function bolehKirimMasukan(kunci) {
   s.hitung += 1;
   return true;
 }
+
+// ---------- Verifikasi Cloudflare Turnstile (captcha login) ----------
+// Frontend mengirim token dari widget; server memverifikasi ke Cloudflare.
+// Butuh TURNSTILE_SECRET di .env. Tanpa itu endpoint menolak (captcha nonaktif).
+app.post('/api/verifikasi-captcha', async (req, res) => {
+  try {
+    const secret = process.env.TURNSTILE_SECRET || '';
+    if (!secret) return res.status(503).json({ ok: false, error: 'Captcha belum dikonfigurasi di server.' });
+    const token = String(req.body?.token || '').trim();
+    if (!token) return res.status(400).json({ ok: false, error: 'Token captcha kosong.' });
+    const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ secret, response: token }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (data.success) return res.json({ ok: true });
+    return res.status(403).json({ ok: false, error: 'Verifikasi captcha gagal. Coba lagi.' });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'Tidak bisa memverifikasi captcha saat ini.' });
+  }
+});
 
 app.post('/api/masukan', async (req, res) => {
   try {

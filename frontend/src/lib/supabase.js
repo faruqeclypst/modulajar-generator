@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 let client = null;
 let initPromise = null;
+let cfgCache = null;
 
 async function init() {
   if (client) return client;
@@ -12,11 +13,20 @@ async function init() {
       if (!d.ok || !d.supabaseUrl || !d.supabaseAnonKey) {
         throw new Error(d.error || 'Supabase belum dikonfigurasi di server.');
       }
+      cfgCache = d;
       client = createClient(d.supabaseUrl, d.supabaseAnonKey);
       return client;
     })();
   }
   return initPromise;
+}
+
+// Site key Cloudflare Turnstile ('' bila captcha belum dikonfigurasi)
+export async function getTurnstileSiteKey() {
+  try {
+    if (!cfgCache) await init();
+    return cfgCache?.turnstileSiteKey || '';
+  } catch { return ''; }
 }
 
 // Klien Supabase (pastikan sudah init lewat getSupabase lebih dulu)
