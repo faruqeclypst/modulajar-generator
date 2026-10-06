@@ -110,6 +110,16 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
   function hapusTopik(i) {
     setTopiks((prev) => prev.filter((_, ix) => ix !== i));
   }
+  function semuaJadiModul() {
+    if (!materiProsem.length) return;
+    const menit = (getProfile().menitPerJP || 45);
+    const baru = materiProsem.map((m) => ({
+      topik: m.materi,
+      alokasi: `${m.jp} JP (${m.jp * menit} menit)`,
+      dariProsem: [m.materi],
+    }));
+    setTopiks((prev) => [...prev, ...baru]);
+  }
   function gabungDariProsem() {
     if (!pilihProsem.length) return;
     const terpilih = pilihProsem.map((ix) => materiProsem[ix]).filter(Boolean);
@@ -375,9 +385,14 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
                   </label>
                 ))}
               </div>
-              <button type="button" className="btn btn-sm" onClick={gabungDariProsem} disabled={!pilihProsem.length} style={{ marginTop: 10 }}>
-                + Jadikan 1 Modul ({pilihProsem.length} materi dipilih)
-              </button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-sm" onClick={gabungDariProsem} disabled={!pilihProsem.length}>
+                  + Jadikan 1 Modul ({pilihProsem.length} dipilih)
+                </button>
+                <button type="button" className="btn btn-sm" onClick={semuaJadiModul}>
+                  + Semua ({materiProsem.length}) Jadi Modul
+                </button>
+              </div>
             </details>
           )}
           {topiks.map((t, i) => (
