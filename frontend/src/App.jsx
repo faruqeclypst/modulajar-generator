@@ -100,9 +100,11 @@ function LayarLogin({ err, onBatal }) {
     <div className="login-wrap">
       <div className="login-card">
         {onBatal && (
-          <button type="button" className="btn btn-sm" onClick={onBatal} style={{ alignSelf: 'flex-start', marginBottom: 14 }}>
-            ← Kembali
-          </button>
+          <div style={{ textAlign: 'left', marginBottom: 18 }}>
+            <button type="button" className="btn btn-sm" onClick={onBatal}>
+              ← Kembali
+            </button>
+          </div>
         )}
         <div className="login-logo" aria-hidden="true">M</div>
         <span className="kicker">Untuk Guru Indonesia</span>
@@ -164,6 +166,13 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authErr, setAuthErr] = useState('');
   const [mintaLogin, setMintaLogin] = useState(false); // belum login: tampilkan form login di atas landing
+  // Buka form login: bersihkan hash anchor landing (mis. #alur) agar URL rapi
+  const bukaLogin = () => {
+    if (window.location.hash) {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    setMintaLogin(true);
+  };
   // Lazy dari localStorage agar tidak ada flash halaman utama saat refresh
   const [view, setView] = useState(() => bacaViewTersimpan()?.view || 'landing'); // landing | app | wizard | detail | ruang | paket | pengaturan | proyek | docs | admin | masukan | tidak-ditemukan
   const [restoring, setRestoring] = useState(() => {
@@ -414,7 +423,7 @@ export default function App() {
           onNav={() => {}}
           user={null}
           kuota={null}
-          onLogin={() => setMintaLogin(true)}
+          onLogin={bukaLogin}
           onOpenSettings={() => {}}
           onOpenDocs={null}
           isAdmin={false}
@@ -423,11 +432,11 @@ export default function App() {
         <ErrorBoundary key="landing-publik" onBack={() => {}}>
         <div className="view-enter">
           <Landing
-            onStart={() => setMintaLogin(true)}
+            onStart={bukaLogin}
             onDocs={null}
             onMasukan={null}
             waLink={WA_LINK}
-            onLogin={() => setMintaLogin(true)}
+            onLogin={bukaLogin}
           />
         </div>
         </ErrorBoundary>
