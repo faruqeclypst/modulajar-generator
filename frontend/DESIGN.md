@@ -34,7 +34,7 @@ typography:
 spacing:
   base: 8px
   scale: [4, 8, 12, 16, 24, 32, 48, 72]
-  wrap: 1080px
+  wrap: 1440px (fluid, padding clamp(20px, 4vw, 56px))
   narrow: 720px
   section-gap: 56px
 
@@ -135,7 +135,10 @@ Aturan:
 
 - Skala spacing 8px: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 72. Jarak antar seksi
   56px di desktop, 40px di mobile.
-- Lebar konten 1080px (`.wrap`), 720px untuk layar baca dan pengaturan
+- Lebar konten fluid: `.wrap` memakai `max-width: 1440px` dengan padding
+  horizontal `clamp(20px, 4vw, 56px)` agar menyesuaikan layar — lega di
+  monitor lebar, pas di laptop, tanpa margin mati raksasa. 720px untuk layar
+  baca dan pengaturan
   (`.wrap.narrow`). Tidak ada max-width ad-hoc lain untuk kontainer halaman;
   semua view memakai salah satu dari dua ini agar lebar terasa konsisten.
 - Mobile-first. Target sentuh minimal 44px. Tidak ada overflow horizontal

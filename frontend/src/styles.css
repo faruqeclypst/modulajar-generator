@@ -54,7 +54,7 @@ img { max-width: 100%; }
 /* ---------- topbar ---------- */
 .topbar { background: var(--ink); color: var(--paper); position: sticky; top: 0; z-index: 40; }
 .topbar-inner {
-  max-width: 1080px; margin: 0 auto; padding: 10px 20px;
+  max-width: 1440px; margin: 0 auto; padding: 10px clamp(16px, 4vw, 56px);
   display: flex; align-items: center; gap: 14px; flex-wrap: nowrap;
 }
 .logo { display: flex; align-items: center; gap: 12px; cursor: pointer; background: none; border: none; color: inherit; font: inherit; padding: 4px; text-align: left; }
@@ -89,6 +89,11 @@ img { max-width: 100%; }
 .avatar-img { object-fit: cover; }
 .chip-nama { white-space: nowrap; }
 .user-menu-wrap { position: relative; }
+/* Area akun: pil kredit + chip pengguna sejajar horizontal, dipisah divider. */
+.topbar-acts {
+  display: flex; align-items: center; gap: 10px; flex: none;
+  padding-left: 14px; border-left: 2px solid rgba(251,246,238,.22);
+}
 .user-menu {
   position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px;
   background: var(--paper-2); border: var(--bd); border-radius: 10px;
@@ -137,8 +142,8 @@ img { max-width: 100%; }
   .user-chip { padding: 5px; }
 }
 
-/* ---------- layout ---------- */
-.wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 70px; width: 100%; }
+/* ---------- layout: lebar fluid menyesuaikan layar ---------- */
+.wrap { width: 100%; max-width: 1440px; margin: 0 auto; padding: 32px clamp(20px, 4vw, 56px) 80px; }
 .wrap.narrow { max-width: 720px; }
 .card {
   background: var(--paper-2); border: var(--bd); box-shadow: var(--sh);
