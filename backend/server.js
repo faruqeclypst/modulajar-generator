@@ -721,19 +721,8 @@ Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTI
 
 function rakitModul(info, fondasi, budgets, daftar, sintaks, kegiatanMd, asesmenMd, materiMd) {
   const multi = Array.isArray(daftar) && daftar.length > 1 && budgets.length === daftar.length;
-  const totalMenit = budgets.reduce((s, b) => s + b.pendahuluan + b.inti + b.penutup, 0);
-  const alokasiLabel = multi
-    ? `${daftar.length} pertemuan (${totalMenit} menit). Rincian: ${daftar.map((p, i) => {
-        const b = budgets[i];
-        return `Pertemuan ${i + 1}: P${b.pendahuluan}+I${b.inti}+C${b.penutup}`;
-      }).join('; ')}`
-    : `${info.alokasi || '-'} (${totalMenit} menit)`;
-  const rincian = multi
-    ? `Rincian per pertemuan: ${daftar.map((p, i) => {
-        const b = budgets[i];
-        return `Pertemuan ${i + 1} ("${String(p.materi).slice(0, 60)}"): Pendahuluan ${b.pendahuluan} mnt, Inti ${b.inti} mnt, Penutup ${b.penutup} mnt`;
-      }).join('; ')}`
-    : `Rincian: Pendahuluan ${budgets[0].pendahuluan} menit, Inti ${budgets[0].inti} menit, Penutup ${budgets[0].penutup} menit`;
+  // Alokasi tampil polos tanpa rincian menit (sesuai permintaan guru).
+  const alokasiLabel = multi ? `${daftar.length} pertemuan` : (info.alokasi || '-');
   const tanggal = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
   return `# ${fondasi.judul}
 
@@ -744,7 +733,7 @@ function rakitModul(info, fondasi, budgets, daftar, sintaks, kegiatanMd, asesmen
 - **Jenjang / Fase / Kelas**: ${info.jenjang || '-'} / ${info.fase || '-'} / ${info.kelas || '-'}
 - **Mata Pelajaran**: ${info.mapel || '-'}
 - **Materi Pokok**: ${info.topik || '-'}
-- **Alokasi Waktu**: ${alokasiLabel}. ${rincian}
+- **Alokasi Waktu**: ${alokasiLabel}
 - **Model Pembelajaran**: ${sintaks.nama}
 
 ## B. Komponen Inti
@@ -2895,11 +2884,14 @@ app.post('/api/regen-block', requireAuth(async (req, res) => {
     if (!cekRateLimit(req.user.id, 'regen-block', 60))
       return kirimGagal(res, 429, 'Terlalu banyak permintaan. Coba lagi nanti.');
     const kunciUser = await resolveKunciEfektif(req.user.id, req.user);
-    const { docType = 'modul', blockType = 'p', blockText = '', docTitle = '', topic = '' } = req.body || {};
+    const { docType = 'modul', blockType = 'p', blockText = '', docTitle = '', topic = '', instruksi = '' } = req.body || {};
     if (!String(blockText).trim()) return kirimGagal(res, 400, 'Blok kosong.');
     const errPanjang = validasiPanjang(blockText, 20000, 'Blok');
     if (errPanjang) return kirimGagal(res, 400, errPanjang);
-    const system = `Kamu membantu guru menyunting dokumen Kurikulum Merdeka (jenis dokumen ada pada pesan pengguna). Tulis ulang BLOK berikut agar lebih baik: lebih jelas, lebih rinci, tetap sesuai Kurikulum Merdeka, dan tetap dalam Bahasa Indonesia formal. PERTAHANKAN format markdown blok ini (heading tetap heading, list tetap list, tabel tetap tabel). Jika blok berisi alokasi waktu per langkah (mis. "(2 menit)"), PERTAHANKAN alokasi tersebut dan pastikan totalnya tetap konsisten. Kembalikan HANYA isi blok yang sudah ditulis ulang, tanpa pembuka/penutup/pembahasan tambahan.`;
+    const errInstruksi = validasiPanjang(instruksi, 500, 'Perintah');
+    if (errInstruksi) return kirimGagal(res, 400, errInstruksi);
+    const perintah = String(instruksi || '').trim();
+    const system = `Kamu membantu guru menyunting dokumen Kurikulum Merdeka (jenis dokumen ada pada pesan pengguna). Tulis ulang BLOK berikut agar lebih baik: lebih jelas, lebih rinci, tetap sesuai Kurikulum Merdeka, dan tetap dalam Bahasa Indonesia formal. PERTAHANKAN format markdown blok ini (heading tetap heading, list tetap list, tabel tetap tabel). Jika blok berisi alokasi waktu per langkah (mis. "(2 menit)"), PERTAHANKAN alokasi tersebut dan pastikan totalnya tetap konsisten.${perintah ? `\n\nPERINTAH KHUSUS GURU UNTUK BLOK INI (wajib dipatuhi): ${perintah}` : ''}\nKembalikan HANYA isi blok yang sudah ditulis ulang, tanpa pembuka/penutup/pembahasan tambahan.`;
     const text = await aiKeyCtx.run(kunciUser, () =>
       ai(system, `Jenis dokumen: ${docType}\nKonteks dokumen: "${docTitle}" - Topik: ${topic}\n\nBLOK (${blockType}):\n${blockText}`, 3000, 0.8));
     res.json({ ok: true, text: text.trim() });

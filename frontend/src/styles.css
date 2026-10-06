@@ -431,7 +431,7 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .info-table th, .info-table td { border: 2px solid var(--ink); padding: 9px 12px; text-align: left; vertical-align: top; }
 .info-table th { background: var(--ink); color: var(--paper); width: 220px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
 @media (max-width: 560px) { .info-table th { width: 130px; } }
-.md { line-height: 1.8; font-size: 15.5px; color: #232320; }
+.md { line-height: 1.8; font-size: 15.5px; color: #232320; overflow-wrap: break-word; }
 .md h2 { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; margin: 34px 0 12px; padding: 8px 14px; background: var(--ink); color: var(--paper); display: inline-block; }
 .md h3 { font-size: 17px; font-weight: 800; margin: 24px 0 8px; border-bottom: 2px solid var(--ink); padding-bottom: 6px; }
 .md h4 { font-size: 15.5px; font-weight: 800; margin: 18px 0 6px; }
@@ -445,6 +445,13 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .md th, .md td { border: 2px solid var(--ink); padding: 8px 10px; text-align: left; vertical-align: top; }
 .md th { background: var(--ink); color: var(--paper); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
 .md img { max-width: 100%; border: var(--bd); }
+/* blok kode <pre>: bungkus baris panjang agar tidak keluar dari kertas */
+.md pre {
+  white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere;
+  max-width: 100%; font-size: 13px; line-height: 1.6;
+  background: #f7f3ea; border: var(--bd); padding: 12px 14px; margin: 12px 0;
+}
+.md code { overflow-wrap: anywhere; }
 
 /* ---------- tema dokumen ---------- */
 /* Kertas Hangat adalah tampilan bawaan (gaya dasar .paper/.md di atas),

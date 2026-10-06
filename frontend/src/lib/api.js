@@ -60,11 +60,11 @@ export async function generateDocStream(docType, info, materi, sumber, rekomenda
   }
 }
 
-export async function regenBlock(docType, blockType, blockText, docTitle, topic) {
+export async function regenBlock(docType, blockType, blockText, docTitle, topic, instruksi = '') {
   const r = await fetch('/api/regen-block', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-    body: JSON.stringify({ docType, blockType, blockText, docTitle, topic }),
+    body: JSON.stringify({ docType, blockType, blockText, docTitle, topic, instruksi }),
   });
   const d = await r.json().catch(() => ({}));
   if (!d.ok) throw new Error(d.error || 'Gagal regenerate blok.');

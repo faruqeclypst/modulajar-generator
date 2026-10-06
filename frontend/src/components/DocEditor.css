@@ -55,7 +55,15 @@
   color: #fff;
   padding: 2px 8px;
 }
+/* Panel perintah AI per blok */
 .nblk-busy { font-size: 12px; font-weight: 700; color: var(--warn); }
+.nblk-ai {
+  margin: 10px 0 4px; padding: 12px;
+  background: #fbf9f4; border: 2px solid var(--ink);
+}
+.nblk-ai label { display: block; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; }
+.nblk-ai textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 8px 10px; border: var(--bd); background: #fff; resize: vertical; }
+.nblk-ai textarea:focus-visible { outline: 3px solid var(--red); outline-offset: 1px; }
 
 /* Panel sisip gambar membentang penuh di bawah baris blok */
 .nblk-full { grid-column: 1 / -1; }

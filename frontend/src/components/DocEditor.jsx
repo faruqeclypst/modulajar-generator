@@ -65,6 +65,8 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
   const [blocks, setBlocks] = useState(() => mdToBlocks(initialMarkdown, images));
   const [regenId, setRegenId] = useState(null);
   const [regenErr, setRegenErr] = useState('');
+  const [instruksiId, setInstruksiId] = useState(null); // blok yang sedang diberi perintah AI
+  const [instruksiTeks, setInstruksiTeks] = useState('');
   const [menu, setMenu] = useState(null); // { id, kind: 'add' | 'block' }
   const [imgAt, setImgAt] = useState(null); // index tempat panel sisip gambar terbuka
   const [slashId, setSlashId] = useState(null); // id blok teks yang menu "/" nya terbuka
@@ -195,7 +197,7 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
     focusBlock(id);
   }
 
-  async function regen(b) {
+  async function regen(b, instruksi = '') {
     setRegenErr('');
     setRegenId(b.id);
     try {
@@ -203,7 +205,7 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
       if (TEXT_TYPES.includes(b.type)) src = b.text;
       else if (LIST_TYPES.includes(b.type)) src = b.items.map((it) => '- ' + it.text).join('\n');
       else return;
-      const out = await regenBlock(docType, BLOCK_LABEL[b.type], src, docTitle, topic);
+      const out = await regenBlock(docType, BLOCK_LABEL[b.type], src, docTitle, topic, instruksi);
       if (TEXT_TYPES.includes(b.type)) update(b.id, { text: out });
       else {
         const items = out.split('\n').map((l) => l.replace(/^(\s*[-*\d.)a-z]+\s+)/, '').trim()).filter(Boolean)
@@ -376,9 +378,9 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
                 </button>
                 {canRegen(b.type) && (
                   <button type="button" role="menuitem" className="nmenu-item"
-                    onClick={() => { setMenu(null); regen(b); }}>
-                    <b>{regenId === b.id ? 'Menulis ulang…' : 'Tulis ulang dengan AI'}</b>
-                    <span>Susun ulang isi blok ini</span>
+                    onClick={() => { setMenu(null); setInstruksiId(b.id); setInstruksiTeks(''); }}>
+                    <b>Perbaiki dengan AI</b>
+                    <span>Tulis ulang blok ini sesuai perintahmu</span>
                   </button>
                 )}
                 <hr className="nmenu-sep" />
@@ -398,10 +400,34 @@ export default function DocEditor({ initialMarkdown, images = [], docType, docTi
                 {LIST_TYPES.includes(b.type) && sumMenit(b.items) != null && (
                   <span className="nblk-total" title="Total alokasi waktu langkah-langkah ini">Σ {sumMenit(b.items)} mnt</span>
                 )}
-                {regenId === b.id && <span className="nblk-busy">Menulis ulang…</span>}
+                {regenId === b.id && <span className="nblk-busy">Memperbaiki dengan AI…</span>}
               </div>
             ) : null}
             {renderBlock(b)}
+            {instruksiId === b.id && (
+              <div className="nblk-ai" role="group" aria-label="Perbaiki blok dengan AI">
+                <label htmlFor={'nblk-ai-' + b.id}>Perintah perbaikan untuk blok ini</label>
+                <textarea
+                  id={'nblk-ai-' + b.id}
+                  rows={2}
+                  value={instruksiTeks}
+                  onChange={(e) => setInstruksiTeks(e.target.value)}
+                  placeholder="mis. buat lebih rinci dengan contoh konkret; sederhanakan bahasanya; tambah langkah apersepsi… (kosongkan untuk tulis ulang biasa)"
+                />
+                <div className="btn-row" style={{ margin: '8px 0 0' }}>
+                  <button
+                    type="button" className="btn btn-sm btn-primary"
+                    disabled={regenId === b.id}
+                    onClick={() => { const t = instruksiTeks; setInstruksiId(null); setInstruksiTeks(''); regen(b, t); }}
+                  >
+                    {regenId === b.id ? 'Memperbaiki…' : 'Perbaiki dengan AI'}
+                  </button>
+                  <button type="button" className="btn btn-sm" onClick={() => { setInstruksiId(null); setInstruksiTeks(''); }}>
+                    Batal
+                  </button>
+                </div>
+              </div>
+            )}
             {slashId === b.id && (
               <SlashMenu query={slashQuery(b)} onPick={(t) => convertBlock(b.id, t)} />
             )}

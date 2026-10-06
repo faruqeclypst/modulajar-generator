@@ -136,7 +136,7 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
           </div>
           <div className="alert alert-info">
             Klik blok untuk mengedit langsung. Arahkan kursor ke blok untuk memindah, menghapus,
-            atau menulis ulang dengan AI.
+            atau memperbaiki isinya dengan AI.
           </div>
           <DocEditor
             initialMarkdown={buangJudulGanda(rapikanIdentitas(text), judul)}
