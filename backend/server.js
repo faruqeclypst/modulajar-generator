@@ -1300,34 +1300,27 @@ ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (PROTA), materi dan alokasi JP WAJIB mengik
 - **Alokasi Waktu**: [JP per minggu] JP/minggu
 
 ## B. Matriks Program Semester
-Dokumen tetap memiliki section A (Informasi Umum) dan C (Pengesahan) seperti biasa. Namun UNTUK SECTION B INI SAJA, tulis HANYA SATU blok JSON di bawah ini — tanpa kalimat pembuka, tanpa penjelasan, tanpa teks lain di dalam section B. CONTOH FORMAT PERSIS:
+Dokumen tetap memiliki section A (Informasi Umum) dan C (Pengesahan) seperti biasa. UNTUK SECTION B INI, tulis SATU tabel HTML <table> untuk SETIAP semester — format seperti dokumen Prosem resmi: baris = materi, kolom = bulan yang dipecah per minggu. Tabel dicetak LANDSCAPE.
 
-\`\`\`json
-{
-  "ganjil": [
-    {"materi": "Berpikir Komputasional", "jp": 6, "ket": "TP 1-3"},
-    {"materi": "Algoritma dan Pemrograman", "jp": 6, "ket": "TP 4-6"},
-    {"materi": "Struktur Data", "jp": 6, "ket": "TP 7-9"},
-    {"materi": "Asesmen Sumatif Semester Ganjil", "jp": 2, "ket": ""},
-    {"materi": "Remedial dan Tindak Lanjut", "jp": 2, "ket": ""},
-    {"materi": "Cadangan", "jp": 2, "ket": "Buffer"}
-  ],
-  "genap": [
-    {"materi": "Proyek Sistem Digital", "jp": 12, "ket": "Proyek"},
-    {"materi": "Presentasi dan Asesmen Sumatif", "jp": 4, "ket": ""}
-  ],
-  "tanda_ganjil": {"Sep-3": "PTS", "Des-4": "LBR", "Des-5": "LBR"},
-  "tanda_genap": {"Mar-4": "PTS", "Jun-5": "LBR"}
-}
-\`\`\`
+### Semester Ganjil
 
-ATURAN JSON (WAJIB):
-1. SETIAP TP / topik individual = SATU objek tersendiri. DILARANG menggabungkan beberapa TP dalam satu objek. Contoh SALAH: {"materi": "Pengantar Informatika: Komputasi, Algoritma, dan Struktur Data (TP 1-9)", "jp": 18}. Contoh BENAR: tiga objek terpisah - {"materi": "Berpikir Komputasional (TP 1-3)", "jp": 6}, {"materi": "Algoritma dan Pemrograman (TP 4-6)", "jp": 6}, {"materi": "Struktur Data (TP 7-9)", "jp": 6}. Ikuti rincian TP pada dokumen ATP acuan: satu baris per kelompok TP yang koheren (2-4 TP per baris MAKSIMAL, jangan 9 TP sekaligus).
-2. Urutan array = urutan pengajaran. Sistem otomatis menempatkan ke minggu berurutan.
-3. Total "jp" per semester WAJIB sama dengan total JP efektif semester itu. Bila kurang, tambahkan objek {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}. Hitung dengan teliti SEBELUM menulis JSON.
-4. "tanda_ganjil"/"tanda_genap" opsional: petakan minggu tidak efektif (format "Bln-N": "LBR"/"PTS"/"PAS"). Boleh kosong {}.
-5. Jika hanya satu semester, array semester lainnya boleh kosong [].
-6. DILARANG menulis teks, penjelasan, analisis, atau "perbaikan" di luar blok JSON. HANYA blok JSON.
+<table>
+<tr><th rowspan="2">Materi Pokok</th><th rowspan="2">JP</th><th colspan="5">Juli</th><th colspan="5">Agustus</th><th colspan="5">September</th><th colspan="5">Oktober</th><th colspan="5">November</th><th colspan="5">Desember</th><th rowspan="2">Ket</th></tr>
+<tr><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+<tr><td>Berpikir Komputasional</td><td>6</td><td>2</td><td>2</td><td>2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>TP 1-3</td></tr>
+<tr><td>Jumlah</td><td>6</td><td>2</td><td>2</td><td>2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+</table>
+
+### Semester Genap
+[tabel HTML yang sama persis, bulan: Januari, Februari, Maret, April, Mei, Juni]
+
+ATURAN (WAJIB):
+1. SETIAP TP/topik individual = SATU BARIS <tr> TERSENDIRI. DILARANG menggabungkan banyak TP dalam satu baris. Contoh SALAH: satu baris "Pengantar Informatika (TP 1-9)" 18 JP. Contoh BENAR: dipecah menjadi "Berpikir Komputasional (TP 1-3)", "Algoritma dan Pemrograman (TP 4-6)", "Struktur Data (TP 7-9)" sebagai 3 baris terpisah. Ikuti rincian TP pada dokumen ATP acuan, maksimal 2-4 TP per baris.
+2. Jika Semester = 'Ganjil + Genap', buat DUA tabel dengan heading "### Semester Ganjil" dan "### Semester Genap".
+3. Isi sel minggu dengan angka JP hanya pada minggu diajarkan; sel kosong dibiarkan kosong (<td></td>), JANGAN tulis 0.
+4. Minggu libur/PTS/PAS: tulis LBR/PTS/PAS di baris Jumlah pada kolom minggu itu.
+5. Baris "Jumlah" selalu ada. Baris "Cadangan" hanya bila ada JP cadangan.
+6. DILARANG menulis analisis, perhitungan, "perbaikan tabel", atau teks curhat di luar tabel. Hanya section A, tabel-tabel section B, dan section C.
 
 ## C. Pengesahan". DILARANG menambah section lain.
 
