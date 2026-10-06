@@ -34,6 +34,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
   const [autoJalan, setAutoJalan] = useState(false); // generate semua otomatis
   const [autoProgress, setAutoProgress] = useState(''); // teks progress
   const [autoError, setAutoError] = useState(''); // error generate otomatis
+  const autoBatalRef = useRef(false); // flag pembatalan
   // Buka langkah tertentu otomatis (dari kartu floating tugas latar / restore refresh).
   useEffect(() => {
     if (bukaStep) setStepKey(bukaStep);
@@ -46,7 +47,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
   // Generate semua langkah berurutan otomatis: CP → ATP → Minggu Efektif → Distribusi JP → Prota → Prosem
   async function generateSemuaOtomatis() {
     if (autoJalan) return;
-    setAutoJalan(true); setAutoError('');
+    setAutoJalan(true); setAutoError(''); autoBatalRef.current = false;
     const docsBaru = { ...(paket.docs || {}) };
     const profile = getProfile();
     const infoAuto = {
@@ -58,6 +59,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
     };
     try {
       for (const s of ALUR_PERENCANAAN) {
+        if (autoBatalRef.current) { setAutoProgress('Dibatalkan.'); break; }
         const key = s.key;
         if (docsBaru[key]) { setAutoProgress(s.nama + ' — sudah ada, lewati'); continue; }
         setAutoProgress('Menyusun ' + s.nama + '...');
@@ -93,6 +95,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
         else docId = await saveModul(payload);
         docsBaru[key] = docId;
         await updatePaket(paket.id, { docs: { ...docsBaru } });
+        setPaket((p) => p ? { ...p, docs: { ...docsBaru } } : p);
         setAutoProgress(s.nama + ' — selesai ✓');
       }
       setAutoProgress('Semua selesai ✓');
@@ -339,9 +342,15 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
               {autoProgress && <div className="hint" style={{ fontWeight: 700, marginTop: 4 }}>{autoProgress}</div>}
               {autoError && <div className="hint" style={{ color: 'var(--red-dark)', fontWeight: 700, marginTop: 4 }}>{autoError}</div>}
             </div>
-            <button type="button" className="btn btn-primary" onClick={generateSemuaOtomatis} disabled={autoJalan}>
-              {autoJalan ? 'Menyusun...' : 'Generate Semua Otomatis'}
-            </button>
+            {autoJalan ? (
+              <button type="button" className="btn" onClick={() => { autoBatalRef.current = true; }}>
+                Batal
+              </button>
+            ) : (
+              <button type="button" className="btn btn-primary" onClick={generateSemuaOtomatis}>
+                Generate Semua Otomatis
+              </button>
+            )}
           </div>
           {alasanKunci && (
             <div className="alert alert-info" role="status" style={{ margin: '0 0 14px' }}>

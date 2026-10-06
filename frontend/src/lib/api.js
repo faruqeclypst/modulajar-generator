@@ -41,8 +41,13 @@ export async function generateDocStream(docType, info, materi, sumber, rekomenda
   const reader = r.body.getReader();
   const dec = new TextDecoder();
   let buf = '';
+  // Stall detection: jika tidak ada data 90 detik, anggap macet
+  const bacaDenganTimeout = () => Promise.race([
+    reader.read(),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('Koneksi macet: tidak ada respons dari server selama 90 detik. Coba lagi.')), 90000)),
+  ]);
   for (;;) {
-    const { done, value } = await reader.read();
+    const { done, value } = await bacaDenganTimeout();
     if (done) break;
     buf += dec.decode(value, { stream: true });
     let idx;
