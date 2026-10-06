@@ -1336,7 +1336,7 @@ Contoh BENAR (ditiru polanya):
 
 Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — bukan judul bab yang umum.
 
-STRUKTUR MINGGU (WAJIB): Dari dokumen Analisis Minggu Efektif dan PROTA, susun SEMUA minggu secara berurutan ke dalam "minggu_ganjil" / "minggu_genap". Format tiap minggu: "Jul-3" (3 huruf bulan + nomor minggu). Untuk minggu TIDAK EFEKTIF (mis. minggu ke-2 ada lomba sekolah), cantumkan di "libur_ganjil" / "libur_genap" sebagai objek {"Jul-2": "Lomba sekolah"}. Minggu libur tetap ditampilkan dengan warna khusus dan tidak diisi materi. PENTING: Total JP = (jumlah minggu efektif SAJA) × (JP per minggu). JANGAN alokasikan JP ke minggu yang tidak ada di daftar.
+STRUKTUR MINGGU (WAJIB): Dari dokumen Analisis Minggu Efektif dan PROTA, susun SEMUA minggu secara berurutan ke dalam "minggu_ganjil" / "minggu_genap". Format tiap minggu: "Jul-3" (3 huruf bulan + nomor minggu). Untuk minggu TIDAK EFEKTIF, salin PERSIS dari kolom keterangan pada dokumen Analisis Minggu Efektif (mis. jika di sana tertulis minggu ke-2 ada "Lomba sekolah", maka cantumkan {"Jul-2": "Lomba sekolah"} di "libur_ganjil"). DILARANG mengarang alasan libur yang tidak tertulis di dokumen Minggu Efektif. Format: "libur_ganjil": {"Jul-2": "Lomba sekolah"}, "libur_genap": {}. Minggu libur tetap ditampilkan dengan warna khusus dan tidak diisi materi. PENTING: Total JP = (jumlah minggu efektif SAJA) × (JP per minggu). JANGAN alokasikan JP ke minggu yang tidak ada di daftar.
 
 ATURAN JSON:
 1. ACUAN WAJIB (JANGAN mengarang di luar ini):
