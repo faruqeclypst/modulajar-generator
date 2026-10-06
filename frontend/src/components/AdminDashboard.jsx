@@ -104,15 +104,26 @@ function PengaturanAI() {
   if (err && !cfg) return <div className="alert alert-error">{err}</div>;
   if (!cfg) return <p className="muted">Memuat…</p>;
 
-  const fieldKey = (label, name, masked) => (
-    <label className="f-field">
-      <span>{label}</span>
+  const fieldKey = (id, label, name, masked) => (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
       <input
-        type="password" autoComplete="new-password"
+        id={id} type="password" autoComplete="new-password"
         value={form[name]} onChange={(e) => ubah(name, e.target.value)}
         placeholder={masked ? `Tersimpan (${masked}) — kosongkan bila tidak diubah` : 'Tempel API key di sini'}
       />
-    </label>
+    </div>
+  );
+
+  const fieldTeks = (id, label, name, placeholder, type) => (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id} type={type || 'text'} value={form[name]}
+        onChange={(e) => ubah(name, e.target.value)} placeholder={placeholder}
+        autoComplete="off" spellCheck={false}
+      />
+    </div>
   );
 
   return (
@@ -126,11 +137,11 @@ function PengaturanAI() {
       {simpanMsg && <div className="alert alert-ok">{simpanMsg}</div>}
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <label className="f-check" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <label className="f-check" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
           <input
             type="checkbox" checked={form.bawaanAktif}
             onChange={(e) => ubah('bawaanAktif', e.target.checked)}
-            style={{ marginTop: 4 }}
+            style={{ marginTop: 4, width: 18, height: 18, accentColor: 'var(--red)' }}
           />
           <span>
             <b>AI bawaan web aktif</b>
@@ -143,28 +154,16 @@ function PengaturanAI() {
       <div className="admin-ai-grid">
         <div className="card">
           <h3 className="card-title">Kunci untuk umum</h3>
-          <label className="f-field">
-            <span>Base URL</span>
-            <input type="url" value={form.umumBaseUrl} onChange={(e) => ubah('umumBaseUrl', e.target.value)} placeholder="https://kenari.id/v1" />
-          </label>
-          {fieldKey('API key', 'umumApiKey', cfg.umum?.keyMasked)}
-          <label className="f-field">
-            <span>Model</span>
-            <input type="text" value={form.umumModel} onChange={(e) => ubah('umumModel', e.target.value)} placeholder="agnes-3-0-flash:free" />
-          </label>
+          {fieldTeks('ai-umum-url', 'Base URL', 'umumBaseUrl', 'https://kenari.id/v1', 'url')}
+          {fieldKey('ai-umum-key', 'API key', 'umumApiKey', cfg.umum?.keyMasked)}
+          {fieldTeks('ai-umum-model', 'Model', 'umumModel', 'agnes-3-0-flash:free')}
         </div>
 
         <div className="card">
           <h3 className="card-title">Kunci khusus admin</h3>
-          <label className="f-field">
-            <span>Base URL</span>
-            <input type="url" value={form.adminBaseUrl} onChange={(e) => ubah('adminBaseUrl', e.target.value)} placeholder="https://kenari.id/v1" />
-          </label>
-          {fieldKey('API key', 'adminApiKey', cfg.admin?.keyMasked)}
-          <label className="f-field">
-            <span>Model</span>
-            <input type="text" value={form.adminModel} onChange={(e) => ubah('adminModel', e.target.value)} placeholder="agnes-3-0-flash:free" />
-          </label>
+          {fieldTeks('ai-admin-url', 'Base URL', 'adminBaseUrl', 'https://kenari.id/v1', 'url')}
+          {fieldKey('ai-admin-key', 'API key', 'adminApiKey', cfg.admin?.keyMasked)}
+          {fieldTeks('ai-admin-model', 'Model', 'adminModel', 'agnes-3-0-flash:free')}
           <p className="muted" style={{ marginBottom: 0 }}>Kosongkan API key bila admin ingin memakai kunci umum.</p>
         </div>
       </div>
