@@ -747,10 +747,10 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 /* Legenda warna di bawah tabel Prosem */
-.legenda-prosem { margin-top: 10px; font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.legenda-prosem { margin-top: 10px; font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; break-inside: avoid; }
 .legenda-judul { font-weight: 700; }
 .legenda-item { display: inline-flex; align-items: center; gap: 6px; }
-.legenda-warna { display: inline-block; width: 18px; height: 14px; border: 1px solid #999; }
+.legenda-warna { display: inline-block; width: 18px; height: 14px; border: 1px solid #999; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .legenda-warna.warna-libur { background: #E57373; }
 .legenda-detail { color: #666; font-style: italic; }
 /* Warna kolom minggu khusus Prosem (seperti dokumen resmi) */
@@ -758,15 +758,9 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .matriks-lebar .md table td.td-pts { background: #6FCF97; font-weight: 700; }
 .matriks-lebar .md table td.td-pas { background: #F2C94C; font-weight: 700; }
 .matriks-lebar .md table td.td-tanda { background: #BDBDBD; font-weight: 700; }
-/* Minggu non-efektif: abu-abu gelap bergaris, jelas bukan jam belajar */
-.matriks-lebar .md table td.td-nonefektif {
-  background: repeating-linear-gradient(45deg, #E0E0E0, #E0E0E0 4px, #F5F5F5 4px, #F5F5F5 8px);
-  color: #9E9E9E;
-}
 @media print {
   .matriks-lebar .md table td.td-lbr, .matriks-lebar .md table td.td-pts,
-  .matriks-lebar .md table td.td-pas, .matriks-lebar .md table td.td-tanda,
-  .matriks-lebar .md table td.td-nonefektif {
+  .matriks-lebar .md table td.td-pas, .matriks-lebar .md table td.td-tanda {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
 }
