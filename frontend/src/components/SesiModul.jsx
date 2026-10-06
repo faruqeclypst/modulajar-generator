@@ -154,7 +154,10 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
       // Gabungkan dokumen perencanaan sebagai sumber acuan
       const sumberParts = [];
       if (docs.cp) sumberParts.push('===== CP =====\n' + docs.cp.slice(0, 6000));
+      if (docs.analisis_cp) sumberParts.push('===== ANALISIS CP =====\n' + docs.analisis_cp.slice(0, 4000));
+      if (docs.tp) sumberParts.push('===== TP =====\n' + docs.tp.slice(0, 4000));
       if (docs.atp) sumberParts.push('===== ATP =====\n' + docs.atp.slice(0, 6000));
+      if (docs.distribusi_jp) sumberParts.push('===== DISTRIBUSI JP =====\n' + docs.distribusi_jp.slice(0, 3000));
       if (docs.prota) sumberParts.push('===== PROTA =====\n' + docs.prota.slice(0, 4000));
       if (docs.prosem) sumberParts.push('===== PROSEM =====\n' + docs.prosem.slice(0, 4000));
       const sumber = sumberParts.join('\n\n');

@@ -11,7 +11,7 @@ import Paywall from './Paywall';
 import { buatTugas, tugasTahap, tugasTulisan, tugasTulisanReset, tugasSelesai, tugasGagal, tutupTugas, cariTugas, langgananTugas } from '../lib/tugasLatar';
 
 // Jenis dokumen yang wajib/sangat disarankan memakai acuan perencanaan
-const ACUAN_TYPES = ['modul', 'lkpd', 'soal', 'kktp'];
+const ACUAN_TYPES = ['modul', 'lkpd', 'soal', 'kktp', 'asesmen', 'bahan_ajar'];
 
 const STEPS = ['Dokumen', 'Informasi', 'Materi', 'Generate', 'Editor'];
 

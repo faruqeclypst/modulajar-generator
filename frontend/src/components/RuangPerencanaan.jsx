@@ -396,6 +396,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   }, [teks, stepKey]);
   const [sumber, setSumber] = useState('');     // markdown dokumen acuan
   const [sumberJudul, setSumberJudul] = useState('');
+  const [acuanHilang, setAcuanHilang] = useState([]); // K2: daftar acuan yang tidak ditemukan
   const [markdown, setMarkdown] = useState('');
   const [modeTampil, setModeTampil] = useState('pratinjau'); // pratinjau | edit
   const [busy, setBusy] = useState(false);
@@ -432,10 +433,12 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   }, [tugasId, tugas?.state]);
 
   useEffect(() => {
+    setSumber(''); setSumberJudul(''); // K1: reset dulu, cegah acuan basi antar-langkah
     (async () => {
       const daftarAcuan = [need, ...(ACUAN_TAMBAHAN[stepKey] || [])].filter(Boolean);
       const bagian = [];
       const judulBagian = [];
+      const hilang = [];
       for (const kunci of daftarAcuan) {
         if (paket.docs[kunci]) {
           try {
@@ -443,10 +446,13 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
             if (d && d.markdown) {
               bagian.push(`\n\n===== ACUAN: ${(d.judul || DOC_TYPES[kunci].nama).toUpperCase()} =====\n${d.markdown}`);
               judulBagian.push(d.judul || DOC_TYPES[kunci].nama);
+            } else {
+              hilang.push(DOC_TYPES[kunci].nama);
             }
-          } catch { /* abaikan */ }
+          } catch { hilang.push(DOC_TYPES[kunci].nama); }
         }
       }
+      setAcuanHilang(hilang);
       if (bagian.length > 0) {
         setSumber(bagian.join('\n'));
         setSumberJudul(judulBagian.join(', '));
@@ -615,6 +621,11 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
               <div className="alert alert-info">
                 <strong>Acuan:</strong> {sumberJudul || (need && DOC_TYPES[need] ? DOC_TYPES[need].nama : 'dokumen sebelumnya')}.{' '}{dt.nama}{' '}akan <strong>diturunkan langsung</strong> dari acuan tersebut. AI dilarang mengarang di luar acuan.
               </div>
+              {acuanHilang.length > 0 && (
+                <div className="alert alert-warn">
+                  <strong>Peringatan:</strong> Dokumen acuan tidak ditemukan: {acuanHilang.join(', ')}. Hasil AI mungkin tidak valid tanpa acuan ini.
+                </div>
+              )}
               {sumber && (
                 <details style={{ marginBottom: 14 }}>
                   <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Lihat isi acuan</summary>
