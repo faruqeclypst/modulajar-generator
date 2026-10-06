@@ -2641,7 +2641,9 @@ app.get('/api/admin/daftar-ai', requireAdmin(async (req, res) => {
     }
     res.json({
       ok: true,
-      data: (data || []).map((x) => ({ ...x, keyMasked: maskKey(x.api_key), api_key: undefined })),
+      // api_key utuh disertakan: endpoint ini khusus admin (requireAdmin) dan
+      // admin memang butuh reveal/edit key dari dashboard.
+      data: (data || []).map((x) => ({ ...x, keyMasked: maskKey(x.api_key) })),
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });
@@ -2681,7 +2683,89 @@ app.delete('/api/admin/daftar-ai/:id', requireAdmin(async (req, res) => {
   }
 }));
 
+// Ubah preset AI tersimpan (nama, base URL, key, model, untuk).
+// apiKey kosong = tidak diubah. Bila preset sedang aktif, kunci aktif ikut disinkronkan.
+app.patch('/api/admin/daftar-ai/:id', requireAdmin(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const { data: lama, error: e0 } = await sb.from('daftar_ai').select('*').eq('id', req.params.id).single();
+    if (e0 || !lama) return res.status(404).json({ ok: false, error: 'AI tidak ditemukan.' });
+    const b = req.body || {};
+    const nama = b.nama !== undefined ? String(b.nama).trim().slice(0, 60) : lama.nama;
+    const baseUrl = b.baseUrl !== undefined ? String(b.baseUrl).trim().replace(/\/+$/, '') : lama.base_url;
+    const keyBaru = b.apiKey !== undefined ? String(b.apiKey).trim() : '';
+    const apiKey = keyBaru ? keyBaru : lama.api_key;
+    const model = b.model !== undefined ? String(b.model).trim().slice(0, 120) : (lama.model || '');
+    const untuk = b.untuk === 'admin' ? 'admin' : (b.untuk === 'umum' ? 'umum' : lama.untuk);
+    if (!nama) return res.status(400).json({ ok: false, error: 'Nama AI wajib diisi.' });
+    const errUrl = validasiBaseUrl(baseUrl);
+    if (errUrl) return res.status(400).json({ ok: false, error: errUrl });
+    if (!apiKey || apiKey.length < 8) return res.status(400).json({ ok: false, error: 'API key terlalu pendek.' });
+    const { error } = await sb.from('daftar_ai').update({
+      nama, base_url: baseUrl, api_key: apiKey, model, untuk, updated_at: new Date().toISOString(),
+    }).eq('id', lama.id);
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+    // Sinkronkan kunci aktif bila preset ini sedang aktif.
+    if (lama.aktif) {
+      const kolomLama = lama.untuk === 'admin' ? 'admin' : 'umum';
+      const kolomBaru = untuk === 'admin' ? 'admin' : 'umum';
+      if (kolomLama !== kolomBaru) {
+        await sb.from('pengaturan_ai').upsert({ id: 1, [`${kolomLama}_base_url`]: '', [`${kolomLama}_api_key`]: '', [`${kolomLama}_model`]: '', updated_at: new Date().toISOString() }, { onConflict: 'id' });
+        await sb.from('daftar_ai').update({ aktif: false }).eq('untuk', kolomBaru);
+      }
+      await sb.from('pengaturan_ai').upsert({
+        id: 1,
+        [`${kolomBaru}_base_url`]: baseUrl, [`${kolomBaru}_api_key`]: apiKey,
+        [`${kolomBaru}_model`]: model || MODEL, updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+      resetCachePengaturanAI();
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+// Toggle aktif preset: aktif=true -> salin ke pengaturan_ai (kolom umum/admin) + tandai aktif;
+// aktif=false -> nonaktifkan + kosongkan kunci aktif kolom tersebut.
+app.post('/api/admin/daftar-ai/:id/aktif', requireAdmin(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const aktif = req.body?.aktif !== false;
+    const { data: p, error: e1 } = await sb.from('daftar_ai').select('*').eq('id', req.params.id).single();
+    if (e1 || !p) return res.status(404).json({ ok: false, error: 'AI tidak ditemukan.' });
+    const kolom = p.untuk === 'admin' ? 'admin' : 'umum';
+    if (aktif) {
+      const patch = {
+        id: 1,
+        [`${kolom}_base_url`]: p.base_url,
+        [`${kolom}_api_key`]: p.api_key,
+        [`${kolom}_model`]: p.model || MODEL,
+        updated_at: new Date().toISOString(),
+      };
+      const { error: e2 } = await sb.from('pengaturan_ai').upsert(patch, { onConflict: 'id' });
+      if (e2) return res.status(500).json({ ok: false, error: e2.message });
+      await sb.from('daftar_ai').update({ aktif: false }).eq('untuk', p.untuk);
+      await sb.from('daftar_ai').update({ aktif: true }).eq('id', p.id);
+    } else {
+      await sb.from('daftar_ai').update({ aktif: false }).eq('id', p.id);
+      const patch = {
+        id: 1,
+        [`${kolom}_base_url`]: '', [`${kolom}_api_key`]: '', [`${kolom}_model`]: '',
+        updated_at: new Date().toISOString(),
+      };
+      const { error: e2 } = await sb.from('pengaturan_ai').upsert(patch, { onConflict: 'id' });
+      if (e2) return res.status(500).json({ ok: false, error: e2.message });
+    }
+    resetCachePengaturanAI();
+    res.json({ ok: true, aktif });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
 // Aktifkan preset: salin ke pengaturan_ai (umum/admin) + tandai aktif.
+// (Dipertahankan untuk kompatibilitas; UI baru memakai /aktif.)
 app.post('/api/admin/daftar-ai/:id/pakai', requireAdmin(async (req, res) => {
   try {
     if (!butuhSb(req, res)) return;
