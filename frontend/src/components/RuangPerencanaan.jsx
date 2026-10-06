@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DOC_TYPES, ALUR_PERENCANAAN } from '../lib/docs';
 import { generateDocStream, extractTitle, getProfile } from '../lib/api';
 import { saveModul, updateModul, getModul, savePaket, updatePaket, getPaket, paketProgress, listProjects, getProject, saveProject, updateProject } from '../lib/db';
@@ -219,6 +219,8 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   const [busy, setBusy] = useState(false);
   const [tahapLive, setTahapLive] = useState([]);   // tahapan asli dari server
   const [statusLive, setStatusLive] = useState({});
+  const [tulisan, setTulisan] = useState([]);       // teks AI realtime per tahap (efek mengetik)
+  const labelMap = useRef({});
   const [paywall, setPaywall] = useState(null);
   const [error, setError] = useState('');
   const [finalMd, setFinalMd] = useState('');
@@ -240,6 +242,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   };
 
   function tandaiTahap(key, label) {
+    labelMap.current[key] = label;
     setTahapLive((prev) => (prev.some((p) => p.key === key) ? prev : [...prev, { key, label }]));
     setStatusLive((prev) => {
       const next = { ...prev };
@@ -249,14 +252,27 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
     });
   }
 
+  // Tambahkan delta teks ke segmen tahap yang sesuai (efek mengetik ala ChatGPT)
+  function tambahTulisan(key, delta) {
+    const label = labelMap.current[key] || key;
+    setTulisan((prev) => {
+      const ix = prev.findIndex((s) => s.key === key);
+      if (ix === -1) return [...prev, { key, label, teks: delta }];
+      const next = [...prev];
+      next[ix] = { ...next[ix], teks: next[ix].teks + delta };
+      return next;
+    });
+  }
+
   async function handleGenerate() {
     setError(''); setPaywall(null); setBusy(true);
-    setTahapLive([]); setStatusLive({});
+    setTahapLive([]); setStatusLive({}); setTulisan([]); labelMap.current = {};
     try {
       // CP: teks tempelan resmi jadi materi utama. Lainnya: sumber = dokumen acuan sebelumnya.
       let md = '';
       await generateDocStream(stepKey, info, teks, stepKey === 'cp' ? '' : sumber, null, (ev) => {
         if (ev.tipe === 'tahap') tandaiTahap(ev.key, ev.label);
+        else if (ev.tipe === 'teks') tambahTulisan(ev.key, ev.delta || '');
         else if (ev.tipe === 'selesai') {
           md = ev.markdown || '';
           setStatusLive((prev) => {
@@ -339,7 +355,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
       )}
 
       {busy && (
-        <ProsesLive judul={'Menyusun ' + dt.nama} tahap={tahapLive} status={statusLive} />
+        <ProsesLive judul={'Menyusun ' + dt.nama} tahap={tahapLive} status={statusLive} tulisan={tulisan} />
       )}
 
       {markdown && !busy && (
