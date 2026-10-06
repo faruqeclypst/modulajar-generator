@@ -1233,6 +1233,8 @@ WAJIB format tabel markdown:
 
 ATURAN KERAS NOMOR PERTEMUAN: kolom "Pertemuan ke-" WAJIB berurutan menyambung tanpa lompat dan tanpa mengulang dari 1. Pertemuan pertama selalu mulai dari 1. Baris berikutnya melanjutkan dari nomor terakhir + 1. Contoh: bila baris 1 = 2 JP → "1–2", maka baris 2 = 3 JP → "3–5", baris 3 = 2 JP → "6–7", dan seterusnya. DILARANG menulis "1–1", "1–2", "1–3" berulang di tiap baris.
 
+PEMBAGIAN SEMESTER: bila Semester = "Ganjil + Genap (1 tahun ajaran)", tabel WAJIB dibagi dua bagian yang jelas: tulis sub-heading "**Semester Ganjil**" sebelum baris-baris semester ganjil dan "**Semester Genap**" sebelum baris-baris semester genap (sebagai baris pemisah di dalam tabel atau heading di antara dua tabel). Nomor pertemuan di semester genap MELANJUTKAN dari semester ganjil (tidak mengulang dari 1). Bila hanya satu semester, tidak perlu pembagian ini.
+
 Total JP pada tabel WAJIB sama dengan rekapitulasi. Sisakan JP untuk asesmen sumatif dan cadangan/remedial.
 
 ## D. Catatan
