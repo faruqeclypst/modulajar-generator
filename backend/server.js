@@ -2065,6 +2065,13 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
       'Connection': 'keep-alive',
       'X-Accel-Buffering': 'no', // penting: nginx tidak boleh buffer, kalau tidak "live" gagal
     });
+    // Bila klien terputus (refresh/tutup tab) sebelum selesai, kembalikan reservasi kuota.
+    let selesaiOk = false;
+    req.on('close', () => {
+      if (!selesaiOk && direservasi) {
+        tambahKuota(req.user.id, -1).catch(() => {});
+      }
+    });
     const kirim = (obj) => {
       if (!res.writableEnded) res.write('data: ' + JSON.stringify(obj) + '\n\n');
     };
@@ -2090,6 +2097,7 @@ app.post('/api/generate-doc/stream', requireAuth(async (req, res) => {
         images = r.images;
       }
       kirim({ tipe: 'selesai', markdown, images, kunciSendiri });
+      selesaiOk = true;
     } catch (e) {
       if (direservasi) await tambahKuota(req.user.id, -1); // kembalikan reservasi
       kirim({ tipe: 'gagal', error: e.message || String(e) });

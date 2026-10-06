@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { DOC_TYPES, ALUR_PERENCANAAN } from '../lib/docs';
 import { generateDocStream, extractTitle, getProfile } from '../lib/api';
 import { buatTugas, tugasTahap, tugasTulisan, tugasSelesai, tugasGagal, tutupTugas, cariTugas, langgananTugas, tugasBerjalan } from '../lib/tugasLatar';
+import { kunciAkun } from '../lib/akunLokal';
 import { saveModul, updateModul, getModul, savePaket, updatePaket, getPaket, paketProgress, listProjects, getProject, saveProject, updateProject } from '../lib/db';
 import DocEditor from './DocEditor';
 import FormulirDasar from './FormulirDasar';
@@ -250,7 +251,21 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
       setTugas(t || null);
     });
   }, [tugasIdEfektif]);
-  const [teks, setTeks] = useState('');       // CP resmi (tempel) / materi tambahan
+  const [teks, setTeks] = useState(() => {
+    // Pulihkan draft input (mis. teks CP yang ditempel) bila ada
+    try {
+      const raw = localStorage.getItem(kunciAkun('ma-draf-ruang-' + stepKey));
+      if (raw) { const d = JSON.parse(raw); return d.teks || ''; }
+    } catch { /* abaikan */ }
+    return '';
+  });       // CP resmi (tempel) / materi tambahan
+  // Simpan draft otomatis saat mengetik (tahan refresh)
+  useEffect(() => {
+    try {
+      if (teks) localStorage.setItem(kunciAkun('ma-draf-ruang-' + stepKey), JSON.stringify({ teks, kapan: Date.now() }));
+      else localStorage.removeItem(kunciAkun('ma-draf-ruang-' + stepKey));
+    } catch { /* abaikan */ }
+  }, [teks, stepKey]);
   const [sumber, setSumber] = useState('');     // markdown dokumen acuan
   const [sumberJudul, setSumberJudul] = useState('');
   const [markdown, setMarkdown] = useState('');
@@ -263,6 +278,18 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   const [paywall, setPaywall] = useState(null);
   const [error, setError] = useState('');
   const [finalMd, setFinalMd] = useState('');
+  // Deteksi generate yang terputus refresh: tawarkan lanjutkan satu klik.
+  const [terputus, setTerputus] = useState(() => {
+    try {
+      const raw = localStorage.getItem(kunciAkun('ma-gen-ruang-' + stepKey));
+      if (raw) {
+        const d = JSON.parse(raw);
+        // Anggap terputus bila mulai < 30 menit lalu (lebih dari itu dianggap basi)
+        if (d && d.mulai && Date.now() - d.mulai < 30 * 60 * 1000) return d;
+      }
+    } catch { /* abaikan */ }
+    return null;
+  });
   // Bila tugas terlampir selesai saat ditonton, hidrasikan dari hasilnya.
   useEffect(() => {
     if (!tugasIdEfektif || terhidrasi.current) return;
@@ -320,6 +347,13 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   async function handleGenerate() {
     setError(''); setPaywall(null); setBusy(true);
     setTahapLive([]); setStatusLive({}); setTulisan([]); labelMap.current = {};
+    setTerputus(null);
+    // Tandai generate berjalan (untuk deteksi terputus saat refresh)
+    try {
+      localStorage.setItem(kunciAkun('ma-gen-ruang-' + stepKey), JSON.stringify({
+        stepKey, mulai: Date.now(),
+      }));
+    } catch { /* abaikan */ }
     // Daftarkan ke tugas latar agar progress tetap tampil (floating) saat pindah halaman.
     const tid = buatTugas({
       judul: 'Menyusun ' + (dt?.nama || 'dokumen'),
@@ -343,12 +377,18 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
         } else if (ev.tipe === 'gagal') throw new Error(ev.error || 'Generate gagal.');
       });
       if (!md.trim()) throw new Error('AI mengembalikan dokumen kosong.');
+      // Bersihkan penanda generate + draft (sudah jadi dokumen)
+      try {
+        localStorage.removeItem(kunciAkun('ma-gen-ruang-' + stepKey));
+        localStorage.removeItem(kunciAkun('ma-draf-ruang-' + stepKey));
+      } catch { /* abaikan */ }
       // Simpan hasil ke tugas latar: bila pengguna pindah halaman lalu kembali
       // via kartu floating, hasilnya bisa dipulihkan dari sini.
       tugasSelesai(tid, { markdown: md, stepKey });
       setMarkdown(md); setFinalMd(md);
       onKuotaChanged && onKuotaChanged();
     } catch (e) {
+      try { localStorage.removeItem(kunciAkun('ma-gen-ruang-' + stepKey)); } catch { /* abaikan */ }
       if (tugasIdRef.current) tugasGagal(tugasIdRef.current, e.code === 'kuota_habis' ? 'Kredit habis.' : (e.message || 'Generate gagal.'));
       if (e.code === 'kuota_habis') setPaywall({ mode: 'kuota_habis', detail: e.detail });
       else setError(e.message);
@@ -369,6 +409,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
     if (docId) { await updateModul(docId, payload); }
     else { docId = await saveModul(payload); }
     await updatePaket(paket.id, { docs: { ...(paket.docs || {}), [stepKey]: docId } });
+    try { localStorage.removeItem(kunciAkun('ma-draf-ruang-' + stepKey)); } catch { /* abaikan */ }
     if (tugasIdRef.current) tutupTugas(tugasIdRef.current);
     if (tugasIdEfektif) tutupTugas(tugasIdEfektif);
     onClose();
@@ -439,6 +480,22 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
                 <textarea rows={3} placeholder="cth: fokus pada materi X, alokasi khusus…" value={teks} onChange={(e) => setTeks(e.target.value)} />
               </div>
             </>
+          )}
+          {terputus && !busy && !markdown && (
+            <div className="alert alert-info">
+              <b>Generate terputus</b> (halaman di-refresh saat AI bekerja). Input kamu tersimpan sebagai draft.
+              <div className="btn-row" style={{ marginTop: 10 }}>
+                <button type="button" className="btn btn-sm btn-primary" onClick={handleGenerate}>
+                  Lanjutkan generate
+                </button>
+                <button type="button" className="btn btn-sm" onClick={() => {
+                  setTerputus(null);
+                  try { localStorage.removeItem(kunciAkun('ma-gen-ruang-' + stepKey)); } catch { /* abaikan */ }
+                }}>
+                  Abaikan
+                </button>
+              </div>
+            </div>
           )}
           {error && <div className="alert alert-error">{error}</div>}
           <div className="btn-row">
