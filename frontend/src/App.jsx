@@ -500,12 +500,6 @@ export default function App() {
       </div>
       </ErrorBoundary>
 
-      <footer className="footer">
-        <div>ModulAjar oleh Alfaruq Asri, S.Pd.</div>
-        <a className="btn btn-sm btn-primary" style={{ marginTop: 10 }} href={WA_LINK} target="_blank" rel="noreferrer">
-          Butuh Bantuan? Chat WA
-        </a>
-      </footer>
     </>
   );
 }
