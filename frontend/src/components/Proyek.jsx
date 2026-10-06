@@ -489,19 +489,21 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
 
       {GRUP_DETAIL.map((g) => {
         let isi = (dokProyek || []).filter((d) => g.types.includes(d.docType));
-        // Urutkan modul mengikuti urutan materi di Prosem (bukan acak)
-        if (g.key === 'modul' && urutanProsem.length > 0) {
+        // Urutkan modul: utamakan nomor urutan dari checklist Prosem (meta.urutan),
+        // fallback ke pencocokan materi Prosem untuk modul lama tanpa nomor.
+        if (g.key === 'modul') {
           const normal = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
           const cariIndeks = (m) => {
+            if (m.meta?.urutan) return m.meta.urutan;
+            if (urutanProsem.length === 0) return 9999;
             const kunci = normal(m.topik || m.judul);
             if (!kunci) return 9999;
             for (let i = 0; i < urutanProsem.length; i++) {
               const pm = normal(urutanProsem[i]);
               if (!pm) continue;
-              // Cocok bila salah satu mengandung kata kunci signifikan dari yang lain
               const kata = kunci.split(' ').filter((w) => w.length > 3);
               const cocok = kata.some((w) => pm.includes(w)) || pm.split(' ').filter((w) => w.length > 3).some((w) => kunci.includes(w));
-              if (cocok) return i;
+              if (cocok) return 1000 + i;
             }
             return 9999;
           };
@@ -516,7 +518,7 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
                 <div className="card modul-card" key={m.id}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', alignSelf: 'flex-start' }}>
                     {g.key === 'modul' && (
-                      <span className="chip" style={{ background: 'var(--ink)', color: '#fff', fontWeight: 800 }}>Modul {ix + 1}</span>
+                      <span className="chip" style={{ background: 'var(--ink)', color: '#fff', fontWeight: 800 }}>Modul {m.meta?.urutan || (ix + 1)}</span>
                     )}
                     <span className="chip red">{(DOC_TYPES[m.docType] || {}).nama || 'Dokumen'}</span>
                   </div>

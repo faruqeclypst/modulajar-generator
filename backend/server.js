@@ -1894,14 +1894,14 @@ function rencanaJob(mode, topiks) {
     add('soal', 'Paket Soal');
   }
   if (mode === 'sesi-modul') {
-    // Topik bisa string atau {topik, alokasi}; alokasi disimpan di step
-    for (const t of topiks) {
+    // Topik bisa string atau {topik, alokasi}; alokasi + urutan checklist disimpan di step
+    topiks.forEach((t, ix) => {
       const topik = typeof t === 'object' ? t.topik : t;
       const alokasi = typeof t === 'object' ? (t.alokasi || '') : '';
-      const s = { key: 'modul:' + topik, docType: 'modul', label: 'Modul Ajar', topik, status: 'antri' };
+      const s = { key: 'modul:' + topik, docType: 'modul', label: 'Modul Ajar', topik, status: 'antri', urutan: ix + 1 };
       if (alokasi) s.alokasi = alokasi;
       langkah.push(s);
-    }
+    });
   }
   return langkah;
 }
@@ -2217,6 +2217,7 @@ async function jalankanJobInti(jobId) {
         }
         const judul = extractTitle(markdown);
         const meta = { ...info0, topik: step.topik || topiks.join('; ') };
+        if (step.urutan) meta.urutan = step.urutan;
         const dokumenId = await simpanDokumen(userId, step.docType, judul, markdown, meta, images);
         hasil.push({ key: keyOf(step), docType: step.docType, topik: step.topik || null, dokumenId, judul });
         md[keyOf(step)] = markdown;
