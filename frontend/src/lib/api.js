@@ -71,6 +71,17 @@ export async function regenBlock(docType, blockType, blockText, docTitle, topic,
   return d.text;
 }
 
+export async function gambarAI(prompt) {
+  const r = await fetch('/api/gambar-ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+    body: JSON.stringify({ prompt }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!d.ok) throw new Error(d.error || 'Gagal membuat gambar.');
+  return d.url;
+}
+
 export async function rekomendasiAI({ jenjang, fase, mapel, topik, prosem }) {
   const r = await fetch('/api/rekomendasi', {
     method: 'POST',

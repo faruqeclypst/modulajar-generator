@@ -26,7 +26,7 @@ export default function DocPaper({ doc, tema = 'hangat' }) {
     inlineUrls.add(url);
     const g = images.find((x) => x.thumbUrl === url) || {};
     const caption = cap || g.caption || g.title || 'Gambar referensi';
-    const credit = `Sumber: Wikimedia Commons${g.artist ? ', ' + g.artist : ''} (${g.license || 'CC'})`;
+    const credit = g.ai ? 'Dibuat dengan AI' : `Sumber: Wikimedia Commons${g.artist ? ', ' + g.artist : ''} (${g.license || 'CC'})`;
     return `<figure class="figure" style="max-width:${dsize}px;margin-left:auto;margin-right:auto"><img src="${esc(url)}" alt="${esc(caption)}" loading="lazy"/>`
       + `<figcaption><b>${esc(caption)}</b><div class="credit">${esc(credit)}</div></figcaption></figure>`;
   });
@@ -59,8 +59,10 @@ export default function DocPaper({ doc, tema = 'hangat' }) {
               <figcaption>
                 <b>Gambar {i + 1}. {g.caption || g.title}</b>
                 <div className="credit">
-                  Sumber: Wikimedia Commons{g.artist ? ', ' + g.artist : ''} ({g.license || 'CC'})
-                  {' '}<a href={g.pageUrl} target="_blank" rel="noreferrer">lihat lisensi</a>
+                  {g.ai ? 'Dibuat dengan AI' : (<>
+                    Sumber: Wikimedia Commons{g.artist ? ', ' + g.artist : ''} ({g.license || 'CC'})
+                    {g.pageUrl && <>{' '}<a href={g.pageUrl} target="_blank" rel="noreferrer">lihat lisensi</a></>}
+                  </>)}
                 </div>
               </figcaption>
             </figure>

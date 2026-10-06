@@ -2982,6 +2982,23 @@ app.post('/api/regen-block', requireAuth(async (req, res) => {
   }
 }));
 
+// Buat gambar dengan AI: kembalikan URL gambar (Pollinations, tanpa API key).
+// Frontend menyimpan URL ke daftar images dokumen seperti gambar biasa.
+app.post('/api/gambar-ai', requireAuth(async (req, res) => {
+  try {
+    if (!cekRateLimit(req.user.id, 'gambar-ai', 10))
+      return kirimGagal(res, 429, 'Terlalu banyak permintaan. Coba lagi nanti.');
+    const prompt = String(req.body?.prompt || '').trim().slice(0, 300);
+    if (prompt.length < 5) return kirimGagal(res, 400, 'Deskripsi gambar minimal 5 karakter.');
+    const seed = Math.floor(Math.random() * 1000000);
+    const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt)
+      + '?width=1024&height=768&nologo=true&seed=' + seed;
+    res.json({ ok: true, url });
+  } catch (e) {
+    kirimGagal(res, 500, 'Kesalahan server: ' + (e.message || e));
+  }
+}));
+
 // Rekomendasi AI di awal wizard
 app.post('/api/rekomendasi', requireAuth(async (req, res) => {
   try {

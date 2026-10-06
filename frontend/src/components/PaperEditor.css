@@ -1,0 +1,64 @@
+/* PaperEditor: edit langsung di atas kertas. Blok TIDAK terlihat (tanpa outline/
+ * handle permanen); toolbar hanya muncul saat kursor di atas bagian tersebut. */
+.pedit .pblk { position: relative; }
+.pedit .pblk.dragging { opacity: 0.45; }
+.pedit .pblk.over { box-shadow: 0 -3px 0 0 var(--red); }
+
+/* Toolbar melayang: tak terlihat sampai hover/fokus */
+.pblk-tools {
+  position: absolute; top: -14px; right: 6px; z-index: 20;
+  display: flex; gap: 4px; padding: 4px 6px;
+  background: #fff; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink);
+  opacity: 0; pointer-events: none; transform: translateY(-2px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.pblk:hover .pblk-tools,
+.pblk:focus-within .pblk-tools { opacity: 1; pointer-events: auto; transform: none; }
+.ptool {
+  width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; border: 2px solid transparent; font-size: 15px; cursor: pointer; color: var(--ink);
+  padding: 0;
+}
+.ptool:hover { background: var(--wash); border-color: var(--ink); }
+.ptool:focus-visible { outline: 3px solid var(--red); outline-offset: 1px; }
+.ptool.danger:hover { background: var(--red); border-color: var(--red); color: #fff; }
+.ptool[draggable="true"] { cursor: grab; }
+.ptool[draggable="true"]:active { cursor: grabbing; }
+
+/* Editor inline */
+.pblk-edit textarea {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; line-height: 1.7;
+  padding: 10px 12px; border: 2px solid var(--red); background: #fff; resize: vertical;
+}
+.pblk-edit textarea:focus { outline: none; }
+.pblk-h1edit {
+  font-size: clamp(24px, 4.5vw, 38px) !important; font-weight: 900 !important; line-height: 1.15 !important;
+}
+
+/* Panel AI & gambar di bawah blok */
+.pblk-panel {
+  margin: 10px 0 6px; padding: 12px;
+  background: #fbf9f4; border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+}
+.pblk-panel > label, .pblk-panel .field > label {
+  display: block; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px;
+}
+.pblk-panel textarea, .pblk-panel input[type="text"], .pblk-panel input:not([type]) {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 14px;
+  padding: 8px 10px; border: var(--bd); background: #fff; resize: vertical;
+}
+.pblk-tabs { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+.pblk-tabs [role="tab"] {
+  border: 2px solid var(--ink); background: #fff; font-weight: 800; font-size: 13px;
+  padding: 6px 12px; cursor: pointer;
+}
+.pblk-tabs [role="tab"].on { background: var(--ink); color: #fff; }
+
+@media print {
+  .pblk-tools, .pblk-panel, .pblk-edit { display: none !important; }
+  .pedit .pblk.over { box-shadow: none; }
+}
+@media (hover: none) {
+  /* Perangkat sentuh: toolbar selalu terlihat agar bisa dipakai */
+  .pblk-tools { opacity: 1; pointer-events: auto; transform: none; position: static; display: inline-flex; margin-bottom: 4px; box-shadow: none; }
+}

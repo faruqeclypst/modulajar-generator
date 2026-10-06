@@ -5,7 +5,7 @@ import { exportDocx } from '../lib/docxExport';
 import { TEMA_DOKUMEN, bacaTemaDokumen, simpanTemaDokumen } from '../lib/tema';
 import { DOC_TYPES } from '../lib/docs';
 import DocPaper from './DocPaper';
-import DocEditor from './DocEditor';
+import PaperEditor from './PaperEditor';
 import ImagePicker from './ImagePicker';
 
 export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurunan }) {
@@ -63,7 +63,7 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
         <button className="btn btn-sm" onClick={onBack}>← Kembali</button>
         {mode === 'view' && (
           <>
-            <button className="btn btn-sm btn-ink" onClick={() => setMode('edit')}>Edit Blok</button>
+            <button className="btn btn-sm btn-ink" onClick={() => setMode('edit')}>Edit Langsung</button>
             <button className="btn btn-sm" onClick={() => setMode('images')}>Kelola Gambar</button>
             {isModul && onBuatTurunan && (
               <>
@@ -128,23 +128,22 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
         </div>
       ) : mode === 'edit' ? (
         <div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="field" style={{ marginBottom: 0 }}>
-              <label>Judul {typeName}</label>
-              <input value={judul} onChange={(e) => setJudul(e.target.value)} />
-            </div>
+          <div className="alert alert-info no-print">
+            Ubah langsung di dokumen: <b>klik dua kali</b> teks untuk mengedit, arahkan kursor ke bagian
+            untuk <b>menggeser</b> (tahan ⠿ atau Alt+↑/↓), <b>perbaiki dengan AI</b> ✨, atau <b>sisipkan gambar</b> 🖼.
           </div>
-          <div className="alert alert-info">
-            Klik blok untuk mengedit langsung. Arahkan kursor ke blok untuk memindah, menghapus,
-            atau memperbaiki isinya dengan AI.
-          </div>
-          <DocEditor
+          <PaperEditor
             initialMarkdown={buangJudulGanda(rapikanIdentitas(text), judul)}
             images={images}
             docType={typeName}
             docTitle={judul}
             topic={doc.topik}
-            onChange={(newMd, newImgs) => { setText(newMd); setImages(newImgs); }}
+            tema={tema}
+            typeName={typeName}
+            onChange={(newMd, newImgs) => {
+              setText(newMd); setImages(newImgs);
+              const t = extractTitle(newMd); if (t) setJudul(t);
+            }}
           />
         </div>
       ) : (
