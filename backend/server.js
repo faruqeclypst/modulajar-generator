@@ -1246,6 +1246,7 @@ Total JP pada tabel WAJIB sama dengan rekapitulasi. Sisakan JP untuk asesmen sum
 Penyesuaian bila ada minggu tidak efektif susulan.
 
 ${ANTI_SLOP} ${KONSISTENSI}
+LARANGAN KERAS: DILARANG menampilkan proses berpikir, draf awal, atau bagian "Perbaikan Tabel". Hitung SEMUA angka (total JP, nomor pertemuan) dengan benar SEBELUM menulis — pastikan sudah tepat dari awal. Keluarkan HANYA satu versi final yang sudah benar. Jangan pernah menulis dua versi tabel (salah lalu dibetulkan).
 
 Aturan: Bahasa Indonesia formal.`,
 
