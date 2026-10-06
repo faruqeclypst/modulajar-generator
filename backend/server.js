@@ -1316,7 +1316,7 @@ CONTOH:
   "genap": [
     {"materi": "Proyek Sistem Digital", "jp": 12, "ket": "Proyek"}
   ],
-  "struktur_bulan_ganjil": {"Jul": 3, "Agu": 4, "Sep": 4, "Okt": 5, "Nov": 4, "Des": 5},
+  "struktur_bulan_ganjil": {"Jul": [3,4,5], "Agu": 4, "Sep": 4, "Okt": 5, "Nov": 4, "Des": 5},
   "struktur_bulan_genap": {"Jan": 4, "Feb": 4, "Mar": 5, "Apr": 4, "Mei": 4, "Jun": 5},
   "libur_ganjil": {"Sep-4": "Flash Event Sekolah", "Des-2": "Asesmen Akhir Semester", "Des-3": "Ekstrakurikuler", "Des-4": "Libur Semester Ganjil", "Des-5": "Libur Semester Ganjil"},
   "libur_genap": {"Feb-4": "Libur Awal Ramadhan", "Mar-4": "Libur Idul Fitri", "Mar-5": "Libur Idul Fitri"}
@@ -1336,8 +1336,7 @@ Contoh BENAR (ditiru polanya):
 
 Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — bukan judul bab yang umum.
 
-STRUKTUR MINGGU (WAJIB): Buka dokumen Analisis Minggu Efektif, baca TABEL 1 (Ganjil) dan TABEL 2 (Genap). Untuk tiap bulan, salin angka dari kolom "Jumlah Minggu" (mis. Oktober 2026 = 5, Desember 2026 = 5). Susun ke dalam "struktur_bulan_ganjil" / "struktur_bulan_genap" dengan singkatan bulan (Jul Agu Sep Okt Nov Des Jan Feb Mar Apr Mei Jun). SEMUA bulan dalam semester WAJIB dicantumkan. JANGAN samakan semua jadi 4 — ikuti angka persis dari kolom "Jumlah Minggu" pada tabel.\nATURAN JSON:
-1. ACUAN WAJIB (JANGAN mengarang di luar ini):
+STRUKTUR MINGGU (WAJIB): Buka dokumen Analisis Minggu Efektif, baca TABEL 1 (Ganjil) dan TABEL 2 (Genap). Untuk tiap bulan, salin angka dari kolom "Jumlah Minggu". Susun ke dalam "struktur_bulan_ganjil" / "struktur_bulan_genap". ATURAN PENOMORAN: Jika jumlah minggu < 5, tulis DAFTAR EKSPLISIT minggu mana yang masuk. Konvensi: bulan di AWAL semester (Juli, Januari) -> minggu TERAKHIR (mis. Juli 3 minggu = {"Jul": [3,4,5]}); bulan di AKHIR semester (Desember, Juni) -> tulis angka saja (sistem tampilkan semua, minggu libur ditandai terpisah). Contoh: {"Jul": [3,4,5], "Agu": 4, "Sep": 4, "Okt": 5, "Nov": 4, "Des": 5}. SEMUA bulan wajib dicantumkan. JANGAN samakan semua jadi 4.\n1. ACUAN WAJIB (JANGAN mengarang di luar ini):
    a. PROTA (Program Tahunan) — SUMBER UTAMA. Prosem DITURUNKAN LANGSUNG dari PROTA: materi, urutan, dan alokasi bulan mengikuti PROTA persis.
    b. Analisis Minggu Efektif — menentukan minggu mana yang efektif vs libur (untuk nonEfektif_ganjil/genap).
    c. Distribusi Alokasi JP — acuan pembagian JP per pertemuan/topik.
@@ -1620,11 +1619,17 @@ function bangunMatriksProsem(md, info) {
     // Jika AI memberi struktur_bulan (mis. {"Okt": 5}), bangun daftar minggu darinya
     if (daftarMinggu && typeof daftarMinggu === 'object' && !Array.isArray(daftarMinggu)) {
       const daftarBaru = [];
-      Object.entries(daftarMinggu).forEach(([bln, jml]) => {
+      Object.entries(daftarMinggu).forEach(([bln, val]) => {
         const n = normKode(bln + '-1');
         if (!n) return;
-        const j = Math.max(1, Math.min(5, Number(jml) || 4));
-        for (let w = 1; w <= j; w++) daftarBaru.push(n.bln + '-' + w);
+        if (Array.isArray(val)) {
+          // Daftar eksplisit: {"Jul": [3,4,5]}
+          val.forEach((w) => { const wn = Number(w); if (wn >= 1 && wn <= 5) daftarBaru.push(n.bln + '-' + wn); });
+        } else {
+          // Angka saja: {"Jul": 3} -> 3 minggu TERAKHIR (konvensi awal semester)
+          const j = Math.max(1, Math.min(5, Number(val) || 4));
+          for (let w = 6 - j; w <= 5; w++) daftarBaru.push(n.bln + '-' + w);
+        }
       });
       daftarMinggu = daftarBaru;
     }
