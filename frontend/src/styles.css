@@ -744,9 +744,15 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .matriks-lebar .md table td.td-pts { background: #6FCF97; font-weight: 700; }
 .matriks-lebar .md table td.td-pas { background: #F2C94C; font-weight: 700; }
 .matriks-lebar .md table td.td-tanda { background: #BDBDBD; font-weight: 700; }
+/* Minggu non-efektif: abu-abu gelap bergaris, jelas bukan jam belajar */
+.matriks-lebar .md table td.td-nonefektif {
+  background: repeating-linear-gradient(45deg, #E0E0E0, #E0E0E0 4px, #F5F5F5 4px, #F5F5F5 8px);
+  color: #9E9E9E;
+}
 @media print {
   .matriks-lebar .md table td.td-lbr, .matriks-lebar .md table td.td-pts,
-  .matriks-lebar .md table td.td-pas, .matriks-lebar .md table td.td-tanda {
+  .matriks-lebar .md table td.td-pas, .matriks-lebar .md table td.td-tanda,
+  .matriks-lebar .md table td.td-nonefektif {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
 }
