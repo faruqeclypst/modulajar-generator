@@ -251,6 +251,13 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .empty h3 { font-size: 22px; font-weight: 900; text-transform: uppercase; margin: 0 0 8px; }
 .empty p { color: var(--slate); margin: 0 0 20px; }
 .loader-wrap { text-align: center; padding: 56px 20px; }
+/* Layar memuat aplikasi: meniru splash pra-React di index.html agar transisi mulus */
+.boot-screen { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; background: var(--paper); }
+.boot-screen .in { text-align: center; color: var(--ink); }
+.boot-screen .logo { font-weight: 900; font-size: 22px; letter-spacing: 1px; }
+.boot-screen .logo small { display: block; font-size: 10px; letter-spacing: 3px; opacity: .6; font-weight: 700; margin-top: 2px; }
+.boot-screen .spinner { margin: 20px auto 0; width: 34px; height: 34px; border-width: 4px; border-radius: 50%; }
+.boot-screen p { margin: 12px 0 0; font-size: 13px; font-weight: 700; color: var(--muted); }
 .spinner {
   width: 54px; height: 54px; margin: 0 auto 20px; border: 6px solid var(--wash);
   border-top-color: var(--red); border-radius: 0; animation: spin .8s linear infinite;

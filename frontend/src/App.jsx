@@ -138,8 +138,9 @@ function LayarLogin({ err, onBatal }) {
 
 function LayarTunggu({ pesan }) {
   return (
-    <div className="wrap narrow" style={{ textAlign: 'center', paddingTop: 80 }}>
-      <div className="loader-wrap">
+    <div className="boot-screen">
+      <div className="in">
+        <div className="logo">MODULAJAR<small>PERANGKAT AJAR AI</small></div>
         <div className="spinner" role="status" aria-label="Memuat" />
         <p>{pesan || 'Memuat…'}</p>
       </div>
