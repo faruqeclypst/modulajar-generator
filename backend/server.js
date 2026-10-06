@@ -1316,9 +1316,9 @@ CONTOH:
   "genap": [
     {"materi": "Proyek Sistem Digital", "jp": 12, "ket": "Proyek"}
   ],
-  "minggu_ganjil": ["Jul-1", "Jul-2", "Jul-3", "Jul-4", "Agu-1", "Agu-2"],
-  "minggu_genap": ["Jan-1", "Jan-2", "Jan-3"],
-  "libur_ganjil": {"Jul-2": "Lomba sekolah", "Agu-1": "Libur nasional"},
+  "struktur_bulan_ganjil": {"Jul": 4, "Agu": 4, "Sep": 4, "Okt": 5, "Nov": 4, "Des": 3},
+  "struktur_bulan_genap": {"Jan": 4, "Feb": 4, "Mar": 4, "Apr": 3, "Mei": 4, "Jun": 2},
+  "libur_ganjil": {"Jul-2": "Lomba sekolah"},
   "libur_genap": {}
 }
 \`\`\`
@@ -1336,8 +1336,7 @@ Contoh BENAR (ditiru polanya):
 
 Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — bukan judul bab yang umum.
 
-STRUKTUR MINGGU (WAJIB): Dari dokumen Analisis Minggu Efektif dan PROTA, susun SEMUA minggu secara berurutan ke dalam "minggu_ganjil" / "minggu_genap". Format tiap minggu: "Jul-3" (3 huruf bulan + nomor minggu). Untuk minggu TIDAK EFEKTIF, salin PERSIS dari kolom keterangan pada dokumen Analisis Minggu Efektif (mis. jika di sana tertulis minggu ke-2 ada "Lomba sekolah", maka cantumkan {"Jul-2": "Lomba sekolah"} di "libur_ganjil"). DILARANG mengarang alasan libur yang tidak tertulis di dokumen Minggu Efektif. Format: "libur_ganjil": {"Jul-2": "Lomba sekolah"}, "libur_genap": {}. Minggu libur tetap ditampilkan dengan warna khusus dan tidak diisi materi. PENTING: Total JP = (jumlah minggu efektif SAJA) × (JP per minggu). JANGAN alokasikan JP ke minggu yang tidak ada di daftar.
-
+STRUKTUR MINGGU (WAJIB): Buka dokumen Analisis Minggu Efektif. Untuk tiap bulan, HITUNG jumlah minggu efektif + tidak efektif dari tabelnya (mis. jika Oktober ada 5 baris minggu, tulis "Okt": 5). Susun ke dalam "struktur_bulan_ganjil" / "struktur_bulan_genap" dengan singkatan bulan (Jul Agu Sep Okt Nov Des Jan Feb Mar Apr Mei Jun). SEMUA bulan dalam semester WAJIB dicantumkan, termasuk Desember/Januari. JANGAN samakan semua jadi 4 — ikuti angka persis dari dokumen.\n
 ATURAN JSON:
 1. ACUAN WAJIB (JANGAN mengarang di luar ini):
    a. PROTA (Program Tahunan) — SUMBER UTAMA. Prosem DITURUNKAN LANGSUNG dari PROTA: materi, urutan, dan alokasi bulan mengikuti PROTA persis.
@@ -1620,6 +1619,17 @@ function bangunMatriksProsem(md, info) {
     };
     let kolomMinggu = [];
     let grupBulan = []; // [{nama, jml}]
+    // Jika AI memberi struktur_bulan (mis. {"Okt": 5}), bangun daftar minggu darinya
+    if (daftarMinggu && typeof daftarMinggu === 'object' && !Array.isArray(daftarMinggu)) {
+      const daftarBaru = [];
+      Object.entries(daftarMinggu).forEach(([bln, jml]) => {
+        const n = normKode(bln + '-1');
+        if (!n) return;
+        const j = Math.max(1, Math.min(5, Number(jml) || 4));
+        for (let w = 1; w <= j; w++) daftarBaru.push(n.bln + '-' + w);
+      });
+      daftarMinggu = daftarBaru;
+    }
     if (Array.isArray(daftarMinggu) && daftarMinggu.length > 0) {
       daftarMinggu.forEach((k) => {
         const n = normKode(k);
@@ -1714,8 +1724,8 @@ function bangunMatriksProsem(md, info) {
   const sebelumB = idxB >= 0 ? md.slice(0, idxB) : md;
   const sesudahC = idxC >= 0 ? md.slice(idxC) : '';
   let hasil = sebelumB + '## B. Matriks Program Semester\n';
-  const tGanjil = bangunTabel(data.ganjil, BULAN_GANJIL, data.tanda_ganjil, data.minggu_ganjil, data.libur_ganjil);
-  const tGenap = bangunTabel(data.genap, BULAN_GENAP, data.tanda_genap, data.minggu_genap, data.libur_genap);
+  const tGanjil = bangunTabel(data.ganjil, BULAN_GANJIL, data.tanda_ganjil, data.struktur_bulan_ganjil || data.minggu_ganjil, data.libur_ganjil);
+  const tGenap = bangunTabel(data.genap, BULAN_GENAP, data.tanda_genap, data.struktur_bulan_genap || data.minggu_genap, data.libur_genap);
   if (tGanjil) hasil += '\n### Semester Ganjil\n\n' + tGanjil + '\n';
   if (tGenap) hasil += '\n### Semester Genap\n\n' + tGenap + '\n';
   if (!tGanjil && !tGenap) return md; // gagal bangun — jangan rusak dokumen
