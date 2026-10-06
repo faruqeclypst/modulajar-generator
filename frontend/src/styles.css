@@ -728,12 +728,14 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 @media print {
   /* Matriks Prosem: font kecil agar 33 kolom muat di A4 landscape */
   .matriks-lebar .md { overflow: visible; }
-  .matriks-lebar .md table { display: table; overflow: visible; width: 100%; font-size: 7pt; }
-  .matriks-lebar .md table th, .matriks-lebar .md table td { padding: 3px 4px; white-space: nowrap; }
+  .matriks-lebar .md table { display: table; overflow: visible; width: 100%; table-layout: fixed; font-size: 6.5pt; }
+  .matriks-lebar .md table th, .matriks-lebar .md table td { padding: 2px 3px; white-space: nowrap; overflow: hidden; }
   .matriks-lebar .md table th:first-child, .matriks-lebar .md table td:first-child {
-    white-space: normal; min-width: 120px; max-width: 160px;
+    white-space: normal; width: 22%; overflow: visible;
     position: static; box-shadow: none;
   }
+  .matriks-lebar .md table th:nth-child(2), .matriks-lebar .md table td:nth-child(2) { width: 4%; }
+  .matriks-lebar .md table th:last-child, .matriks-lebar .md table td:last-child { width: 8%; white-space: normal; }
 }
 /* Warna kolom minggu khusus Prosem (seperti dokumen resmi) */
 .matriks-lebar .md table td.td-lbr { background: #F2994A; font-weight: 700; }

@@ -30,6 +30,16 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
     }
   }, [doc.id, doc.docType]);
 
+  // Prosem: paksa landscape saat cetak via style injeksi (lebih andal dari named @page di Chrome)
+  useEffect(() => {
+    if (docType !== 'prosem') return;
+    const el = document.createElement('style');
+    el.id = 'prosem-cetak-landscape';
+    el.textContent = '@media print { @page { size: A4 landscape; margin: 1.8cm 1.5cm; } }';
+    document.head.appendChild(el);
+    return () => { el.remove(); };
+  }, [docType]);
+
   const typeName = (DOC_TYPES[docType] || {}).nama || 'Dokumen';
   const paperDoc = { ...doc, judul, markdown: text, images };
 
