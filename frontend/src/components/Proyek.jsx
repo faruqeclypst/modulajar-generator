@@ -480,9 +480,14 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
           <div key={g.key}>
             <h2 className="sec" style={{ marginTop: 28 }}>{g.judul} <span className="hint">({isi.length})</span></h2>
             <div className="modul-grid">
-              {isi.map((m) => (
+              {isi.map((m, ix) => (
                 <div className="card modul-card" key={m.id}>
-                  <span className="chip red" style={{ alignSelf: 'flex-start' }}>{(DOC_TYPES[m.docType] || {}).nama || 'Dokumen'}</span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', alignSelf: 'flex-start' }}>
+                    {g.key === 'modul' && (
+                      <span className="chip" style={{ background: 'var(--ink)', color: '#fff', fontWeight: 800 }}>Modul {ix + 1}</span>
+                    )}
+                    <span className="chip red">{(DOC_TYPES[m.docType] || {}).nama || 'Dokumen'}</span>
+                  </div>
                   <h3>{m.judul}</h3>
                   {m.topik && <div style={{ fontSize: 13.5, color: 'var(--slate)' }}>{m.topik}</div>}
                   <time>Diperbarui {fmtDate(m.updatedAt)}</time>
