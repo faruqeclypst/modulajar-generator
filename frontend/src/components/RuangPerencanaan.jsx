@@ -17,7 +17,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
   const [project, setProject] = useState(null);
   const [paket, setPaket] = useState(null); // baris paket legacy tertaut: penyimpanan docs + pemilih acuan
   const [showBaru, setShowBaru] = useState(false);
-  const [baru, setBaru] = useState({ jenjang: 'SMA/MA', fase: 'F (Kelas 11-12)', kelas: '', semester: 'Ganjil', mapel: '', tahunAjaran: '' });
+  const [baru, setBaru] = useState({ namaProyek: '', jenjang: 'SMA/MA', fase: 'F (Kelas 11-12)', kelas: '', semester: 'Ganjil', mapel: '', tahunAjaran: '' });
   const [stepKey, setStepKey] = useState(null);
   const [errBaru, setErrBaru] = useState('');
   const [memuatAwal, setMemuatAwal] = useState(true); // loading daftar proyek saat pertama dibuka
@@ -62,7 +62,8 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
   async function buatProyek() {
     if (!baru.mapel) { setErrBaru('Pilih mata pelajaran dulu.'); return; }
     setErrBaru('');
-    const id = await saveProject({ ...baru });
+    const { namaProyek, ...rest } = baru;
+    const id = await saveProject({ ...rest, nama: (namaProyek || '').trim() });
     setShowBaru(false);
     setProjectId(id);
     setStepKey(null);
@@ -93,7 +94,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
               <FormulirDasar
                 nilai={baru}
                 onUbah={(patch) => { setBaru((b) => ({ ...b, ...patch })); setErrBaru(''); }}
-                fields={['jenjang', 'fase', 'kelas', 'semester', 'mapel', 'tahunAjaran']}
+                fields={['namaProyek', 'jenjang', 'fase', 'kelas', 'semester', 'mapel', 'tahunAjaran']}
                 wajib={['mapel']}
                 galat={errBaru ? { mapel: errBaru } : {}}
                 prefix="rp"
@@ -117,7 +118,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
           <div className="modul-grid">
             {projects.map((p) => (
               <div className="card modul-card" key={p.id}>
-                <h3>{[p.mapel, p.kelas].filter(Boolean).join(' ') || p.nama}</h3>
+                <h3>{p.nama || [p.mapel, p.kelas].filter(Boolean).join(' ')}</h3>
                 <div className="meta">
                   <span className="chip fill">{p.jenjang}</span>
                   {p.fase && <span className="chip">{p.fase}</span>}
@@ -141,7 +142,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
   return (
     <div className="wrap">
       <span className="kicker">Ruang Perencanaan</span>
-      <h1 className="page">{[project.mapel, project.kelas].filter(Boolean).join(' ') || project.nama}</h1>
+      <h1 className="page">{project.nama || [project.mapel, project.kelas].filter(Boolean).join(' ')}</h1>
       <p className="lead">{project.jenjang} · {project.fase} · {project.kelas} · Semester {project.semester} · {project.tahunAjaran}</p>
 
       <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>

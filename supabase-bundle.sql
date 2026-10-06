@@ -113,3 +113,25 @@ create table if not exists daftar_ai (
 create index if not exists daftar_ai_untuk_idx on daftar_ai(untuk);
 alter table daftar_ai enable row level security;
 -- Sengaja tanpa policy untuk user: hanya service_role (backend) yang baca/tulis.
+
+-- 9) Transaksi pembayaran (fondasi payment gateway)
+--    Satu baris per upaya bayar; gateway callback update status via referensi.
+create table if not exists transaksi (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid,
+  email text,
+  paket text not null default '',
+  jumlah integer not null default 0,          -- nominal rupiah
+  metode text,                                 -- qris | transfer | ewallet | ...
+  status text not null default 'pending' check (status in ('pending','berhasil','gagal','kadaluarsa')),
+  referensi text unique,                       -- order_id dari gateway (idempotensi callback)
+  kredit integer not null default 0,           -- kredit yang diberikan bila berhasil
+  meta jsonb not null default '{}'::jsonb,     -- payload mentah gateway (snap token, dsb)
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists transaksi_user_idx on transaksi(user_id);
+create index if not exists transaksi_status_idx on transaksi(status);
+create index if not exists transaksi_referensi_idx on transaksi(referensi);
+alter table transaksi enable row level security;
+-- Sengaja tanpa policy untuk user: hanya service_role (backend) yang baca/tulis.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getToken } from '../lib/supabase';
 import { SkelStat, SkelTabel, SkelKartu, SkelForm } from './Kerangka';
+import Paginasi from './Paginasi';
 
 // Panggilan API admin: pola sama seperti apiJob di GeneratorPaket.jsx.
 async function apiAdmin(path, method, body) {
@@ -37,6 +38,7 @@ const TABS = [
   ['pengguna', 'Pengguna'],
   ['masukan', 'Masukan'],
   ['jobs', 'Job Terbaru'],
+  ['transaksi', 'Transaksi'],
   ['ai', 'Pengaturan AI'],
 ];
 
@@ -386,33 +388,52 @@ function PengaturanAI() {
 
 // Dashboard admin: ringkasan + pengguna + masukan + job + pengaturan AI. Prop: onBack.
 export default function AdminDashboard({ onBack }) {
+  const PER_HAL = 20;
   const [tab, setTab] = useState('ringkasan');
   const [ringkasan, setRingkasan] = useState(null);
   const [pengguna, setPengguna] = useState(null);
   const [masukan, setMasukan] = useState(null);
   const [jobs, setJobs] = useState(null);
+  const [transaksi, setTransaksi] = useState(null);
+  const [trxBelumAda, setTrxBelumAda] = useState(false);
+  const [filterTrx, setFilterTrx] = useState('');
+  const [belumDibaca, setBelumDibaca] = useState(0);
+  const [pg, setPg] = useState({
+    pengguna: { page: 1, total: 0 }, masukan: { page: 1, total: 0 },
+    jobs: { page: 1, total: 0 }, transaksi: { page: 1, total: 0 },
+  });
   const [err, setErr] = useState({});
 
   // asArray: paksa hasil jadi array; respons tak terduga tidak boleh crash render.
-  const muat = (nama, setFn, path, asArray) => {
+  // halaman: nomor halaman yang diminta (paginasi).
+  const muat = (nama, setFn, path, asArray, halaman) => {
     setErr((e) => ({ ...e, [nama]: '' }));
-    apiAdmin(path)
+    const p = halaman || (pg[nama] && pg[nama].page) || 1;
+    const url = path + (path.includes('?') ? '&' : '?') + 'page=' + p + '&per_page=' + PER_HAL;
+    apiAdmin(url)
       .then((d) => {
         const v = d.data ?? d;
         setFn(asArray ? (Array.isArray(v) ? v : []) : v);
+        if (typeof d.total === 'number') setPg((s) => ({ ...s, [nama]: { page: d.page || p, total: d.total } }));
+        if (nama === 'masukan' && typeof d.belumDibaca === 'number') setBelumDibaca(d.belumDibaca);
+        if (nama === 'transaksi') setTrxBelumAda(!!d.belumAda);
       })
-      .catch((e) => setErr((p) => ({ ...p, [nama]: e.message || 'Gagal memuat data.' })));
+      .catch((e) => setErr((p2) => ({ ...p2, [nama]: e.message || 'Gagal memuat data.' })));
   };
+
+  const pathTrx = () => '/api/admin/transaksi' + (filterTrx ? '?status=' + filterTrx : '');
 
   useEffect(() => { muat('ringkasan', setRingkasan, '/api/admin/ringkasan'); }, []);
   useEffect(() => { if (tab === 'pengguna' && pengguna === null && !err.pengguna) muat('pengguna', setPengguna, '/api/admin/pengguna', true); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (tab === 'masukan' && masukan === null && !err.masukan) muat('masukan', setMasukan, '/api/admin/masukan', true); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (tab === 'jobs' && jobs === null && !err.jobs) muat('jobs', setJobs, '/api/admin/jobs', true); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (tab === 'transaksi' && transaksi === null && !err.transaksi) muat('transaksi', setTransaksi, pathTrx(), true); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function tandaiBaca(id) {
     try {
       await apiAdmin('/api/admin/masukan/' + id + '/baca', 'POST');
       setMasukan((m) => (m || []).map((x) => (x.id === id ? { ...x, dibaca: true } : x)));
+      setBelumDibaca((n) => Math.max(0, n - 1));
     } catch (e) {
       setErr((p) => ({ ...p, masukan: e.message || 'Gagal menandai dibaca.' }));
     }
@@ -445,8 +466,8 @@ export default function AdminDashboard({ onBack }) {
               onClick={() => setTab(k)}
             >
               <span>{label}</span>
-              {k === 'masukan' && Array.isArray(masukan) && masukan.some((m) => !m.dibaca) && (
-                <span className="chip red">{masukan.filter((m) => !m.dibaca).length}</span>
+              {k === 'masukan' && belumDibaca > 0 && (
+                <span className="chip red">{belumDibaca}</span>
               )}
             </button>
           ))}
@@ -482,23 +503,27 @@ export default function AdminDashboard({ onBack }) {
           ) : pengguna.length === 0 ? (
             <div className="alert alert-info">Belum ada pengguna terdaftar.</div>
           ) : (
-            <div className="admin-tabel-wrap">
-              <table className="admin-tabel">
-                <thead>
-                  <tr><th>Email</th><th>Terdaftar</th><th>Kunci AI Sendiri</th><th>Dokumen</th></tr>
-                </thead>
-                <tbody>
-                  {pengguna.map((u) => (
-                    <tr key={u.id}>
-                      <td>{u.email}</td>
-                      <td>{fmtTgl(u.dibuat)}</td>
-                      <td>{u.byok ? <span className="chip ok">Ya</span> : <span className="chip">Tidak</span>}</td>
-                      <td>{fmtAngka(u.jmlDokumen)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="admin-tabel-wrap">
+                <table className="admin-tabel">
+                  <thead>
+                    <tr><th>Email</th><th>Terdaftar</th><th>Kunci AI Sendiri</th><th>Dokumen</th></tr>
+                  </thead>
+                  <tbody>
+                    {pengguna.map((u) => (
+                      <tr key={u.id}>
+                        <td>{u.email}</td>
+                        <td>{fmtTgl(u.dibuat)}</td>
+                        <td>{u.byok ? <span className="chip ok">Ya</span> : <span className="chip">Tidak</span>}</td>
+                        <td>{fmtAngka(u.jmlDokumen)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Paginasi page={pg.pengguna.page} total={pg.pengguna.total} perPage={PER_HAL}
+                onPindah={(p) => muat('pengguna', setPengguna, '/api/admin/pengguna', true, p)} />
+            </>
           )}
         </section>
       )}
@@ -512,6 +537,7 @@ export default function AdminDashboard({ onBack }) {
           ) : masukan.length === 0 ? (
             <div className="alert alert-info">Belum ada masukan.</div>
           ) : (
+            <>
             <ul className="admin-masukan">
               {masukan.map((m) => (
                 <li key={m.id} className={'admin-masukan-item' + (m.dibaca ? '' : ' baru')}>
@@ -531,6 +557,9 @@ export default function AdminDashboard({ onBack }) {
                 </li>
               ))}
             </ul>
+            <Paginasi page={pg.masukan.page} total={pg.masukan.total} perPage={PER_HAL}
+              onPindah={(p) => muat('masukan', setMasukan, '/api/admin/masukan', true, p)} />
+            </>
           )}
         </section>
       )}
@@ -544,24 +573,88 @@ export default function AdminDashboard({ onBack }) {
           ) : jobs.length === 0 ? (
             <div className="alert alert-info">Belum ada job paket.</div>
           ) : (
-            <div className="admin-tabel-wrap">
-              <table className="admin-tabel">
-                <thead>
-                  <tr><th>ID</th><th>Mode</th><th>Status</th><th>Pengguna</th><th>Dibuat</th></tr>
-                </thead>
-                <tbody>
-                  {jobs.map((j) => (
-                    <tr key={j.id}>
-                      <td><code>{String(j.id).slice(0, 8)}</code></td>
-                      <td>{j.mode}</td>
-                      <td>{STATUS_LABEL[j.status] || j.status}</td>
-                      <td>{j.userEmail || '-'}</td>
-                      <td>{fmtTgl(j.dibuat)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="admin-tabel-wrap">
+                <table className="admin-tabel">
+                  <thead>
+                    <tr><th>ID</th><th>Mode</th><th>Status</th><th>Pengguna</th><th>Dibuat</th></tr>
+                  </thead>
+                  <tbody>
+                    {jobs.map((j) => (
+                      <tr key={j.id}>
+                        <td><code>{String(j.id).slice(0, 8)}</code></td>
+                        <td>{j.mode}</td>
+                        <td>{STATUS_LABEL[j.status] || j.status}</td>
+                        <td>{j.userEmail || '-'}</td>
+                        <td>{fmtTgl(j.dibuat)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Paginasi page={pg.jobs.page} total={pg.jobs.total} perPage={PER_HAL}
+                onPindah={(p) => muat('jobs', setJobs, '/api/admin/jobs', true, p)} />
+            </>
+          )}
+        </section>
+      )}
+
+      {tab === 'transaksi' && (
+        <section aria-label="Transaksi pembayaran">
+          <div className="toolbar" style={{ marginBottom: 14 }}>
+            <label className="hint" htmlFor="trx-status" style={{ fontWeight: 800 }}>Status:</label>
+            <select
+              id="trx-status" value={filterTrx}
+              onChange={(e) => {
+                const v = e.target.value;
+                setFilterTrx(v); setTrxBelumAda(false);
+                muat('transaksi', setTransaksi, '/api/admin/transaksi' + (v ? '?status=' + v : ''), true, 1);
+              }}
+              style={{ maxWidth: 220 }}
+            >
+              <option value="">Semua</option>
+              <option value="pending">Pending</option>
+              <option value="berhasil">Berhasil</option>
+              <option value="gagal">Gagal</option>
+              <option value="kadaluarsa">Kadaluarsa</option>
+            </select>
+            {trxBelumAda && <span className="chip red">Tabel transaksi belum ada — jalankan supabase-bundle.sql</span>}
+          </div>
+          {err.transaksi ? (
+            <div className="alert alert-error">Gagal memuat transaksi: {err.transaksi}<MuatUlang onClick={() => muat('transaksi', setTransaksi, pathTrx(), true)} /></div>
+          ) : !transaksi ? (
+            <SkelTabel baris={6} kolom={6} />
+          ) : transaksi.length === 0 ? (
+            <div className="alert alert-info">Belum ada transaksi.</div>
+          ) : (
+            <>
+              <div className="admin-tabel-wrap">
+                <table className="admin-tabel">
+                  <thead>
+                    <tr><th>Tanggal</th><th>Email</th><th>Paket</th><th>Nominal</th><th>Metode</th><th>Status</th><th>Referensi</th></tr>
+                  </thead>
+                  <tbody>
+                    {transaksi.map((t) => (
+                      <tr key={t.id}>
+                        <td>{fmtTgl(t.created_at)}</td>
+                        <td>{t.email || '—'}</td>
+                        <td>{t.paket || '—'}</td>
+                        <td>{t.jumlah ? 'Rp' + fmtAngka(t.jumlah) : '—'}</td>
+                        <td>{t.metode || '—'}</td>
+                        <td>
+                          <span className={'chip' + (t.status === 'berhasil' ? ' ok' : t.status === 'pending' ? ' red' : '')}>
+                            {t.status}
+                          </span>
+                        </td>
+                        <td><code>{t.referensi ? String(t.referensi).slice(0, 18) : '—'}</code></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Paginasi page={pg.transaksi.page} total={pg.transaksi.total} perPage={PER_HAL}
+                onPindah={(p) => muat('transaksi', setTransaksi, pathTrx(), true, p)} />
+            </>
           )}
         </section>
       )}

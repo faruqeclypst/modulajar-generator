@@ -24,6 +24,7 @@ const TEKS = {
   sekolah: { label: 'Sekolah', ph: 'cth: SMAN Modal Bangsa' },
   tahunAjaran: { label: 'Tahun Ajaran', ph: 'cth: 2026/2027' },
   kelas: { label: 'Kelas', ph: 'cth: 7' },
+  namaProyek: { label: 'Nama Proyek', ph: 'cth: Informatika X — Ganjil', hint: 'Nama bebas, mis. "IPA 7A Semester 1". Kosongkan untuk otomatis dari mapel + kelas.' },
 };
 
 export default function FormulirDasar({ nilai = {}, onUbah, fields = FIELD_DASAR_SEMUA, wajib = [], galat = {}, prefix = 'fd' }) {

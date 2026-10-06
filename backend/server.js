@@ -2088,6 +2088,13 @@ function requireAdmin(handler) {
   });
 }
 
+// Helper paginasi: ?page=1&per_page=20 -> { page, perPage, offset }
+function paginasi(req, defPer, maxPer) {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const perPage = Math.min(maxPer || 100, Math.max(1, parseInt(req.query.per_page, 10) || defPer || 20));
+  return { page, perPage, offset: (page - 1) * perPage };
+}
+
 // ============ ADMIN: Pengaturan AI global ============
 // GET: baca konfigurasi (key dimask, kecuali 4 karakter terakhir)
 app.get('/api/admin/pengaturan-ai', requireAdmin(async (req, res) => {
@@ -2350,7 +2357,8 @@ app.get('/api/admin/ringkasan', requireAdmin(async (req, res) => {
 app.get('/api/admin/pengguna', requireAdmin(async (req, res) => {
   try {
     if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
-    const { data, error } = await sb.auth.admin.listUsers({ perPage: 100, page: 1 });
+    const { page, perPage } = paginasi(req, 20);
+    const { data, error } = await sb.auth.admin.listUsers({ perPage, page });
     if (error) throw error;
     const users = data?.users || [];
     let byokSet = new Set();
@@ -2366,7 +2374,7 @@ app.get('/api/admin/pengguna', requireAdmin(async (req, res) => {
       } catch { /* abaikan */ }
       return { id: u.id, email: u.email, dibuat: u.created_at, byok: byokSet.has(u.id), jmlDokumen };
     }));
-    res.json({ ok: true, data: daftar, total: data?.total ?? users.length });
+    res.json({ ok: true, data: daftar, total: data?.total ?? daftar.length, page, perPage });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });
   }
@@ -2376,17 +2384,25 @@ app.get('/api/admin/masukan', requireAdmin(async (req, res) => {
   try {
     if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
     let daftar = [];
+    const { page, perPage, offset } = paginasi(req, 20);
+    let total = 0;
+    let belumDibaca = 0;
     try {
-      const { data, error } = await sb.from('masukan')
-        .select('id, jenis, nama, email, pesan, dibaca, created_at')
-        .order('created_at', { ascending: false }).limit(100);
+      const { data, error, count } = await sb.from('masukan')
+        .select('id, jenis, nama, email, pesan, dibaca, created_at', { count: 'exact' })
+        .order('created_at', { ascending: false }).range(offset, offset + perPage - 1);
       if (error) throw error;
+      total = count || 0;
       daftar = (data || []).map((m) => ({
         id: m.id, jenis: m.jenis, nama: m.nama, email: m.email,
         pesan: m.pesan, dibaca: m.dibaca, dibuat: m.created_at,
       }));
     } catch { /* abaikan: tabel masukan mungkin belum ada */ }
-    res.json({ ok: true, data: daftar });
+    try {
+      const { count } = await sb.from('masukan').select('id', { count: 'exact', head: true }).eq('dibaca', false);
+      belumDibaca = count || 0;
+    } catch { /* abaikan */ }
+    res.json({ ok: true, data: daftar, total, page, perPage, belumDibaca });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });
   }
@@ -2414,12 +2430,35 @@ app.delete('/api/admin/masukan/:id', requireAdmin(async (req, res) => {
   }
 }));
 
+// ============ ADMIN: Transaksi (fondasi payment gateway) ============
+// Daftar transaksi pembayaran: ?page=&per_page= ; opsional ?status=pending
+app.get('/api/admin/transaksi', requireAdmin(async (req, res) => {
+  try {
+    if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
+    const { page, perPage, offset } = paginasi(req, 20);
+    let q = sb.from('transaksi')
+      .select('id, user_id, email, paket, jumlah, metode, status, referensi, kredit, created_at', { count: 'exact' })
+      .order('created_at', { ascending: false });
+    if (req.query.status) q = q.eq('status', String(req.query.status));
+    const { data, error, count } = await q.range(offset, offset + perPage - 1);
+    if (error) throw error;
+    res.json({ ok: true, data: data || [], total: count || 0, page, perPage });
+  } catch (e) {
+    // Tabel belum ada -> kembalikan daftar kosong, bukan 500, agar UI tetap jalan.
+    if (/relation .* does not exist|Could not find the table/i.test(e.message || '')) {
+      return res.json({ ok: true, data: [], total: 0, page: 1, perPage: 20, belumAda: true });
+    }
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
 app.get('/api/admin/jobs', requireAdmin(async (req, res) => {
   try {
     if (!sb) return res.status(503).json({ ok: false, error: 'Database belum dikonfigurasi.' });
-    const { data, error } = await sb.from('jobs')
-      .select('id, mode, status, user_id, created_at')
-      .order('created_at', { ascending: false }).limit(20);
+    const { page, perPage, offset } = paginasi(req, 20);
+    const { data, error, count } = await sb.from('jobs')
+      .select('id, mode, status, user_id, created_at', { count: 'exact' })
+      .order('created_at', { ascending: false }).range(offset, offset + perPage - 1);
     if (error) throw error;
     const emailMap = {};
     try {
@@ -2432,6 +2471,7 @@ app.get('/api/admin/jobs', requireAdmin(async (req, res) => {
         id: j.id, mode: j.mode, status: j.status,
         dibuat: j.created_at, userEmail: emailMap[j.user_id] || null,
       })),
+      total: count || 0, page, perPage,
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message || String(e) });

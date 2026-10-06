@@ -8,7 +8,7 @@ function fmtDate(ts) {
 }
 
 function labelProyek(p) {
-  return [p.mapel, p.kelas].filter(Boolean).join(' ') || p.nama || 'Proyek';
+  return p.nama || [p.mapel, p.kelas].filter(Boolean).join(' ') || 'Proyek';
 }
 
 function FormProyek({ awal, onSimpan, onBatal, busy }) {
