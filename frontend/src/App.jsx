@@ -7,6 +7,7 @@ import GeneratorPaket from './components/GeneratorPaket';
 import Topbar from './components/Topbar';
 import Landing from './components/Landing';
 import DocsView from './components/DocsView';
+import HalamanMasukan from './components/HalamanMasukan';
 import AdminDashboard from './components/AdminDashboard';
 import ErrorBoundary from './components/ErrorBoundary';
 import Pengaturan from './components/Pengaturan';
@@ -142,7 +143,7 @@ function LayarTunggu({ pesan }) {
 // Posisi halaman tersimpan agar refresh tidak melempar ke halaman utama.
 // Format: {view, docId, projectId, ruangProjectId} (docId untuk 'detail', projectId untuk 'proyek', ruangProjectId untuk 'ruang').
 const VIEW_KEY = 'ma-view';
-const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek', 'docs', 'admin'];
+const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek', 'docs', 'admin', 'masukan'];
 function bacaViewTersimpan() {
   try {
     const raw = localStorage.getItem(VIEW_KEY);
@@ -380,9 +381,16 @@ export default function App() {
 
       <ErrorBoundary key={view} onBack={goApp}>
       <div className="view-enter">
-      {view === 'landing' && <Landing onStart={goApp} onDocs={() => setView('docs')} waLink={WA_LINK} />}
+      {view === 'landing' && <Landing onStart={goApp} onDocs={() => setView('docs')} onMasukan={() => setView('masukan')} waLink={WA_LINK} />}
 
-      {view === 'docs' && <DocsView onBack={goApp} />}
+      {view === 'masukan' && (
+        <HalamanMasukan
+          mode={user ? 'saran' : 'kontak'}
+          onBack={() => setView(user ? 'app' : 'landing')}
+        />
+      )}
+
+      {view === 'docs' && <DocsView onBack={goApp} onMasukan={() => setView('masukan')} />}
 
       {view === 'admin' && kuota?.admin && <AdminDashboard onBack={goApp} />}
 

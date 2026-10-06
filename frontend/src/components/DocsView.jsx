@@ -1,6 +1,4 @@
-import FeedbackForm from './FeedbackForm';
-
-// Halaman dokumentasi/panduan ModulAjar (prop: onBack).
+// Halaman dokumentasi/panduan ModulAjar (prop: onBack, onMasukan).
 // Keputusan desain (R-31): sidebar daftar isi + satu kolom baca, karena
 // pembacanya guru yang mencari jawaban cepat, bukan membaca berurutan.
 const DAFTAR_ISI = [
@@ -27,7 +25,7 @@ function S({ id, kicker, judul, children }) {
   );
 }
 
-export default function DocsView({ onBack }) {
+export default function DocsView({ onBack, onMasukan }) {
   return (
     <div className="wrap">
       <button className="btn btn-sm" onClick={onBack} style={{ margin: '18px 0 6px' }}>← Kembali</button>
@@ -178,9 +176,11 @@ export default function DocsView({ onBack }) {
           <S id="masukan" kicker="Kontak" judul="Kirim Masukan">
             <p>
               Menemukan yang kurang pas, punya ide fitur, atau butuh bantuan?
-              Tulis di sini, dibaca langsung oleh pengembang.
+              Sampaikan lewat halaman masukan — dibaca langsung oleh pengembang.
             </p>
-            <FeedbackForm mode="saran" />
+            <div className="btn-row">
+              <button type="button" className="btn btn-primary" onClick={onMasukan}>Buka Halaman Masukan</button>
+            </div>
           </S>
         </div>
       </div>

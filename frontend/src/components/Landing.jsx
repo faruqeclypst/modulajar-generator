@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { DOC_TYPES } from '../lib/docs';
-import FeedbackForm from './FeedbackForm';
 
 // Landing page ModulAjar (menggantikan fungsi Landing di App.jsx).
 // Prop: onStart (wajib, membuka aplikasi), onDocs (opsional, membuka halaman
-// panduan; tautan Panduan hanya tampil bila prop ini diberikan), waLink
+// panduan; tautan Panduan hanya tampil bila prop ini diberikan), onMasukan
+// (opsional, membuka halaman masukan terpisah), waLink
 // (opsional, tautan WhatsApp untuk paket berbayar; tombol disembunyikan bila
 // tidak diberikan).
 //
@@ -56,7 +56,7 @@ const FAQ = [
     'Di akunmu (login Google). Buka dari perangkat mana pun, datanya tetap ada. Hanya kamu yang bisa membukanya.'],
 ];
 
-export default function Landing({ onStart, onDocs, waLink }) {
+export default function Landing({ onStart, onDocs, onMasukan, waLink }) {
   // Tangkap kode referral dari URL (?ref=KODE) untuk diklaim setelah login.
   useEffect(() => {
     try {
@@ -68,6 +68,7 @@ export default function Landing({ onStart, onDocs, waLink }) {
   return (
     <div className="wrap">
       <section className="hero-land">
+        <img src="/logo.png" alt="Logo ModulAjar" className="hero-logo" width="76" height="76" />
         <span className="kicker kicker-light">Untuk Guru Indonesia</span>
         <h1>Perangkat Ajar<br />Lengkap dalam<br /><span className="accent">Hitungan Menit.</span></h1>
         <p>
@@ -165,15 +166,6 @@ export default function Landing({ onStart, onDocs, waLink }) {
         </div>
       </section>
 
-      <section id="kontak" style={{ marginTop: 56 }}>
-        <span className="kicker">Kontak</span>
-        <h2 className="sec-title">Ada masukan<br />atau kendala?</h2>
-        <p className="lead" style={{ maxWidth: '62ch' }}>
-          Ceritakan lewat formulir ini. Dibaca langsung oleh pengembang, bukan bot.
-        </p>
-        <FeedbackForm mode="kontak" />
-      </section>
-
       <section className="cta-band">
         <h2>Siap menyusun perangkat ajarmu?</h2>
         <p>Masuk dengan Google, langsung jalan di browser. Tanpa instal apa pun.</p>
@@ -181,20 +173,33 @@ export default function Landing({ onStart, onDocs, waLink }) {
       </section>
 
       <footer className="land-footer">
-        <div className="land-footer-brand">
-          <span className="logo-box" aria-hidden="true">M</span>
-          <div>
-            <b>ModulAjar</b>
-            <span>Perangkat ajar untuk guru Indonesia.</span>
+        <div className="land-footer-grid">
+          <div className="land-footer-brand">
+            <img src="/logo.png" alt="Logo ModulAjar" className="land-footer-logo" width="60" height="60" />
+            <div>
+              <b>ModulAjar</b>
+              <span>Perangkat Ajar AI untuk Guru Indonesia</span>
+            </div>
+            <p>Dari CP sampai bank soal — tersusun berurutan mengikuti Kurikulum Merdeka. Gratis 20 kredit setiap hari.</p>
           </div>
+          <nav aria-label="Produk">
+            <b>Produk</b>
+            <a href="#alur">Alur Dokumen</a>
+            <a href="#cara-kerja">Cara Kerja</a>
+            <a href="#harga">Harga</a>
+            <a href="#faq">Tanya Jawab</a>
+          </nav>
+          <nav aria-label="Bantuan">
+            <b>Bantuan</b>
+            {onMasukan && <button type="button" className="linklike" onClick={onMasukan}>Kirim Masukan</button>}
+            {waLink && <a href={waLink} target="_blank" rel="noreferrer">Chat WhatsApp</a>}
+            {onDocs && <button type="button" className="linklike" onClick={onDocs}>Panduan</button>}
+          </nav>
         </div>
-        <nav aria-label="Tautan bawah">
-          {onDocs && <button type="button" className="linklike" onClick={onDocs}>Panduan</button>}
-          <a href="#harga">Harga</a>
-          <a href="#faq">Tanya Jawab</a>
-          <a href="#kontak">Kontak</a>
-        </nav>
-        <p className="land-copy">© 2026 ModulAjar.</p>
+        <div className="land-footer-bottom">
+          <p className="land-copy">© 2026 ModulAjar · Oleh Alfaruq Asri, S.Pd.</p>
+          <p className="land-copy">Dibuat dengan bangga untuk guru Indonesia.</p>
+        </div>
       </footer>
     </div>
   );
