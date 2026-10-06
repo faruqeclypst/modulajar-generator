@@ -1323,12 +1323,13 @@ ATURAN MATRIKS (WAJIB):
 1. MAKSIMAL 8 kolom per tabel. DILARANG membuat tabel dengan puluhan kolom.
 2. SETIAP BARIS TABEL WAJIB ditulis di baris teks tersendiri. Jangan pernah menggabung dua baris tabel dalam satu baris teks. Baris header, baris pemisah (|---|---|...), dan setiap baris data masing-masing di baris sendiri.
 3. Jumlah sel (tanda |) WAJIB sama di semua baris dalam satu tabel.
-4. Satu baris per materi pokok/bab sesuai urutan PROTA, ditambah baris "Cadangan" dan baris "Jumlah".
-5. Isi sel minggu dengan angka JP (mis. "2") HANYA pada minggu-minggu saat materi itu diajarkan; kosongkan sel lainnya (jangan isi 0, jangan isi "-").
+4. Satu baris per materi pokok/bab sesuai urutan PROTA — TAPI hanya tampilkan baris materi yang memiliki alokasi JP di bulan itu. JANGAN tampilkan baris materi dengan 0 JP di suatu bulan.
+5. Isi sel minggu dengan angka JP (mis. "2") HANYA pada minggu-minggu saat materi itu diajarkan. Sel minggu yang kosong (tidak ada kegiatan) DIBIARKAN KOSONG — DILARANG KERAS menulis "0", "-", atau "kosong" di sel mana pun termasuk baris "Jumlah".
 6. Alokasi JP satu materi yang lebih dari JP/minggu DIPECAH ke beberapa minggu berurutan, boleh lintas bulan (lanjutkan di tabel bulan berikutnya).
-7. Minggu tidak efektif (libur/PTS/PAS) DITANDAI: tulis "LBR", "PTS", atau "PAS" di sel minggu tersebut, dan JANGAN isi angka JP di minggu itu.
-8. Baris "Jumlah" = total JP per kolom minggu (penjumlahan vertikal).
-9. Kolom "Ket" berisi catatan singkat per materi (mis. "Asesmen formatif", "Proyek").
+7. Minggu tidak efektif (libur/PTS/PAS): tulis "LBR", "PTS", atau "PAS" pada baris "Jumlah" di kolom minggu tersebut; semua baris materi MEMBIARKAN sel minggu itu KOSONG. JANGAN menaruh penanda LBR/PTS/PAS di baris materi.
+8. Baris "Cadangan" hanya dimunculkan di bulan-bulan tempat JP cadangan benar-benar dialokasikan; bila tidak ada alokasi cadangan di bulan itu, JANGAN tampilkan baris Cadangan. Kolom "Ket" baris Cadangan menjelaskan tujuan cadangan (mis. "Buffer antisipasi minggu hilang"), BUKAN menjelaskan hari libur.
+9. Baris "Jumlah" SELALU ada = total JP per kolom minggu (penjumlahan vertikal sel yang terisi; sel kosong = tidak dihitung, bukan 0).
+10. Kolom "Ket" berisi catatan singkat per materi (mis. "Asesmen formatif", "Proyek").
 10. DILARANG menampilkan draf, proses berpikir, "Perbaikan Tabel", "Keterangan Penempatan", "Catatan Koreksi Perhitungan", atau analisis angka dalam bentuk apa pun — keluarkan HANYA satu versi final yang sudah benar.
 11. Bila angka di dokumen acuan (PROTA) tidak pas (mis. total materi 38 JP padahal total efektif 40 JP), sesuaikan SECARA DIAM-DIAM: tambahkan selisihnya ke baris "Cadangan" agar total pas. JANGAN menulis analisis atau penjelasan tentang selisih tersebut di mana pun.
 12. Setelah semua tabel matriks, LANGSUNG tulis "## C. Pengesahan". DILARANG menambah section lain.
