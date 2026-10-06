@@ -224,8 +224,12 @@ export default function App() {
     let stopSub = null;
     (async () => {
       try {
-        const sb = await getSupabase();
-        const sess = await getSession();
+        // Batas waktu: jangan biarkan layar "Menyiapkan aplikasi…" macet
+        // selamanya bila server lambat/tak merespons.
+        const batas = (ms) => new Promise((_, tolak) => setTimeout(
+          () => tolak(new Error('Server tidak merespons. Periksa koneksi internet, lalu muat ulang halaman.')), ms));
+        const sb = await Promise.race([getSupabase(), batas(20000)]);
+        const sess = await Promise.race([getSession(), batas(20000)]);
         if (!stop) { setUidLokal(sess?.user?.id || null); setUser(sess?.user || null); setAuth(sess ? 'app' : 'login'); if (sess) setMintaLogin(false); }
         // gotrue-js membersihkan token OAuth di hash via `location.hash = ''`,
         // yang menyisakan "#" gantung di URL -> bersihkan agar address bar rapi.

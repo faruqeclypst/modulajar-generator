@@ -248,6 +248,95 @@ function BagikanBonus() {
   );
 }
 // Halaman Pengaturan: hanya kontrol nyata, semuanya berfungsi.
+// Alat pemulihan proyek "yatim": proyek yang tersimpan di kunci akun lain
+// atau kunci lama sehingga tidak tampil di akun saat ini.
+function PulihkanProyek({ onRefresh }) {
+  const [hasil, setHasil] = useState(null);
+  const [sibuk, setSibuk] = useState(false);
+  const [pesan, setPesan] = useState('');
+  async function pindai() {
+    setSibuk(true); setPesan(''); setHasil(null);
+    try {
+      const { pindaiProyekYatim } = await import('../lib/db');
+      const temu = await pindaiProyekYatim();
+      setHasil(temu);
+      if (!temu.length) setPesan('Tidak ada proyek lain di perangkat ini.');
+    } catch {
+      setPesan('Gagal memindai. Coba lagi.');
+    } finally { setSibuk(false); }
+  }
+  async function pulihkan() {
+    setSibuk(true); setPesan('');
+    try {
+      const { adopsiProyekYatim } = await import('../lib/db');
+      const n = await adopsiProyekYatim();
+      setHasil(null);
+      setPesan(n ? n + ' proyek dipindahkan ke akun ini.' : 'Tidak ada yang dipindahkan.');
+      if (n && onRefresh) await onRefresh();
+    } catch {
+      setPesan('Gagal memulihkan. Coba lagi.');
+    } finally { setSibuk(false); }
+  }
+  return (
+    <div style={{ marginTop: 16, borderTop: '1px dashed var(--line)', paddingTop: 16 }}>
+      <b>Proyek tidak muncul?</b>
+      <p className="hint" style={{ marginBottom: 10 }}>Pindai penyimpanan perangkat untuk proyek yang tersimpan di akun lain atau sebelum pembaruan.</p>
+      <div className="btn-row" style={{ marginBottom: 0 }}>
+        <button type="button" className="btn btn-sm" onClick={pindai} disabled={sibuk}>
+          {sibuk ? 'Memindai…' : 'Pindai proyek hilang'}
+        </button>
+      </div>
+      {hasil && hasil.length > 0 && (
+        <>
+          <p className="hint">Ditemukan {hasil.length} proyek: {hasil.map((p) => p.nama || 'Tanpa nama').join(', ')}.</p>
+          <div className="btn-row" style={{ marginBottom: 0 }}>
+            <button type="button" className="btn btn-sm btn-primary" onClick={pulihkan} disabled={sibuk}>
+              Pindahkan ke akun ini
+            </button>
+          </div>
+        </>
+      )}
+      {pesan && <p className="hint" role="status" style={{ marginBottom: 0 }}>{pesan}</p>}
+    </div>
+  );
+}
+
+// Hapus total: bersihkan seluruh data lokal dan mulai dari bersih.
+function HapusTotalData() {
+  const [sibuk, setSibuk] = useState(false);
+  async function jalankan() {
+    let yatim = 0;
+    try {
+      const { pindaiProyekYatim } = await import('../lib/db');
+      yatim = (await pindaiProyekYatim()).length;
+    } catch { /* abaikan */ }
+    const lanjut = window.confirm(
+      yatim
+        ? `Ditemukan ${yatim} proyek di penyimpanan lain. Hapus total akan MENGHAPUSNYA PERMANEN dari perangkat ini. Lanjutkan?`
+        : 'Hapus SELURUH data lokal (proyek, draft, profil, sesi login)? Kamu akan keluar dan perlu login lagi. Dokumen di server TIDAK ikut terhapus. Lanjutkan?'
+    );
+    if (!lanjut) return;
+    setSibuk(true);
+    try {
+      const { hapusTotalDataLokal } = await import('../lib/akunLokal');
+      await hapusTotalDataLokal();
+    } finally {
+      window.location.reload();
+    }
+  }
+  return (
+    <div style={{ marginTop: 16, borderTop: '1px dashed var(--line)', paddingTop: 16 }}>
+      <b>Data lokal bermasalah?</b>
+      <p className="hint" style={{ marginBottom: 10 }}>Hapus seluruh data lokal di perangkat ini dan mulai dari keadaan bersih.</p>
+      <div className="btn-row" style={{ marginBottom: 0 }}>
+        <button type="button" className="btn btn-sm btn-danger" onClick={jalankan} disabled={sibuk}>
+          {sibuk ? 'Menghapus…' : 'Hapus total data lokal'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }) {
   const meta = user?.user_metadata || {};
   const nama = meta.full_name || meta.name || '';
@@ -415,6 +504,8 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
           </button>
         </div>
         {catatan && <p className="hint" role="status" style={{ marginBottom: 0 }}>{catatan}</p>}
+        <PulihkanProyek onRefresh={onRefresh} />
+        <HapusTotalData />
       </section>
 
       <section className="card" aria-labelledby="set-bantuan">

@@ -207,6 +207,47 @@ export async function deleteProject(id) {
   tulisProyek(bacaProyek().filter((p) => String(p.id) !== String(id)));
 }
 
+// Proyek "yatim": tersimpan di kunci akun lain atau kunci lama (sebelum
+// isolasi per-akun), sehingga tidak tampil di akun saat ini. Dipakai oleh
+// alat pemulihan manual di Pengaturan — tidak pernah berjalan otomatis agar
+// akun baru tetap bersih.
+export async function pindaiProyekYatim() {
+  const milik = new Set((await listProjects()).map((p) => String(p.id)));
+  const kunciSendiri = kunciAkun(PROYEK_KEY);
+  const temu = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !/^ma-projects(__.+)?$/.test(k) || k === kunciSendiri) continue;
+      try {
+        const list = JSON.parse(localStorage.getItem(k)) || [];
+        for (const p of list) {
+          if (p && p.id && !milik.has(String(p.id))) {
+            milik.add(String(p.id));
+            temu.push({ ...p, _sumber: k });
+          }
+        }
+      } catch { /* abaikan kunci rusak */ }
+    }
+  } catch { /* abaikan */ }
+  return temu.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+}
+
+export async function adopsiProyekYatim() {
+  const yatim = await pindaiProyekYatim();
+  if (!yatim.length) return 0;
+  const list = bacaProyek();
+  const ada = new Set(list.map((p) => String(p.id)));
+  for (const p of yatim) {
+    if (ada.has(String(p.id))) continue;
+    const { _sumber, ...bersih } = p;
+    list.push(bersih);
+    ada.add(String(p.id));
+  }
+  tulisProyek(list);
+  return yatim.length;
+}
+
 // Migrasi sekali jalan: tiap paket perencanaan lama menjadi satu proyek,
 // dokumen perencanaan paket + dokumen ber-paketId dipetakan ke proyeknya.
 // Baris paket lama TIDAK dihapus agar pemilih acuan lama tetap berfungsi.
