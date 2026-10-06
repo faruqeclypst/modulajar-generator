@@ -2482,19 +2482,23 @@ app.post('/api/admin/ai-model', requireAdmin(async (req, res) => {
 }));
 
 // Uji koneksi / muat model memakai key yang sudah tersimpan di pengaturan_ai.
+// Menerima override opsional { model, baseUrl } agar yang diuji = pilihan form saat ini,
+// bukan nilai tersimpan yang lama.
 app.post('/api/admin/ai-uji-tersimpan', requireAdmin(async (req, res) => {
   try {
     const kolom = req.body?.kolom === 'admin' ? 'admin' : 'umum';
     const cfg = await getPengaturanAI();
     const k = cfg[kolom];
     if (!k?.apiKey) return res.status(200).json({ ok: false, error: 'Belum ada API key tersimpan untuk ' + kolom + '.' });
-    req.body = { baseUrl: k.baseUrl, apiKey: k.apiKey, model: k.model };
-    // teruskan ke handler uji di bawah via pemanggilan langsung
+    const baseUrl = String(req.body?.baseUrl || '').trim().replace(/\/+$/, '') || k.baseUrl;
+    const model = String(req.body?.model || '').trim() || k.model || MODEL;
+    const errUrlUji = validasiBaseUrl(baseUrl);
+    if (errUrlUji) return res.status(400).json({ ok: false, error: errUrlUji });
     const t0 = Date.now();
-    const r = await fetch(k.baseUrl + '/chat/completions', {
+    const r = await fetch(baseUrl + '/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + k.apiKey },
-      body: JSON.stringify({ model: k.model || MODEL, max_tokens: 5, temperature: 0, messages: [{ role: 'user', content: 'Balas hanya dengan kata: OK' }] }),
+      body: JSON.stringify({ model, max_tokens: 5, temperature: 0, messages: [{ role: 'user', content: 'Balas hanya dengan kata: OK' }] }),
       signal: AbortSignal.timeout(60000),
     });
     const ms = Date.now() - t0;
@@ -2515,7 +2519,8 @@ app.post('/api/admin/ai-model-tersimpan', requireAdmin(async (req, res) => {
     const cfg = await getPengaturanAI();
     const k = cfg[kolom];
     if (!k?.apiKey) return res.status(200).json({ ok: false, error: 'Belum ada API key tersimpan untuk ' + kolom + '.' });
-    const r = await fetch(k.baseUrl + '/models', {
+    const baseUrl = String(req.body?.baseUrl || '').trim().replace(/\/+$/, '') || k.baseUrl;
+    const r = await fetch(baseUrl + '/models', {
       headers: { 'Authorization': 'Bearer ' + k.apiKey },
       signal: AbortSignal.timeout(30000),
     });

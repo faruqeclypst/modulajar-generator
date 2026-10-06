@@ -129,7 +129,8 @@ function PengaturanAI() {
       if (form[pk].trim()) {
         d = await apiAdmin('/api/admin/ai-uji', 'POST', { baseUrl: form[bu], apiKey: form[pk], model: form[mo] });
       } else {
-        d = await apiAdmin('/api/admin/ai-uji-tersimpan', 'POST', { kolom });
+        // key tersimpan dipakai, tapi model & baseUrl mengikuti pilihan form saat ini
+        d = await apiAdmin('/api/admin/ai-uji-tersimpan', 'POST', { kolom, model: form[mo], baseUrl: form[bu] });
       }
       setUji((u) => ({
         ...u,
@@ -152,7 +153,7 @@ function PengaturanAI() {
       if (form[pk].trim()) {
         d = await apiAdmin('/api/admin/ai-model', 'POST', { baseUrl: form[bu], apiKey: form[pk] });
       } else {
-        d = await apiAdmin('/api/admin/ai-model-tersimpan', 'POST', { kolom });
+        d = await apiAdmin('/api/admin/ai-model-tersimpan', 'POST', { kolom, baseUrl: form[bu] });
       }
       if (d.ok && d.models?.length) {
         setModels((m) => ({ ...m, [kolom]: d.models }));
