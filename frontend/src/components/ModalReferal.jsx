@@ -42,20 +42,23 @@ export default function ModalReferal({ onClose, onKuotaChanged }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  async function salin() {
-    if (!ref?.link) return;
+  async function salinTeks(teks, kunci) {
+    if (!teks) return;
     let ok = false;
     try {
-      await navigator.clipboard.writeText(ref.link);
+      await navigator.clipboard.writeText(teks);
       ok = true;
     } catch {
-      const el = document.getElementById('ref-link-modal');
-      if (el) { el.select(); try { ok = document.execCommand('copy'); } catch { /* abaikan */ } }
+      /* abaikan */
     }
     if (ok) {
-      setDisalin(true);
+      setDisalin(kunci || 'ya');
       setTimeout(() => setDisalin(false), 2000);
     }
+  }
+
+  async function salin() {
+    salinTeks(ref?.link, 'link');
   }
 
   async function klaim() {
@@ -93,11 +96,24 @@ export default function ModalReferal({ onClose, onKuotaChanged }) {
         {ref && (
           <>
             <div className="field">
+              <label htmlFor="ref-kode-modal">Kode referralmu</label>
+              <div className="ref-row">
+                <input id="ref-kode-modal" readOnly value={ref.kode || ''} onClick={(e) => e.target.select()}
+                  style={{ fontWeight: 900, letterSpacing: 2, textAlign: 'center', fontSize: 18 }} />
+                <button type="button" className="btn btn-sm btn-primary" onClick={() => salinTeks(ref.kode, 'kode')}>
+                  {disalin === 'kode' ? 'Tersalin' : 'Salin Kode'}
+                </button>
+              </div>
+              <p className="hint" style={{ marginTop: 8, marginBottom: 0 }}>
+                Bagikan kode ini ke teman — mereka mengetikkannya di sini atau daftar lewat link di bawah.
+              </p>
+            </div>
+            <div className="field">
               <label htmlFor="ref-link-modal">Link referalmu</label>
               <div className="ref-row">
                 <input id="ref-link-modal" readOnly value={ref.link} onClick={(e) => e.target.select()} />
-                <button type="button" className="btn btn-sm btn-primary" onClick={salin}>
-                  {disalin ? 'Tersalin' : 'Salin Link'}
+                <button type="button" className="btn btn-sm btn-primary" onClick={() => salinTeks(ref.link, 'link')}>
+                  {disalin === 'link' ? 'Tersalin' : 'Salin Link'}
                 </button>
               </div>
             </div>
