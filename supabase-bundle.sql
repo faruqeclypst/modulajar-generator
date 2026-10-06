@@ -97,3 +97,19 @@ alter table pengaturan_ai enable row level security;
 
 -- 7) Pilihan AI per user: pakai AI bawaan web atau kunci sendiri (BYOK)
 alter table kunci_ai add column if not exists pakai_bawaan boolean not null default true;
+
+-- 8) Daftar AI tersimpan (preset provider): admin simpan beberapa konfigurasi
+--    AI dan pilih mana yang aktif dipakai untuk umum / admin.
+create table if not exists daftar_ai (
+  id uuid primary key default gen_random_uuid(),
+  nama text not null,
+  base_url text not null,
+  api_key text not null,
+  model text not null default '',
+  untuk text not null default 'umum' check (untuk in ('umum', 'admin')),
+  aktif boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+create index if not exists daftar_ai_untuk_idx on daftar_ai(untuk);
+alter table daftar_ai enable row level security;
+-- Sengaja tanpa policy untuk user: hanya service_role (backend) yang baca/tulis.

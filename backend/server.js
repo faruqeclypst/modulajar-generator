@@ -2146,7 +2146,184 @@ app.post('/api/admin/pengaturan-ai', requireAdmin(async (req, res) => {
   }
 }));
 
-// (kunciPeriodeAdmin disatukan ke periodeKuota() saat integrasi)
+// ============ ADMIN: Uji koneksi & daftar model provider ============
+// Uji koneksi: kirim prompt mini ke provider dengan kredensial dari form (belum harus tersimpan).
+app.post('/api/admin/ai-uji', requireAdmin(async (req, res) => {
+  try {
+    const baseUrl = String(req.body?.baseUrl || '').trim().replace(/\/+$/, '');
+    const apiKey = String(req.body?.apiKey || '').trim();
+    const model = String(req.body?.model || '').trim() || MODEL;
+    try { const u = new URL(baseUrl); if (!['http:', 'https:'].includes(u.protocol)) throw 0; }
+    catch { return res.status(400).json({ ok: false, error: 'Base URL tidak valid.' }); }
+    if (apiKey.length < 8) return res.status(400).json({ ok: false, error: 'API key terlalu pendek.' });
+    const t0 = Date.now();
+    const r = await fetch(baseUrl + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({
+        model, max_tokens: 5, temperature: 0,
+        messages: [{ role: 'user', content: 'Balas hanya dengan kata: OK' }],
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+    const ms = Date.now() - t0;
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      return res.status(200).json({ ok: false, error: `Provider menolak (HTTP ${r.status}). ${txt.slice(0, 160)}` });
+    }
+    const d = await r.json().catch(() => ({}));
+    const balasan = d?.choices?.[0]?.message?.content?.trim() || '';
+    const modelAsli = d?.model || '';
+    res.json({ ok: true, latencyMs: ms, balasan: balasan.slice(0, 60), modelAsli });
+  } catch (e) {
+    res.status(200).json({ ok: false, error: 'Tidak bisa menghubungi provider: ' + (e.message || e) });
+  }
+}));
+
+// Muat daftar model dari provider (GET /v1/models gaya OpenAI).
+app.post('/api/admin/ai-model', requireAdmin(async (req, res) => {
+  try {
+    const baseUrl = String(req.body?.baseUrl || '').trim().replace(/\/+$/, '');
+    const apiKey = String(req.body?.apiKey || '').trim();
+    try { const u = new URL(baseUrl); if (!['http:', 'https:'].includes(u.protocol)) throw 0; }
+    catch { return res.status(400).json({ ok: false, error: 'Base URL tidak valid.' }); }
+    if (apiKey.length < 8) return res.status(400).json({ ok: false, error: 'API key terlalu pendek.' });
+    const r = await fetch(baseUrl + '/models', {
+      headers: { 'Authorization': 'Bearer ' + apiKey },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!r.ok) return res.status(200).json({ ok: false, error: `Provider menolak (HTTP ${r.status}).` });
+    const d = await r.json().catch(() => ({}));
+    const arr = Array.isArray(d?.data) ? d.data : [];
+    const models = arr.map((m) => String(m?.id || '')).filter(Boolean).sort();
+    res.json({ ok: true, models });
+  } catch (e) {
+    res.status(200).json({ ok: false, error: 'Tidak bisa menghubungi provider: ' + (e.message || e) });
+  }
+}));
+
+// Uji koneksi / muat model memakai key yang sudah tersimpan di pengaturan_ai.
+app.post('/api/admin/ai-uji-tersimpan', requireAdmin(async (req, res) => {
+  try {
+    const kolom = req.body?.kolom === 'admin' ? 'admin' : 'umum';
+    const cfg = await getPengaturanAI();
+    const k = cfg[kolom];
+    if (!k?.apiKey) return res.status(200).json({ ok: false, error: 'Belum ada API key tersimpan untuk ' + kolom + '.' });
+    req.body = { baseUrl: k.baseUrl, apiKey: k.apiKey, model: k.model };
+    // teruskan ke handler uji di bawah via pemanggilan langsung
+    const t0 = Date.now();
+    const r = await fetch(k.baseUrl + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + k.apiKey },
+      body: JSON.stringify({ model: k.model || MODEL, max_tokens: 5, temperature: 0, messages: [{ role: 'user', content: 'Balas hanya dengan kata: OK' }] }),
+      signal: AbortSignal.timeout(60000),
+    });
+    const ms = Date.now() - t0;
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      return res.status(200).json({ ok: false, error: `Provider menolak (HTTP ${r.status}). ${txt.slice(0, 160)}` });
+    }
+    const d = await r.json().catch(() => ({}));
+    res.json({ ok: true, latencyMs: ms, balasan: String(d?.choices?.[0]?.message?.content || '').trim().slice(0, 60), modelAsli: d?.model || '' });
+  } catch (e) {
+    res.status(200).json({ ok: false, error: 'Tidak bisa menghubungi provider: ' + (e.message || e) });
+  }
+}));
+
+app.post('/api/admin/ai-model-tersimpan', requireAdmin(async (req, res) => {
+  try {
+    const kolom = req.body?.kolom === 'admin' ? 'admin' : 'umum';
+    const cfg = await getPengaturanAI();
+    const k = cfg[kolom];
+    if (!k?.apiKey) return res.status(200).json({ ok: false, error: 'Belum ada API key tersimpan untuk ' + kolom + '.' });
+    const r = await fetch(k.baseUrl + '/models', {
+      headers: { 'Authorization': 'Bearer ' + k.apiKey },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!r.ok) return res.status(200).json({ ok: false, error: `Provider menolak (HTTP ${r.status}).` });
+    const d = await r.json().catch(() => ({}));
+    const models = (Array.isArray(d?.data) ? d.data : []).map((m) => String(m?.id || '')).filter(Boolean).sort();
+    res.json({ ok: true, models });
+  } catch (e) {
+    res.status(200).json({ ok: false, error: 'Tidak bisa menghubungi provider: ' + (e.message || e) });
+  }
+}));
+
+// ============ ADMIN: Daftar AI tersimpan (preset) ============
+app.get('/api/admin/daftar-ai', requireAdmin(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const { data, error } = await sb.from('daftar_ai').select('id, nama, base_url, model, untuk, aktif, updated_at, api_key').order('updated_at', { ascending: false });
+    if (error) {
+      const tabelHilang = /daftar_ai/i.test(error.message || '');
+      return res.status(tabelHilang ? 503 : 500).json({ ok: false, error: tabelHilang ? 'Tabel daftar_ai belum ada. Jalankan supabase-bundle.sql terbaru.' : error.message });
+    }
+    res.json({
+      ok: true,
+      data: (data || []).map((x) => ({ ...x, keyMasked: maskKey(x.api_key), api_key: undefined })),
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+app.post('/api/admin/daftar-ai', requireAdmin(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const nama = String(req.body?.nama || '').trim().slice(0, 60);
+    const baseUrl = String(req.body?.baseUrl || '').trim().replace(/\/+$/, '');
+    const apiKey = String(req.body?.apiKey || '').trim();
+    const model = String(req.body?.model || '').trim();
+    const untuk = req.body?.untuk === 'admin' ? 'admin' : 'umum';
+    if (!nama) return res.status(400).json({ ok: false, error: 'Nama AI wajib diisi.' });
+    try { const u = new URL(baseUrl); if (!['http:', 'https:'].includes(u.protocol)) throw 0; }
+    catch { return res.status(400).json({ ok: false, error: 'Base URL tidak valid.' }); }
+    if (apiKey.length < 8) return res.status(400).json({ ok: false, error: 'API key terlalu pendek.' });
+    const { data, error } = await sb.from('daftar_ai').insert({
+      nama, base_url: baseUrl, api_key: apiKey, model, untuk, aktif: false,
+    }).select('id').single();
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+    res.json({ ok: true, id: data?.id });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+app.delete('/api/admin/daftar-ai/:id', requireAdmin(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const { error } = await sb.from('daftar_ai').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
+
+// Aktifkan preset: salin ke pengaturan_ai (umum/admin) + tandai aktif.
+app.post('/api/admin/daftar-ai/:id/pakai', requireAdmin(async (req, res) => {
+  try {
+    if (!butuhSb(req, res)) return;
+    const { data: p, error: e1 } = await sb.from('daftar_ai').select('*').eq('id', req.params.id).single();
+    if (e1 || !p) return res.status(404).json({ ok: false, error: 'AI tidak ditemukan.' });
+    const kolom = p.untuk === 'admin' ? 'admin' : 'umum';
+    const patch = {
+      id: 1,
+      [`${kolom}_base_url`]: p.base_url,
+      [`${kolom}_api_key`]: p.api_key,
+      [`${kolom}_model`]: p.model || MODEL,
+      updated_at: new Date().toISOString(),
+    };
+    const { error: e2 } = await sb.from('pengaturan_ai').upsert(patch, { onConflict: 'id' });
+    if (e2) return res.status(500).json({ ok: false, error: e2.message });
+    await sb.from('daftar_ai').update({ aktif: false }).eq('untuk', p.untuk);
+    await sb.from('daftar_ai').update({ aktif: true }).eq('id', p.id);
+    resetCachePengaturanAI();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}));
 
 app.get('/api/admin/ringkasan', requireAdmin(async (req, res) => {
   try {

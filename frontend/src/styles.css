@@ -159,6 +159,8 @@ h1.page { font-size: clamp(28px, 5vw, 40px); font-weight: 900; line-height: 1.08
 h2.sec { font-size: 24px; font-weight: 800; line-height: 1.2; margin: 28px 0 12px; }
 p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch; line-height: 1.65; }
 .hint { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+.hint.ok { color: #1d6b2f; font-weight: 700; }
+.hint.err { color: var(--red); font-weight: 700; }
 
 /* ---------- tombol ---------- */
 .btn {

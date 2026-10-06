@@ -57,7 +57,8 @@ function MuatUlang({ onClick }) {
   );
 }
 
-// Tab Pengaturan AI: toggle AI bawaan + key umum + key khusus admin.
+// Tab Pengaturan AI: toggle AI bawaan + key umum + key khusus admin
+// + uji koneksi + muat daftar model + daftar AI tersimpan.
 function PengaturanAI() {
   const [cfg, setCfg] = useState(null);
   const [err, setErr] = useState('');
@@ -68,9 +69,14 @@ function PengaturanAI() {
     umumBaseUrl: '', umumApiKey: '', umumModel: '',
     adminBaseUrl: '', adminApiKey: '', adminModel: '',
   });
+  const [uji, setUji] = useState({}); // kolom -> { status, pesan }
+  const [models, setModels] = useState({}); // kolom -> [id]
+  const [preset, setPreset] = useState(null);
+  const [formP, setFormP] = useState({ nama: '', untuk: 'umum', baseUrl: '', apiKey: '', model: '' });
+  const [simpanP, setSimpanP] = useState(false);
 
-  useEffect(() => {
-    apiAdmin('/api/admin/pengaturan-ai')
+  function muatCfg() {
+    return apiAdmin('/api/admin/pengaturan-ai')
       .then((d) => {
         setCfg(d);
         setForm({
@@ -80,9 +86,16 @@ function PengaturanAI() {
         });
       })
       .catch((e) => setErr(e.message || 'Gagal memuat pengaturan AI.'));
-  }, []);
+  }
+  function muatPreset() {
+    apiAdmin('/api/admin/daftar-ai')
+      .then((d) => setPreset(d.data || []))
+      .catch(() => setPreset([]));
+  }
+  useEffect(() => { muatCfg(); muatPreset(); }, []);
 
   const ubah = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setSimpanMsg(''); };
+  const ubahP = (k, v) => setFormP((f) => ({ ...f, [k]: v }));
 
   async function simpan() {
     setMenyimpan(true); setErr(''); setSimpanMsg('');
@@ -94,10 +107,96 @@ function PengaturanAI() {
       });
       setSimpanMsg('Pengaturan AI tersimpan.');
       setForm((f) => ({ ...f, umumApiKey: '', adminApiKey: '' }));
+      muatCfg();
     } catch (e) {
       setErr(e.message || 'Gagal menyimpan.');
     } finally {
       setMenyimpan(false);
+    }
+  }
+
+  // Uji koneksi: pakai key dari form bila diisi, kalau tidak pakai yang tersimpan.
+  async function ujiKoneksi(kolom) {
+    const pk = kolom === 'admin' ? 'adminApiKey' : 'umumApiKey';
+    const bu = kolom === 'admin' ? 'adminBaseUrl' : 'umumBaseUrl';
+    const mo = kolom === 'admin' ? 'adminModel' : 'umumModel';
+    setUji((u) => ({ ...u, [kolom]: { status: 'jalan', pesan: 'Menghubungi provider…' } }));
+    try {
+      let d;
+      if (form[pk].trim()) {
+        d = await apiAdmin('/api/admin/ai-uji', 'POST', { baseUrl: form[bu], apiKey: form[pk], model: form[mo] });
+      } else {
+        d = await apiAdmin('/api/admin/ai-uji-tersimpan', 'POST', { kolom });
+      }
+      setUji((u) => ({
+        ...u,
+        [kolom]: d.ok
+          ? { status: 'ok', pesan: `Tersambung (${d.latencyMs} ms)${d.modelAsli ? ' — ' + d.modelAsli : ''}${d.balasan ? ` — balasan: "${d.balasan}"` : ''}` }
+          : { status: 'gagal', pesan: d.error || 'Gagal.' },
+      }));
+    } catch (e) {
+      setUji((u) => ({ ...u, [kolom]: { status: 'gagal', pesan: e.message || 'Gagal.' } }));
+    }
+  }
+
+  // Muat daftar model dari provider.
+  async function muatModel(kolom) {
+    const pk = kolom === 'admin' ? 'adminApiKey' : 'umumApiKey';
+    const bu = kolom === 'admin' ? 'adminBaseUrl' : 'umumBaseUrl';
+    setUji((u) => ({ ...u, [kolom]: { status: 'jalan', pesan: 'Memuat daftar model…' } }));
+    try {
+      let d;
+      if (form[pk].trim()) {
+        d = await apiAdmin('/api/admin/ai-model', 'POST', { baseUrl: form[bu], apiKey: form[pk] });
+      } else {
+        d = await apiAdmin('/api/admin/ai-model-tersimpan', 'POST', { kolom });
+      }
+      if (d.ok && d.models?.length) {
+        setModels((m) => ({ ...m, [kolom]: d.models }));
+        setUji((u) => ({ ...u, [kolom]: { status: 'ok', pesan: `${d.models.length} model ditemukan — pilih dari daftar di bawah.` } }));
+      } else {
+        setUji((u) => ({ ...u, [kolom]: { status: 'gagal', pesan: d.error || 'Provider tidak mengembalikan daftar model.' } }));
+      }
+    } catch (e) {
+      setUji((u) => ({ ...u, [kolom]: { status: 'gagal', pesan: e.message || 'Gagal.' } }));
+    }
+  }
+
+  async function tambahPreset(e) {
+    e.preventDefault();
+    setSimpanP(true); setErr('');
+    try {
+      await apiAdmin('/api/admin/daftar-ai', 'POST', {
+        nama: formP.nama, untuk: formP.untuk,
+        baseUrl: formP.baseUrl, apiKey: formP.apiKey, model: formP.model,
+      });
+      setFormP({ nama: '', untuk: 'umum', baseUrl: '', apiKey: '', model: '' });
+      muatPreset();
+      setSimpanMsg('AI tersimpan ke daftar.');
+    } catch (e2) {
+      setErr(e2.message || 'Gagal menyimpan AI.');
+    } finally {
+      setSimpanP(false);
+    }
+  }
+
+  async function pakaiPreset(id) {
+    try {
+      await apiAdmin('/api/admin/daftar-ai/' + id + '/pakai', 'POST');
+      setSimpanMsg('AI aktif diganti.');
+      muatCfg(); muatPreset();
+    } catch (e) {
+      setErr(e.message || 'Gagal mengaktifkan.');
+    }
+  }
+
+  async function hapusPreset(id, nama) {
+    if (!window.confirm(`Hapus "${nama}" dari daftar?`)) return;
+    try {
+      await apiAdmin('/api/admin/daftar-ai/' + id, 'DELETE');
+      muatPreset();
+    } catch (e) {
+      setErr(e.message || 'Gagal menghapus.');
     }
   }
 
@@ -126,6 +225,50 @@ function PengaturanAI() {
     </div>
   );
 
+  // Satu kartu kunci (umum / admin) lengkap dengan uji koneksi + muat model.
+  const kartuKunci = (kolom, judul, catatan) => {
+    const bu = kolom + 'BaseUrl', pk = kolom + 'ApiKey', mo = kolom + 'Model';
+    const ids = { url: `ai-${kolom}-url`, key: `ai-${kolom}-key`, model: `ai-${kolom}-model` };
+    const hasil = uji[kolom];
+    const daftar = models[kolom] || [];
+    const masked = kolom === 'admin' ? cfg.admin?.keyMasked : cfg.umum?.keyMasked;
+    return (
+      <div className="card">
+        <h3 className="card-title">{judul}</h3>
+        {fieldTeks(ids.url, 'Base URL', bu, 'https://kenari.id/v1', 'url')}
+        {fieldKey(ids.key, 'API key', pk, masked)}
+        {daftar.length > 0 ? (
+          <div className="field">
+            <label htmlFor={ids.model}>Model</label>
+            <select id={ids.model} value={form[mo]} onChange={(e) => ubah(mo, e.target.value)}>
+              <option value="">— Pilih model —</option>
+              {daftar.map((m) => (<option key={m} value={m}>{m}</option>))}
+            </select>
+          </div>
+        ) : (
+          fieldTeks(ids.model, 'Model', mo, 'cth: agnes-3-0-flash:free')
+        )}
+        <div className="btn-row" style={{ marginTop: 4, marginBottom: 0 }}>
+          <button type="button" className="btn btn-sm" onClick={() => ujiKoneksi(kolom)}>
+            Uji koneksi
+          </button>
+          <button type="button" className="btn btn-sm" onClick={() => muatModel(kolom)}>
+            Muat model
+          </button>
+        </div>
+        {hasil && (
+          <p
+            className={'hint ' + (hasil.status === 'ok' ? 'ok' : hasil.status === 'gagal' ? 'err' : '')}
+            role="status" style={{ marginBottom: 0, marginTop: 10 }}
+          >
+            {hasil.status === 'ok' ? '✓ ' : hasil.status === 'gagal' ? '✗ ' : '… '}{hasil.pesan}
+          </p>
+        )}
+        {catatan && <p className="muted" style={{ marginBottom: 0, marginTop: 10 }}>{catatan}</p>}
+      </div>
+    );
+  };
+
   return (
     <section aria-label="Pengaturan AI" className="admin-ai">
       <p className="lead" style={{ marginTop: 0 }}>
@@ -152,20 +295,8 @@ function PengaturanAI() {
       </div>
 
       <div className="admin-ai-grid">
-        <div className="card">
-          <h3 className="card-title">Kunci untuk umum</h3>
-          {fieldTeks('ai-umum-url', 'Base URL', 'umumBaseUrl', 'https://kenari.id/v1', 'url')}
-          {fieldKey('ai-umum-key', 'API key', 'umumApiKey', cfg.umum?.keyMasked)}
-          {fieldTeks('ai-umum-model', 'Model', 'umumModel', 'agnes-3-0-flash:free')}
-        </div>
-
-        <div className="card">
-          <h3 className="card-title">Kunci khusus admin</h3>
-          {fieldTeks('ai-admin-url', 'Base URL', 'adminBaseUrl', 'https://kenari.id/v1', 'url')}
-          {fieldKey('ai-admin-key', 'API key', 'adminApiKey', cfg.admin?.keyMasked)}
-          {fieldTeks('ai-admin-model', 'Model', 'adminModel', 'agnes-3-0-flash:free')}
-          <p className="muted" style={{ marginBottom: 0 }}>Kosongkan API key bila admin ingin memakai kunci umum.</p>
-        </div>
+        {kartuKunci('umum', 'Kunci untuk umum')}
+        {kartuKunci('admin', 'Kunci khusus admin', 'Kosongkan API key bila admin ingin memakai kunci umum.')}
       </div>
 
       <div className="btn-row" style={{ marginTop: 16 }}>
@@ -173,6 +304,81 @@ function PengaturanAI() {
           {menyimpan ? 'Menyimpan…' : 'Simpan pengaturan AI'}
         </button>
       </div>
+
+      <h3 className="sec" style={{ marginTop: 28 }}>Daftar AI tersimpan</h3>
+      <p className="muted" style={{ marginTop: -8 }}>
+        Simpan beberapa AI (mis. Dahono, GeraiKita, Kenari), lalu pilih mana yang aktif dipakai.
+        Yang aktif akan menggantikan isian kunci di atas setelah disimpan otomatis.
+      </p>
+
+      {preset === null ? (
+        <p className="muted">Memuat…</p>
+      ) : preset.length === 0 ? (
+        <div className="alert alert-info">Belum ada AI tersimpan. Tambahkan di bawah.</div>
+      ) : (
+        <div className="admin-tabel-wrap" style={{ marginBottom: 16 }}>
+          <table className="admin-tabel">
+            <thead>
+              <tr><th>Nama</th><th>Untuk</th><th>Base URL</th><th>Model</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              {preset.map((p) => (
+                <tr key={p.id}>
+                  <td><b>{p.nama}</b><br /><span className="muted">{p.keyMasked}</span></td>
+                  <td>{p.untuk === 'admin' ? 'Admin' : 'Umum'}</td>
+                  <td><code style={{ fontSize: 12 }}>{p.base_url}</code></td>
+                  <td><code style={{ fontSize: 12 }}>{p.model || '-'}</code></td>
+                  <td>{p.aktif ? <span className="chip red">Aktif</span> : <span className="muted">—</span>}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {!p.aktif && (
+                      <button type="button" className="btn btn-sm btn-ink" onClick={() => pakaiPreset(p.id)}>
+                        Pakai
+                      </button>
+                    )}{' '}
+                    <button type="button" className="btn btn-sm btn-danger" onClick={() => hapusPreset(p.id, p.nama)}>
+                      Hapus
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <form onSubmit={tambahPreset} className="card">
+        <h3 className="card-title">Tambah AI ke daftar</h3>
+        <div className="admin-ai-grid">
+          <div className="field">
+            <label htmlFor="preset-nama">Nama</label>
+            <input id="preset-nama" value={formP.nama} onChange={(e) => ubahP('nama', e.target.value)} placeholder="cth: Dahono DeepSeek" autoComplete="off" />
+          </div>
+          <div className="field">
+            <label htmlFor="preset-untuk">Untuk</label>
+            <select id="preset-untuk" value={formP.untuk} onChange={(e) => ubahP('untuk', e.target.value)}>
+              <option value="umum">Umum (semua pengguna)</option>
+              <option value="admin">Admin saja</option>
+            </select>
+          </div>
+        </div>
+        <div className="field">
+          <label htmlFor="preset-url">Base URL</label>
+          <input id="preset-url" inputMode="url" value={formP.baseUrl} onChange={(e) => ubahP('baseUrl', e.target.value)} placeholder="https://gateway.dahono.com/" autoComplete="off" spellCheck={false} />
+        </div>
+        <div className="field">
+          <label htmlFor="preset-key">API key</label>
+          <input id="preset-key" type="password" value={formP.apiKey} onChange={(e) => ubahP('apiKey', e.target.value)} autoComplete="new-password" />
+        </div>
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label htmlFor="preset-model">Model</label>
+          <input id="preset-model" value={formP.model} onChange={(e) => ubahP('model', e.target.value)} placeholder="cth: dahono/deepseek-v4.1-flash" autoComplete="off" spellCheck={false} />
+        </div>
+        <div className="btn-row" style={{ marginBottom: 0 }}>
+          <button type="submit" className="btn btn-sm btn-primary" disabled={simpanP}>
+            {simpanP ? 'Menyimpan…' : 'Simpan ke daftar'}
+          </button>
+        </div>
+      </form>
     </section>
   );
 }
