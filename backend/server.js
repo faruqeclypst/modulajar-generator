@@ -313,7 +313,8 @@ async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = n
   // onAntre bisa lewat parameter atau konteks aiKeyCtx (untuk panggilan bertingkat).
   const cbAntre = onAntre || (() => { try { return aiKeyCtx.getStore()?.onAntre || null; } catch { return null; } })();
   await antreAI(cbAntre);
-  return panggilAIDenganRetry(async () => {
+  try {
+  return await panggilAIDenganRetry(async () => {
   try {
   // Kunci efektif sudah diresolusi per request/job via resolveKunciEfektif
   // (prioritas: BYOK sendiri → key admin → key umum → env).
@@ -386,7 +387,9 @@ async function ai(system, user, maxTokens = 8000, temperature = 0.7, onDelta = n
     // lepasAI dipindah ke luar retry wrapper
   }
   }, { maxRetry: 2 });
-  lepasAI();
+  } finally {
+    lepasAI(); // WAJIB selalu dipanggil, termasuk saat gagal — cegah slot bocor
+  }
 }
 
 // ================= ANTREAN AI GLOBAL =================
