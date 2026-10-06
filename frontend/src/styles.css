@@ -602,17 +602,21 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 
 @page {
   size: A4;
-  margin: 0; /* margin 0 = Chrome otomatis mematikan header/footer bawaannya (tanggal & judul) */
+  /* Margin per halaman yang benar (berlaku di SEMUA halaman, tidak seperti
+     padding elemen yang hilang di halaman tengah saat konten terpotong).
+     Standar dokumen Indonesia: kiri 4cm, atas/kanan/bawah 3cm. */
+  margin: 3cm 2.5cm 3cm 4cm;
 }
 
 @media print {
   body { background: #fff; background-image: none; }
-  .topbar, .toolbar, .btn-row, .footer, .steps, .no-print { display: none !important; }
+  .topbar, .toolbar, .btn-row, .footer, .steps, .no-print, .tugas-floating { display: none !important; }
   .wrap { padding: 0; max-width: none; }
   /* WYSIWYG: tampilan cetak mengikuti tema yang dipilih di layar.
+     Margin diatur via @page di atas; padding .paper dinolkan agar tidak dobel.
      Warna latar dipaksa ikut tercetak agar sama dengan pratinjau. */
   .paper {
-    box-shadow: none; border: none; padding: 3cm 3cm 3cm 4cm; margin: 0;
+    box-shadow: none; border: none; padding: 0; margin: 0;
     background: #fff;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }

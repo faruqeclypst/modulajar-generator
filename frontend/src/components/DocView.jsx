@@ -75,7 +75,7 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
             <button className="btn btn-sm btn-primary" onClick={handleExport} disabled={exporting}>
               {exporting ? 'Menyiapkan…' : 'Unduh Word'}
             </button>
-            <button className="btn btn-sm" onClick={() => window.print()}>Cetak / PDF</button>
+            <button className="btn btn-sm" onClick={() => window.print()} title="Di dialog cetak: pilih 'Save as PDF', matikan 'Headers and footers' agar bersih">Cetak / PDF</button>
             <button className="btn btn-sm" onClick={handleDelete}>Hapus</button>
           </>
         )}
