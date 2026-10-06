@@ -67,6 +67,14 @@ img { max-width: 100%; }
 .logo b { font-size: 18px; font-weight: 900; letter-spacing: .4px; text-transform: uppercase; display: block; line-height: 1.1; }
 .logo small { display: block; font-weight: 600; color: #D9D4C6; font-size: 11px; letter-spacing: .6px; }
 .topbar .spacer { flex: 1; }
+/* Varian landing: navbar krem menyatu dengan section landing
+   (bukan bar gelap aplikasi). Dipakai saat view === 'landing'. */
+.topbar-land { background: var(--paper); color: var(--ink); border-bottom: 2px solid var(--ink); }
+.topbar-land .logo small { color: var(--muted); }
+.topbar-land .kuota-pil { border-color: var(--ink); }
+.topbar-land .user-chip { border-color: var(--ink); color: var(--ink); }
+.topbar-land .user-chip:hover { background: var(--wash); }
+.topbar-land .topbar-acts { border-left-color: rgba(30,25,20,.22); }
 .topnav-desktop { display: flex; align-items: center; gap: 6px; }
 .nav-item {
   background: none; border: none; color: var(--paper); font: inherit; font-weight: 700;
