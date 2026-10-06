@@ -184,12 +184,11 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
       };
       // Gabungkan dokumen perencanaan sebagai sumber acuan
       const sumberParts = [];
-      if (docs.cp) sumberParts.push('===== CP =====\n' + docs.cp.slice(0, 6000));
-
-      if (docs.atp) sumberParts.push('===== ATP =====\n' + docs.atp.slice(0, 6000));
-      if (docs.distribusi_jp) sumberParts.push('===== DISTRIBUSI JP =====\n' + docs.distribusi_jp.slice(0, 3000));
-      if (docs.prota) sumberParts.push('===== PROTA =====\n' + docs.prota.slice(0, 4000));
-      if (docs.prosem) sumberParts.push('===== PROSEM =====\n' + docs.prosem.slice(0, 4000));
+      if (docs.cp) sumberParts.push('===== CP =====\n' + docs.cp.slice(0, 4000));
+      if (docs.atp) sumberParts.push('===== ATP =====\n' + docs.atp.slice(0, 4000));
+      if (docs.distribusi_jp) sumberParts.push('===== DISTRIBUSI JP =====\n' + docs.distribusi_jp.slice(0, 2000));
+      if (docs.prota) sumberParts.push('===== PROTA =====\n' + docs.prota.slice(0, 3000));
+      if (docs.prosem) sumberParts.push('===== PROSEM =====\n' + docs.prosem.slice(0, 3000));
       const sumber = sumberParts.join('\n\n');
       let md = '';
       let imgs = [];
@@ -257,11 +256,11 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
         };
         const sumberParts = [];
         if (docs.cp) sumberParts.push('===== CP =====\n' + docs.cp.slice(0, 6000));
-        if (docs.atp) sumberParts.push('===== ATP =====\n' + docs.atp.slice(0, 6000));
-        if (docs.minggu_efektif) sumberParts.push('===== MINGGU EFEKTIF =====\n' + docs.minggu_efektif.slice(0, 3000));
-        if (docs.distribusi_jp) sumberParts.push('===== DISTRIBUSI JP =====\n' + docs.distribusi_jp.slice(0, 3000));
-        if (docs.prota) sumberParts.push('===== PROTA =====\n' + docs.prota.slice(0, 4000));
-        if (docs.prosem) sumberParts.push('===== PROSEM =====\n' + docs.prosem.slice(0, 4000));
+        if (docs.atp) sumberParts.push('===== ATP =====\n' + docs.atp.slice(0, 4000));
+        if (docs.minggu_efektif) sumberParts.push('===== MINGGU EFEKTIF =====\n' + docs.minggu_efektif.slice(0, 2000));
+        if (docs.distribusi_jp) sumberParts.push('===== DISTRIBUSI JP =====\n' + docs.distribusi_jp.slice(0, 2000));
+        if (docs.prota) sumberParts.push('===== PROTA =====\n' + docs.prota.slice(0, 3000));
+        if (docs.prosem) sumberParts.push('===== PROSEM =====\n' + docs.prosem.slice(0, 3000));
         const sumber = sumberParts.join('\n\n');
         let md = '', imgs = [];
         await generateDocStream('modul', info, topikObj.topik, sumber, null, (ev) => {

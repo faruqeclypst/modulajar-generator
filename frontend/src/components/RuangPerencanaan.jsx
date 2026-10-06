@@ -44,6 +44,13 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
     if (onStepChange) onStepChange(stepKey);
   }, [stepKey]);
 
+  // Potong tiap dokumen acuan agar total sumber < 20000 karakter (batas backend)
+  const potongAcuan = (md, maks = 4000) => {
+    if (!md) return '';
+    if (md.length <= maks) return md;
+    return md.slice(0, maks) + '\n\n[...dipotong agar muat...]';
+  };
+
   // Kunci localStorage untuk deteksi auto-generate yang terputus refresh
   const kunciAuto = () => kunciAkun('ma-auto-ruang-' + (paket?.id || 'x'));
   // Cek apakah ada auto-generate berjalan untuk paket ini (cegah duplikat)
@@ -90,7 +97,7 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
           if (docsBaru[kunci]) {
             try {
               const d = await getModul(docsBaru[kunci]);
-              if (d && d.markdown) bagian.push('\n\n===== ACUAN: ' + (d.judul || DOC_TYPES[kunci].nama).toUpperCase() + ' =====\n' + d.markdown);
+              if (d && d.markdown) bagian.push('\n\n===== ACUAN: ' + (d.judul || DOC_TYPES[kunci].nama).toUpperCase() + ' =====\n' + potongAcuan(d.markdown));
             } catch { /* abaikan */ }
           }
         }
@@ -581,7 +588,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
           try {
             const d = await getModul(paket.docs[kunci]);
             if (d && d.markdown) {
-              bagian.push(`\n\n===== ACUAN: ${(d.judul || DOC_TYPES[kunci].nama).toUpperCase()} =====\n${d.markdown}`);
+              bagian.push(`\n\n===== ACUAN: ${(d.judul || DOC_TYPES[kunci].nama).toUpperCase()} =====\n${potongAcuan(d.markdown)}`);
               judulBagian.push(d.judul || DOC_TYPES[kunci].nama);
             } else {
               hilang.push(DOC_TYPES[kunci].nama);
