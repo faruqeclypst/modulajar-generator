@@ -17,6 +17,8 @@ import { SkelKartu } from './Kerangka';
 
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
 const BUTUH = { cp: null, analisis_cp: 'cp', tp: 'analisis_cp', atp: 'tp', minggu_efektif: 'atp', distribusi_jp: 'minggu_efektif', prota: 'distribusi_jp', prosem: 'prota' };
+// Acuan tambahan (selain BUTUH utama) yang ikut dikirim sebagai referensi AI
+const ACUAN_TAMBAHAN = { prosem: ['minggu_efektif', 'distribusi_jp'] };
 
 export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBuatModul, preselectProjectId, waLink, onKuotaChanged, bukaStep, tugasId, onStepChange }) {
   const [projects, setProjects] = useState([]);
@@ -431,10 +433,23 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
 
   useEffect(() => {
     (async () => {
-      if (need && paket.docs[need]) {
-        let d = null;
-        try { d = await getModul(paket.docs[need]); } catch { d = null; }
-        if (d) { setSumber(d.markdown || ''); setSumberJudul(d.judul || DOC_TYPES[need].nama); }
+      const daftarAcuan = [need, ...(ACUAN_TAMBAHAN[stepKey] || [])].filter(Boolean);
+      const bagian = [];
+      const judulBagian = [];
+      for (const kunci of daftarAcuan) {
+        if (paket.docs[kunci]) {
+          try {
+            const d = await getModul(paket.docs[kunci]);
+            if (d && d.markdown) {
+              bagian.push(`\n\n===== ACUAN: ${(d.judul || DOC_TYPES[kunci].nama).toUpperCase()} =====\n${d.markdown}`);
+              judulBagian.push(d.judul || DOC_TYPES[kunci].nama);
+            }
+          } catch { /* abaikan */ }
+        }
+      }
+      if (bagian.length > 0) {
+        setSumber(bagian.join('\n'));
+        setSumberJudul(judulBagian.join(', '));
       }
     })();
   }, [paket, need, stepKey]);
@@ -598,7 +613,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
           ) : (
             <>
               <div className="alert alert-info">
-                <strong>Acuan:</strong> {sumberJudul || (need && DOC_TYPES[need] ? DOC_TYPES[need].nama : 'dokumen sebelumnya')}.{' '}{dt.nama}{' '}akan <strong>diturunkan langsung</strong> dari acuan ini. AI dilarang mengarang di luar acuan.
+                <strong>Acuan:</strong> {sumberJudul || (need && DOC_TYPES[need] ? DOC_TYPES[need].nama : 'dokumen sebelumnya')}.{' '}{dt.nama}{' '}akan <strong>diturunkan langsung</strong> dari acuan tersebut. AI dilarang mengarang di luar acuan.
               </div>
               {sumber && (
                 <details style={{ marginBottom: 14 }}>
