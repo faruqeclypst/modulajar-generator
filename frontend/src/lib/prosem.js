@@ -40,8 +40,9 @@ export function parseProsemWeeks(markdown) {
 // -> [{ materi, jp, ket }]
 export function parseMatriksProsem(markdown) {
   const hasil = [];
+  // Format 1: tabel HTML
   const tabelMatch = (markdown || '').match(/<table>[\s\S]*?<\/table>/g);
-  if (!tabelMatch) return hasil;
+  if (tabelMatch) {
   tabelMatch.forEach((tabel) => {
     const tbody = tabel.match(/<tbody>([\s\S]*?)<\/tbody>/);
     const isi = tbody ? tbody[1] : tabel;
@@ -57,5 +58,21 @@ export function parseMatriksProsem(markdown) {
       hasil.push({ materi: sel[0], jp, ket: sel[sel.length - 1] || '' });
     });
   });
+  if (hasil.length) return hasil;
+  }
+  // Format 2: tabel markdown (| ... |)
+  const baris = (markdown || '').split('\n');
+  for (const b of baris) {
+    const t = b.trim();
+    if (!t.startsWith('|') || !t.endsWith('|')) continue;
+    if (/^\|[\s:|-]+\|$/.test(t)) continue; // baris separator
+    const sel = t.slice(1, -1).split('|').map((s) => s.trim());
+    if (sel.length < 3) continue;
+    if (/^materi/i.test(sel[0]) || /^no\.?$/i.test(sel[0])) continue; // header
+    if (/^jumlah$/i.test(sel[0])) continue;
+    const jp = Number(sel[1]) || 0;
+    if (!sel[0] || jp <= 0) continue;
+    hasil.push({ materi: sel[0], jp, ket: sel[sel.length - 1] || '' });
+  }
   return hasil;
 }
