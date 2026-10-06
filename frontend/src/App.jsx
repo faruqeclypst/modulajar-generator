@@ -137,8 +137,33 @@ function LayarLogin({ err, onBatal }) {
   );
 }
 
+// Log debug on-screen (?debug=1): melacak alur auth/restore saat macet.
+try {
+  if (!window.__dlog) {
+    window.__dbgLog = [];
+    window.__dlog = (m) => {
+      const t = new Date().toLocaleTimeString('id-ID', { hour12: false }) + '.' + String(Date.now() % 1000).padStart(3, '0');
+      window.__dbgLog.push(t + ' ' + m);
+      if (window.__dbgLog.length > 40) window.__dbgLog.shift();
+      window.dispatchEvent(new CustomEvent('dbg-log'));
+    };
+  }
+} catch { /* abaikan */ }
+
 function LayarTunggu({ pesan }) {
   const [lama, setLama] = useState(false);
+  const [dbgMode] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get('debug') === '1'; }
+    catch { return false; }
+  });
+  const [dbgLog, setDbgLog] = useState([]);
+  useEffect(() => {
+    if (!dbgMode) return;
+    const upd = () => { try { setDbgLog([...window.__dbgLog]); } catch { /* abaikan */ } };
+    upd();
+    window.addEventListener('dbg-log', upd);
+    return () => window.removeEventListener('dbg-log', upd);
+  }, [dbgMode]);
   useEffect(() => {
     const t = setTimeout(() => setLama(true), 15000);
     return () => clearTimeout(t);
@@ -172,6 +197,11 @@ function LayarTunggu({ pesan }) {
                 Lewati &amp; buka dashboard
               </button>
             </div>
+          </div>
+        )}
+        {dbgMode && (
+          <div style={{ marginTop: 18, textAlign: 'left', background: '#111', color: '#0f0', fontFamily: 'monospace', fontSize: 11, padding: 10, maxWidth: 520, maxHeight: 220, overflow: 'auto', border: '1px solid #0f0' }}>
+            {dbgLog.map((l, i) => <div key={i}>{l}</div>)}
           </div>
         )}
       </div>
@@ -258,8 +288,11 @@ export default function App() {
         // selamanya bila server lambat/tak merespons.
         const batas = (ms) => new Promise((_, tolak) => setTimeout(
           () => tolak(new Error('Server tidak merespons. Periksa koneksi internet, lalu muat ulang halaman.')), ms));
+        try { window.__dlog && window.__dlog('auth: mulai getSupabase'); } catch {}
         const sb = await Promise.race([getSupabase(), batas(20000)]);
+        try { window.__dlog && window.__dlog('auth: getSupabase ok'); } catch {}
         const sess = await Promise.race([getSession(), batas(20000)]);
+        try { window.__dlog && window.__dlog('auth: getSession -> ' + (sess ? 'ada sesi' : 'tanpa sesi')); } catch {}
         if (!stop) { setUidLokal(sess?.user?.id || null); setUser(sess?.user || null); setAuth(sess ? 'app' : 'login'); if (sess) setMintaLogin(false); }
         // gotrue-js membersihkan token OAuth di hash via `location.hash = ''`,
         // yang menyisakan "#" gantung di URL -> bersihkan agar address bar rapi.
@@ -311,13 +344,15 @@ export default function App() {
     let stop = false;
     const paksa = setTimeout(() => {
       if (stop) return;
+      try { window.__dlog && window.__dlog('WATCHDOG 20s: paksa ke dashboard'); } catch {}
       setView((v) => (v === null ? 'app' : v));
       setRestoring(false);
     }, 20000);
     const beres = () => { clearTimeout(paksa); if (!stop) setRestoring(false); };
     const d = bacaViewTersimpan();
+    try { window.__dlog && window.__dlog('restore: view tersimpan = ' + JSON.stringify(d)); } catch {}
     // Tidak ada posisi tersimpan (atau tidak valid) -> dashboard, bukan landing publik.
-    if (!d) { setView('app'); beres(); }
+    if (!d) { setView('app'); beres(); try { window.__dlog && window.__dlog('restore: tanpa posisi -> app'); } catch {} }
     else if (d.view === 'proyek' && d.projectId) {
       getProject(d.projectId).then((p) => {
         if (stop) return;
@@ -326,7 +361,9 @@ export default function App() {
       }).catch(() => { if (!stop) setView('app'); }).finally(beres);
     }
     else if (d.view === 'detail' && d.docId) {
+      try { window.__dlog && window.__dlog('restore: getModul ' + d.docId); } catch {}
       getModul(d.docId).then((m) => {
+        try { window.__dlog && window.__dlog('restore: getModul selesai -> ' + (m ? 'ada' : 'null')); } catch {}
         if (stop) return;
         if (m) {
           if (!m.docType) m.docType = 'modul';
