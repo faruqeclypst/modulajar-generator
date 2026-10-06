@@ -1318,7 +1318,9 @@ ATURAN MATRIKS (WAJIB):
 5. Baris "Cadangan" untuk JP cadangan/remedial di minggu-minggu akhir sebelum asesmen.
 6. Baris "Jumlah" = total JP per kolom minggu (penjumlahan vertikal); total kolom JP = total JP semester.
 7. Kolom "Ket" berisi catatan singkat per materi (mis. "Asesmen formatif", "Proyek").
-8. DILARANG menampilkan draf, proses berpikir, atau "Perbaikan Tabel" — keluarkan HANYA satu versi final yang sudah benar.
+8. DILARANG menampilkan draf, proses berpikir, "Perbaikan Tabel", "Keterangan Penempatan", "Catatan Koreksi Perhitungan", atau analisis angka dalam bentuk apa pun — keluarkan HANYA satu versi final yang sudah benar.
+9. Bila angka di dokumen acuan (PROTA) tidak pas (mis. total materi 38 JP padahal total efektif 40 JP), sesuaikan SECARA DIAM-DIAM: tambahkan selisihnya ke baris "Cadangan" agar total pas. JANGAN menulis analisis, perhitungan ulang, atau penjelasan tentang selisih tersebut di mana pun.
+10. Setelah tabel matriks, LANGSUNG tulis "## C. Pengesahan". DILARANG menambah section lain (tidak ada "Keterangan Penempatan", tidak ada "Catatan", tidak ada penjelasan perhitungan).
 
 ## C. Pengesahan
 Tulis blok tanda tangan: "Mengetahui, Kepala Sekolah" dan "[Kota], [Bulan Tahun] — Guru Mata Pelajaran", masing-masing dengan baris "Nama" dan "NIP".
