@@ -1316,10 +1316,10 @@ CONTOH:
   "genap": [
     {"materi": "Proyek Sistem Digital", "jp": 12, "ket": "Proyek"}
   ],
-  "struktur_bulan_ganjil": {"Jul": 4, "Agu": 4, "Sep": 4, "Okt": 5, "Nov": 4, "Des": 3},
-  "struktur_bulan_genap": {"Jan": 4, "Feb": 4, "Mar": 4, "Apr": 3, "Mei": 4, "Jun": 2},
-  "libur_ganjil": {"Jul-2": "Lomba sekolah"},
-  "libur_genap": {}
+  "struktur_bulan_ganjil": {"Jul": 3, "Agu": 4, "Sep": 4, "Okt": 5, "Nov": 4, "Des": 5},
+  "struktur_bulan_genap": {"Jan": 4, "Feb": 4, "Mar": 5, "Apr": 4, "Mei": 4, "Jun": 5},
+  "libur_ganjil": {"Sep-4": "Flash Event Sekolah", "Des-2": "Asesmen Akhir Semester", "Des-3": "Ekstrakurikuler", "Des-4": "Libur Semester Ganjil", "Des-5": "Libur Semester Ganjil"},
+  "libur_genap": {"Feb-4": "Libur Awal Ramadhan", "Mar-4": "Libur Idul Fitri", "Mar-5": "Libur Idul Fitri"}
 }
 \`\`\`
 
@@ -1336,8 +1336,7 @@ Contoh BENAR (ditiru polanya):
 
 Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — bukan judul bab yang umum.
 
-STRUKTUR MINGGU (WAJIB): Buka dokumen Analisis Minggu Efektif. Untuk tiap bulan, HITUNG jumlah minggu efektif + tidak efektif dari tabelnya (mis. jika Oktober ada 5 baris minggu, tulis "Okt": 5). Susun ke dalam "struktur_bulan_ganjil" / "struktur_bulan_genap" dengan singkatan bulan (Jul Agu Sep Okt Nov Des Jan Feb Mar Apr Mei Jun). SEMUA bulan dalam semester WAJIB dicantumkan, termasuk Desember/Januari. JANGAN samakan semua jadi 4 — ikuti angka persis dari dokumen.\n
-ATURAN JSON:
+STRUKTUR MINGGU (WAJIB): Buka dokumen Analisis Minggu Efektif, baca TABEL 1 (Ganjil) dan TABEL 2 (Genap). Untuk tiap bulan, salin angka dari kolom "Jumlah Minggu" (mis. Oktober 2026 = 5, Desember 2026 = 5). Susun ke dalam "struktur_bulan_ganjil" / "struktur_bulan_genap" dengan singkatan bulan (Jul Agu Sep Okt Nov Des Jan Feb Mar Apr Mei Jun). SEMUA bulan dalam semester WAJIB dicantumkan. JANGAN samakan semua jadi 4 — ikuti angka persis dari kolom "Jumlah Minggu" pada tabel.\nATURAN JSON:
 1. ACUAN WAJIB (JANGAN mengarang di luar ini):
    a. PROTA (Program Tahunan) — SUMBER UTAMA. Prosem DITURUNKAN LANGSUNG dari PROTA: materi, urutan, dan alokasi bulan mengikuti PROTA persis.
    b. Analisis Minggu Efektif — menentukan minggu mana yang efektif vs libur (untuk nonEfektif_ganjil/genap).
@@ -1346,9 +1345,8 @@ ATURAN JSON:
 2. Nama "materi" harus KONKRET dan SPESIFIK sesuai rincian TP di ATP (contoh: "Sorting dan searching array", bukan "Struktur Data lanjutan"). Jika ATP mengelompokkan banyak TP dalam satu judul umum, pecah menjadi sub-topik yang lebih spesifik.
 3. Urutan array = urutan pengajaran.
 4. HITUNG TOTAL JP DENGAN BENAR (JANGAN asal):
-   a. Dari dokumen Analisis Minggu Efektif, hitung JUMLAH MINGGU EFEKTIF per semester (hanya minggu yang efektif KBM, bukan libur/ujian).
-   b. Total JP = (jumlah minggu efektif) × (JP per minggu dari data).
-   c. Total "jp" SEMUA objek per semester HARUS SAMA PERSIS dengan angka ini. DILARANG kurang.
+   a. Dari dokumen Analisis Minggu Efektif, baca "Total JP Efektif" pada baris TOTAL (mis. Ganjil = 40 JP, Genap = 34 JP). Jika tidak ada, hitung: (kolom "Minggu Efektif" per bulan, dijumlahkan) × (JP per minggu).
+   b. Total "jp" SEMUA objek per semester HARUS SAMA PERSIS dengan angka Total JP Efektif ini. DILARANG kurang.
    d. Materi harus tersebar dari minggu efektif PERTAMA hingga minggu efektif TERAKHIR — DILARANG berhenti di tengah semester (mis. berakhir Oktober padahal semester sampai Desember).
    e. Jika materi pokok tidak cukup mengisi semua minggu efektif, tambahkan objek {"materi": "Pengayaan / Remedial / Proyek", "jp": <selisih>, "ket": "Buffer"} atau {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}.
 5. Jika satu semester saja, array semester lainnya = [].
