@@ -35,3 +35,27 @@ export function parseProsemWeeks(markdown) {
     }))
     .filter((w) => w.materi);
 }
+
+// Parser matriks Prosem (format baru: tabel HTML dari backend)
+// -> [{ materi, jp, ket }]
+export function parseMatriksProsem(markdown) {
+  const hasil = [];
+  const tabelMatch = (markdown || '').match(/<table>[\s\S]*?<\/table>/g);
+  if (!tabelMatch) return hasil;
+  tabelMatch.forEach((tabel) => {
+    const tbody = tabel.match(/<tbody>([\s\S]*?)<\/tbody>/);
+    const isi = tbody ? tbody[1] : tabel;
+    const baris = isi.match(/<tr>([\s\S]*?)<\/tr>/g) || [];
+    baris.forEach((br) => {
+      const sel = [...br.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) =>
+        m[1].replace(/<[^>]+>/g, '').trim()
+      );
+      if (sel.length < 3) return;
+      if (/^jumlah$/i.test(sel[0])) return; // baris total
+      const jp = Number(sel[1]) || 0;
+      if (!sel[0] || jp <= 0) return;
+      hasil.push({ materi: sel[0], jp, ket: sel[sel.length - 1] || '' });
+    });
+  });
+  return hasil;
+}

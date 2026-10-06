@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MODEL } from '../lib/referensi';
 import { generateDocStream, getProfile, saveProfile, extractTitle } from '../lib/api';
 import { getProject, getModul, saveModul, updateModul, getPaket } from '../lib/db';
+import { parseMatriksProsem } from '../lib/prosem';
 import { buatTugas, tugasTahap, tugasTulisan, tugasSelesai, tugasGagal, tutupTugas } from '../lib/tugasLatar';
 import { kunciAkun } from '../lib/akunLokal';
 import ProsesLive from './ProsesLive';
@@ -17,6 +18,8 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
   const [docs, setDocs] = useState({}); // {cp, atp, prota, prosem} -> markdown
   const [topiks, setTopiks] = useState([]); // [{topik, alokasi}]
   const [topikBaru, setTopikBaru] = useState('');
+  const [materiProsem, setMateriProsem] = useState([]); // [{materi, jp, ket}]
+  const [pilihProsem, setPilihProsem] = useState([]); // index terpilih
   const [model, setModel] = useState('auto');
   const [namaGuru, setNamaGuru] = useState('');
   const [mapel, setMapel] = useState('');
@@ -91,6 +94,10 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
         }
       } catch { /* abaikan */ }
       setDocs(d);
+      // Parse materi dari matriks prosem untuk picker
+      if (d.prosem) {
+        try { setMateriProsem(parseMatriksProsem(d.prosem)); } catch { /* abaikan */ }
+      }
     })();
   }, [projectId]);
 
@@ -102,6 +109,20 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
   }
   function hapusTopik(i) {
     setTopiks((prev) => prev.filter((_, ix) => ix !== i));
+  }
+  function gabungDariProsem() {
+    if (!pilihProsem.length) return;
+    const terpilih = pilihProsem.map((ix) => materiProsem[ix]).filter(Boolean);
+    if (!terpilih.length) return;
+    const gabungTopik = terpilih.map((m) => m.materi).join('; ');
+    const totalJP = terpilih.reduce((a, m) => a + m.jp, 0);
+    const menit = (getProfile().menitPerJP || 45);
+    setTopiks((prev) => [...prev, {
+      topik: gabungTopik,
+      alokasi: `${totalJP} JP (${totalJP * menit} menit)`,
+      dariProsem: terpilih.map((m) => m.materi),
+    }]);
+    setPilihProsem([]);
   }
 
   function tandaiTahap(key, label) {
@@ -340,7 +361,26 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
       {tahap === 'setup' && (
         <div className="card">
           <h2 style={{ marginTop: 0 }}>1. Topik Modul</h2>
-          <p className="hint">Satu topik = satu modul. Urutan sesuai daftar.</p>
+          <p className="hint">Satu topik = satu modul (bisa mencakup beberapa pertemuan). Urutan sesuai daftar.</p>
+          {materiProsem.length > 0 && (
+            <details style={{ marginBottom: 16, border: '2px solid #1a1a1a', padding: 12, background: '#faf8f3' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Ambil dari Prosem ({materiProsem.length} materi)</summary>
+              <p className="hint">Centang satu atau beberapa materi untuk digabung menjadi satu modul.</p>
+              <div style={{ maxHeight: 260, overflow: 'auto', marginTop: 8 }}>
+                {materiProsem.map((m, ix) => (
+                  <label key={ix} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 0', borderBottom: '1px solid #e5e0d5', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={pilihProsem.includes(ix)} onChange={(e) => {
+                      setPilihProsem((prev) => e.target.checked ? [...prev, ix] : prev.filter((x) => x !== ix));
+                    }} style={{ marginTop: 4 }} />
+                    <span style={{ flex: 1 }}>{m.materi} <span className="hint">({m.jp} JP{m.ket ? ` · ${m.ket}` : ''})</span></span>
+                  </label>
+                ))}
+              </div>
+              <button type="button" className="btn btn-sm" onClick={gabungDariProsem} disabled={!pilihProsem.length} style={{ marginTop: 10 }}>
+                + Jadikan 1 Modul ({pilihProsem.length} materi dipilih)
+              </button>
+            </details>
+          )}
           {topiks.map((t, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
               <span className="nblk-total">{i + 1}</span>
