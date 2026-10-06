@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ModalReferal from './ModalReferal';
 
 // Topbar: latar ink, sticky. Navigasi nyata (pindah view), chip pengguna
 // dengan dropdown Pengaturan/Keluar. Keyboard: Enter/Space buka, Escape
@@ -34,6 +35,7 @@ function avatarUrl(user) {
 export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpenDocs, isAdmin, onSignOut, onLogin }) {
   const [open, setOpen] = useState(false); // menu pengguna
   const [mobileOpen, setMobileOpen] = useState(false); // panel navigasi mobile
+  const [refModal, setRefModal] = useState(false); // modal Free Credit (referal)
   const triggerRef = useRef(null);
   const menuRef = useRef(null);
   const firstItemRef = useRef(null);
@@ -176,6 +178,9 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
               <button type="button" {...menuItem(firstItemRef)} onClick={() => { setOpen(false); onOpenSettings(); }}>
                 Pengaturan
               </button>
+              <button type="button" {...menuItem(null)} onClick={() => { setOpen(false); setRefModal(true); }}>
+                Free Credit
+              </button>
               {onOpenDocs && (
                 <button type="button" {...menuItem(null)} onClick={() => { setOpen(false); onOpenDocs(); }}>
                   Panduan
@@ -208,6 +213,7 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
           </>
         )}
       </nav>
+      {refModal && <ModalReferal onClose={() => setRefModal(false)} />}
     </header>
   );
 }
