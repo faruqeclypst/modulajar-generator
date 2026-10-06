@@ -33,7 +33,7 @@ export default function DocPaper({ doc, tema = 'hangat' }) {
   const gallery = images.filter((g) => !inlineUrls.has(g.thumbUrl));
 
   return (
-    <div className={'paper tema-' + tema}>
+    <div className={'paper tema-' + tema + (doc.docType === 'prosem' ? ' cetak-landscape matriks-lebar' : '')}>
       <div className="paper-head">
         <div className="doclabel">{typeName} &middot; Kurikulum Merdeka</div>
         <h1>{judul}</h1>

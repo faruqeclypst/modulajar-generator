@@ -1300,39 +1300,38 @@ ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (PROTA), materi dan alokasi JP WAJIB mengik
 - **Alokasi Waktu**: [JP per minggu] JP/minggu
 
 ## B. Matriks Program Semester
-Susun dalam bentuk MATRIKS PER BULAN: SATU tabel markdown kecil untuk SETIAP bulan (bukan satu tabel raksasa). Format tiap tabel persis seperti ini:
+Susun SATU tabel matriks LEBAR untuk SETIAP semester (format seperti dokumen Prosem resmi: baris = materi, kolom = bulan/minggu). Tabel ini dicetak LANDSCAPE, jadi boleh lebar.
 
-### Semester Ganjil — Juli
+### Semester Ganjil
 
-| Materi Pokok | JP | Mg-1 | Mg-2 | Mg-3 | Mg-4 | Mg-5 | Ket |
-|---|---|---|---|---|---|---|---|
-| [Materi 1] | [n] | 2 | 2 |  |  |  | ... |
-| Cadangan | [n] |  |  |  |  |  | ... |
-| Jumlah | [total] | 2 | 2 |  |  |  |  |
+| Materi Pokok | JP | Jul-1 | Jul-2 | Jul-3 | Jul-4 | Jul-5 | Agu-1 | Agu-2 | Agu-3 | Agu-4 | Agu-5 | Sep-1 | Sep-2 | Sep-3 | Sep-4 | Sep-5 | Okt-1 | Okt-2 | Okt-3 | Okt-4 | Okt-5 | Nov-1 | Nov-2 | Nov-3 | Nov-4 | Nov-5 | Des-1 | Des-2 | Des-3 | Des-4 | Des-5 | Ket |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [Materi 1] | [n] | 2 | 2 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | ... |
+| [Materi 2] | [n] |  |  | 2 | 2 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | ... |
+| Cadangan | [n] |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | ... |
+| Jumlah | [total] | 2 | 2 | 2 | 2 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 
-### Semester Ganjil — Agustus
-[tabel dengan format kolom yang SAMA PERSIS]
+### Semester Genap
+[tabel dengan format kolom yang SAMA PERSIS, tetapi bulan: Jan, Feb, Mar, Apr, Mei, Jun]
 
-(dan seterusnya untuk semua bulan semester tersebut)
-
-- Semester Ganjil → Juli, Agustus, September, Oktober, November, Desember.
-- Semester Genap → Januari, Februari, Maret, April, Mei, Juni.
-- Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', buat 12 tabel (6 + 6) dengan heading "### Semester Ganjil — [Bulan]" dan "### Semester Genap — [Bulan]".
+- Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', buat DUA tabel (satu per semester) dengan heading "### Semester Ganjil" dan "### Semester Genap".
+- Jika hanya satu semester, buat SATU tabel saja dengan bulan yang sesuai.
 
 ATURAN MATRIKS (WAJIB):
-1. MAKSIMAL 8 kolom per tabel. DILARANG membuat tabel dengan puluhan kolom.
+1. SETIAP poin materi = SATU BARIS TERSENDIRI. JANGAN menggabung beberapa topik/TP dalam satu baris. Contoh: materi "TP 1-9" yang terdiri dari 3 topik besar WAJIB dipecah menjadi 3 baris terpisah (satu baris per topik), bukan satu baris "TP 1-9".
 2. SETIAP BARIS TABEL WAJIB ditulis di baris teks tersendiri. Jangan pernah menggabung dua baris tabel dalam satu baris teks. Baris header, baris pemisah (|---|---|...), dan setiap baris data masing-masing di baris sendiri.
-3. Jumlah sel (tanda |) WAJIB sama di semua baris dalam satu tabel.
-4. Satu baris per materi pokok/bab sesuai urutan PROTA — TAPI hanya tampilkan baris materi yang memiliki alokasi JP di bulan itu. JANGAN tampilkan baris materi dengan 0 JP di suatu bulan.
-5. Isi sel minggu dengan angka JP (mis. "2") HANYA pada minggu-minggu saat materi itu diajarkan. Sel minggu yang kosong (tidak ada kegiatan) DIBIARKAN KOSONG — DILARANG KERAS menulis "0", "-", atau "kosong" di sel mana pun termasuk baris "Jumlah".
-6. Alokasi JP satu materi yang lebih dari JP/minggu DIPECAH ke beberapa minggu berurutan, boleh lintas bulan (lanjutkan di tabel bulan berikutnya).
-7. Minggu tidak efektif (libur/PTS/PAS): tulis "LBR", "PTS", atau "PAS" pada baris "Jumlah" di kolom minggu tersebut; semua baris materi MEMBIARKAN sel minggu itu KOSONG. JANGAN menaruh penanda LBR/PTS/PAS di baris materi.
-8. Baris "Cadangan" hanya dimunculkan di bulan-bulan tempat JP cadangan benar-benar dialokasikan; bila tidak ada alokasi cadangan di bulan itu, JANGAN tampilkan baris Cadangan. Kolom "Ket" baris Cadangan menjelaskan tujuan cadangan (mis. "Buffer antisipasi minggu hilang"), BUKAN menjelaskan hari libur.
-9. Baris "Jumlah" SELALU ada = total JP per kolom minggu (penjumlahan vertikal sel yang terisi; sel kosong = tidak dihitung, bukan 0).
-10. Kolom "Ket" berisi catatan singkat per materi (mis. "Asesmen formatif", "Proyek").
-10. DILARANG menampilkan draf, proses berpikir, "Perbaikan Tabel", "Keterangan Penempatan", "Catatan Koreksi Perhitungan", atau analisis angka dalam bentuk apa pun — keluarkan HANYA satu versi final yang sudah benar.
-11. Bila angka di dokumen acuan (PROTA) tidak pas (mis. total materi 38 JP padahal total efektif 40 JP), sesuaikan SECARA DIAM-DIAM: tambahkan selisihnya ke baris "Cadangan" agar total pas. JANGAN menulis analisis atau penjelasan tentang selisih tersebut di mana pun.
+3. Jumlah sel (tanda |) WAJIB sama di semua baris dalam satu tabel: 33 sel (Materi Pokok + JP + 30 kolom minggu + Ket).
+4. Isi sel minggu dengan angka JP (mis. "2") HANYA pada minggu-minggu saat materi itu diajarkan. Sel minggu yang kosong (tidak ada kegiatan) DIBIARKAN KOSONG - DILARANG KERAS menulis "0", "-", atau "kosong" di sel mana pun termasuk baris "Jumlah".
+5. Alokasi JP satu materi yang lebih dari JP/minggu DIPECAH ke beberapa minggu berurutan.
+6. Minggu tidak efektif: tulis "LBR", "PTS", atau "PAS" pada baris "Jumlah" di kolom minggu tersebut; semua baris materi MEMBIARKAN sel minggu itu KOSONG.
+7. Baris "Cadangan" hanya bila ada JP cadangan di semester itu; bila tidak ada, JANGAN tampilkan baris Cadangan.
+8. Baris "Jumlah" SELALU ada = total JP per kolom minggu (penjumlahan vertikal sel yang terisi).
+9. Kolom "Ket" berisi catatan singkat per materi (mis. "TP 1-2", "Asesmen formatif").
+10. DILARANG menampilkan draf, proses berpikir, "Perbaikan Tabel", "Keterangan Penempatan", "Catatan Koreksi Perhitungan", atau analisis angka dalam bentuk apa pun - keluarkan HANYA satu versi final yang sudah benar.
+11. Bila angka di dokumen acuan (PROTA) tidak pas, sesuaikan SECARA DIAM-DIAM via baris "Cadangan". JANGAN menulis analisis tentang selisih tersebut.
 12. Setelah semua tabel matriks, LANGSUNG tulis "## C. Pengesahan". DILARANG menambah section lain.
+
+## C. Pengesahan". DILARANG menambah section lain.
 
 ## C. Pengesahan
 Tulis blok tanda tangan: "Mengetahui, Kepala Sekolah" dan "[Kota], [Bulan Tahun] — Guru Mata Pelajaran", masing-masing dengan baris "Nama" dan "NIP".
