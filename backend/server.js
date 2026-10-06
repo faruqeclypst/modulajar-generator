@@ -1305,8 +1305,9 @@ Tulis HANYA SATU blok JSON (tanpa teks lain sebelum/sesudahnya) berisi daftar ma
 \`\`\`json
 {
   "ganjil": [
-    {"materi": "Pengantar Informatika: Komputasi dan Algoritma", "jp": 10, "ket": "TP 1-3"},
-    {"materi": "Struktur Data Linear", "jp": 8, "ket": "TP 4-5"},
+    {"materi": "Berpikir Komputasional", "jp": 6, "ket": "TP 1-3"},
+    {"materi": "Algoritma dan Pemrograman", "jp": 6, "ket": "TP 4-6"},
+    {"materi": "Struktur Data", "jp": 6, "ket": "TP 7-9"},
     {"materi": "Asesmen Sumatif Semester Ganjil", "jp": 2, "ket": ""},
     {"materi": "Remedial dan Tindak Lanjut", "jp": 2, "ket": ""},
     {"materi": "Cadangan", "jp": 2, "ket": "Buffer"}
@@ -1321,7 +1322,7 @@ Tulis HANYA SATU blok JSON (tanpa teks lain sebelum/sesudahnya) berisi daftar ma
 \`\`\`
 
 ATURAN JSON (WAJIB):
-1. SETIAP poin materi = SATU objek tersendiri. JANGAN menggabung beberapa topik dalam satu objek.
+1. SETIAP TP / topik individual = SATU objek tersendiri. DILARANG menggabungkan beberapa TP dalam satu objek. Contoh SALAH: {"materi": "Pengantar Informatika: Komputasi, Algoritma, dan Struktur Data (TP 1-9)", "jp": 18}. Contoh BENAR: tiga objek terpisah - {"materi": "Berpikir Komputasional (TP 1-3)", "jp": 6}, {"materi": "Algoritma dan Pemrograman (TP 4-6)", "jp": 6}, {"materi": "Struktur Data (TP 7-9)", "jp": 6}. Ikuti rincian TP pada dokumen ATP acuan: satu baris per kelompok TP yang koheren (2-4 TP per baris MAKSIMAL, jangan 9 TP sekaligus).
 2. Urutan array = urutan pengajaran. Sistem otomatis menempatkan ke minggu berurutan.
 3. Total "jp" per semester WAJIB sama dengan total JP efektif semester itu. Bila kurang, tambahkan objek {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}. Hitung dengan teliti SEBELUM menulis JSON.
 4. "tanda_ganjil"/"tanda_genap" opsional: petakan minggu tidak efektif (format "Bln-N": "LBR"/"PTS"/"PAS"). Boleh kosong {}.
@@ -1580,26 +1581,33 @@ function bangunMatriksProsem(md, info) {
       html += '<tr><td>' + esc(it.materi) + '</td><td>' + jp + '</td>';
       for (let c = 0; c < kolomMinggu.length; c++) {
         if (c >= mingguIdx && c < mingguIdx + jmlMinggu) {
-          html += '<td>' + jpPerMinggu + '</td>';
+          html += '<td' + clsKolom(c) + '>' + jpPerMinggu + '</td>';
           if (!jumlah[c] || jumlah[c] === '') jumlah[c] = String(jpPerMinggu);
           else jumlah[c] = String(Number(jumlah[c]) + jpPerMinggu);
         } else {
-          html += '<td></td>';
+          html += '<td' + clsKolom(c) + '></td>';
         }
       }
       html += '<td>' + esc(it.ket) + '</td></tr>\n';
       mingguIdx += jmlMinggu;
     });
-    // Terapkan tanda minggu tidak efektif (LBR/PTS/PAS) ke baris jumlah
+    // Tandai kolom minggu tidak efektif: seluruh sel di kolom itu dapat class
+    // (td-lbr / td-pts / td-pas) agar terwarnai seperti dokumen Prosem resmi.
+    const kolomTanda = {};
     if (tanda && typeof tanda === 'object') {
       Object.entries(tanda).forEach(([k, v]) => {
         const i = kolomMinggu.indexOf(k);
-        if (i >= 0) jumlah[i] = String(v).toUpperCase().slice(0, 3);
+        if (i >= 0) {
+          const kode = String(v).toUpperCase().slice(0, 3);
+          jumlah[i] = kode;
+          kolomTanda[i] = kode === 'LBR' ? 'td-lbr' : kode === 'PTS' ? 'td-pts' : kode === 'PAS' ? 'td-pas' : 'td-tanda';
+        }
       });
     }
+    const clsKolom = (c) => kolomTanda[c] ? ' class="' + kolomTanda[c] + '"' : '';
     const totalJP = daftar.reduce((a, it) => a + (Number(it.jp) || 0), 0);
     html += '<tr><td>Jumlah</td><td>' + totalJP + '</td>';
-    jumlah.forEach((j) => { html += '<td>' + j + '</td>'; });
+    jumlah.forEach((j, c) => { html += '<td' + clsKolom(c) + '>' + j + '</td>'; });
     html += '<td></td></tr>\n</table>';
     return html;
   };
