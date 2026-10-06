@@ -1285,9 +1285,9 @@ ${ANTI_SLOP} ${KONSISTENSI}
 Aturan: Bahasa Indonesia formal. ${ISTILAH_BARU}`,
 
   prosem: `Kamu adalah asisten penyusun perangkat pembelajaran Kurikulum Merdeka untuk guru Indonesia.
-Susun PROGRAM SEMESTER (PROSEM) rinci per minggu. WAJIB ikuti struktur markdown persis di bawah.
-Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', susun untuk SATU TAHUN AJARAN penuh mencakup semester ganjil dan genap (±32 minggu efektif) dengan pemisah yang jelas antar semester.
-${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (PROTA), rincian mingguan WAJIB mengikuti distribusi materi dan alokasi pada PROTA tersebut.
+Susun PROGRAM SEMESTER (PROSEM) dalam format MATRIKS KALENDER seperti dokumen Prosem resmi sekolah Indonesia: baris = materi pokok, kolom = bulan yang dipecah per minggu. WAJIB ikuti struktur markdown persis di bawah.
+Jika Semester = 'Ganjil + Genap (1 tahun ajaran)', susun DUA matriks terpisah: satu untuk semester ganjil, satu untuk semester genap, dengan pemisah heading yang jelas.
+${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (PROTA), materi dan alokasi JP WAJIB mengikuti PROTA tersebut.
 
 # Program Semester (PROSEM): [Mata Pelajaran] Kelas [X] Semester [X]
 
@@ -1297,16 +1297,31 @@ ${ANTI_FIKSI} Jika ada DOKUMEN ACUAN (PROTA), rincian mingguan WAJIB mengikuti d
 - **Tahun Ajaran**: [dari data]
 - **Jenjang / Fase / Kelas / Semester**: ...
 - **Mata Pelajaran**: ...
+- **Alokasi Waktu**: [JP per minggu] JP/minggu
 
-## B. Rincian Mingguan
-WAJIB format tabel markdown (±16 minggu efektif):
+## B. Matriks Program Semester
+WAJIB tabel markdown dengan format persis seperti ini. Kolom minggu memakai format "Bln-Minggu" (contoh: Jul-1 = Juli minggu ke-1).
+- Semester Ganjil → bulan: Jul, Agu, Sep, Okt, Nov, Des (masing-masing 5 kolom minggu).
+- Semester Genap → bulan: Jan, Feb, Mar, Apr, Mei, Jun (masing-masing 5 kolom minggu).
 
-| Minggu | Materi Pokok | Tujuan Pembelajaran | Alokasi (JP) | Keterangan |
-|--------|--------------|---------------------|--------------|------------|
-| 1 | ... | ... | ... | ... |
+| Materi Pokok | JP | Jul-1 | Jul-2 | Jul-3 | Jul-4 | Jul-5 | Agu-1 | Agu-2 | Agu-3 | Agu-4 | Agu-5 | Sep-1 | Sep-2 | Sep-3 | Sep-4 | Sep-5 | Okt-1 | Okt-2 | Okt-3 | Okt-4 | Okt-5 | Nov-1 | Nov-2 | Nov-3 | Nov-4 | Nov-5 | Des-1 | Des-2 | Des-3 | Des-4 | Des-5 | Ket |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [Materi 1] | [n] |  |  | [n] | [n] |  | [n] |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | ... |
+| Cadangan | [n] |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | [n] |  |  |  |  |  |  | ... |
+| Jumlah | [total] |  |  | [n] | [n] |  | [n] |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | [n] |  |  |  |  |  |  |  |
 
-## C. Cadangan & Pengayaan
-Alokasi minggu cadangan untuk remedial/pengayaan dan asesmen sumatif akhir.
+ATURAN MATRIKS (WAJIB):
+1. Satu baris per materi pokok/bab sesuai urutan PROTA.
+2. Isi sel minggu dengan angka JP (mis. "2") HANYA pada minggu-minggu saat materi itu diajarkan; kosongkan sel lainnya (jangan isi 0).
+3. Alokasi JP satu materi yang lebih dari JP/minggu DIPECAH ke beberapa minggu berurutan (contoh: materi 6 JP dengan 2 JP/minggu → isi "2" di 3 sel minggu berurutan).
+4. Minggu tidak efektif (libur/PTS/PAS) DITANDAI: tulis "LBR", "PTS", atau "PAS" di sel minggu tersebut pada baris materi yang terdampak, dan JANGAN isi angka JP di minggu itu.
+5. Baris "Cadangan" untuk JP cadangan/remedial di minggu-minggu akhir sebelum asesmen.
+6. Baris "Jumlah" = total JP per kolom minggu (penjumlahan vertikal); total kolom JP = total JP semester.
+7. Kolom "Ket" berisi catatan singkat per materi (mis. "Asesmen formatif", "Proyek").
+8. DILARANG menampilkan draf, proses berpikir, atau "Perbaikan Tabel" — keluarkan HANYA satu versi final yang sudah benar.
+
+## C. Pengesahan
+Tulis blok tanda tangan: "Mengetahui, Kepala Sekolah" dan "[Kota], [Bulan Tahun] — Guru Mata Pelajaran", masing-masing dengan baris "Nama" dan "NIP".
 
 ${ANTI_SLOP} ${KONSISTENSI}
 
