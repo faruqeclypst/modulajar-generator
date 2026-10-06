@@ -10,6 +10,7 @@ import DocsView from './components/DocsView';
 import HalamanMasukan from './components/HalamanMasukan';
 import AdminDashboard from './components/AdminDashboard';
 import ErrorBoundary from './components/ErrorBoundary';
+import { setUidLokal, kunciAkun } from './lib/akunLokal';
 import Pengaturan from './components/Pengaturan';
 import { ProyekList, ProyekDetail } from './components/Proyek';
 import { DOC_TYPES } from './lib/docs';
@@ -154,7 +155,7 @@ const VIEW_KEY = 'ma-view';
 const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek', 'docs', 'admin', 'masukan'];
 function bacaViewTersimpan() {
   try {
-    const raw = localStorage.getItem(VIEW_KEY);
+    const raw = localStorage.getItem(kunciAkun(VIEW_KEY));
     if (!raw) return null;
     const d = JSON.parse(raw);
     if (!d || !VIEW_VALID.includes(d.view)) return null;
@@ -225,9 +226,9 @@ export default function App() {
       try {
         const sb = await getSupabase();
         const sess = await getSession();
-        if (!stop) { setUser(sess?.user || null); setAuth(sess ? 'app' : 'login'); if (sess) setMintaLogin(false); }
+        if (!stop) { setUidLokal(sess?.user?.id || null); setUser(sess?.user || null); setAuth(sess ? 'app' : 'login'); if (sess) setMintaLogin(false); }
         const { data: sub } = sb.auth.onAuthStateChange((_ev, sess2) => {
-          if (!stop) { setUser(sess2?.user || null); setAuth(sess2 ? 'app' : 'login'); if (sess2) setMintaLogin(false); }
+          if (!stop) { setUidLokal(sess2?.user?.id || null); setUser(sess2?.user || null); setAuth(sess2 ? 'app' : 'login'); if (sess2) setMintaLogin(false); }
         });
         stopSub = () => sub.subscription.unsubscribe();
       } catch (e) {
@@ -250,11 +251,11 @@ export default function App() {
   useEffect(() => {
     if (auth !== 'app') return;
     let kode = null;
-    try { kode = localStorage.getItem('ma-ref'); } catch { /* abaikan */ }
+    try { kode = localStorage.getItem(kunciAkun('ma-ref')) || localStorage.getItem('ma-ref'); } catch { /* abaikan */ }
     if (!kode) return;
     (async () => {
       try { await klaimReferal(kode); } catch { /* diam-diam */ }
-      try { localStorage.removeItem('ma-ref'); } catch { /* abaikan */ }
+      try { localStorage.removeItem(kunciAkun('ma-ref')); localStorage.removeItem('ma-ref'); } catch { /* abaikan */ }
     })();
   }, [auth]);
 
@@ -314,7 +315,7 @@ export default function App() {
     if (view === 'proyek' && !projectAktif?.id) return;
     if (view === 'ruang' && !ruangProyek) return;
     try {
-      localStorage.setItem(VIEW_KEY, JSON.stringify({
+      localStorage.setItem(kunciAkun(VIEW_KEY), JSON.stringify({
         view,
         docId: view === 'detail' ? active?.id || null : null,
         projectId: view === 'proyek' ? projectAktif?.id || null : null,
@@ -454,7 +455,8 @@ export default function App() {
     await sb.auth.signOut();
     setUser(null);
     setActive(null);
-    try { localStorage.removeItem(VIEW_KEY); } catch { /* abaikan */ }
+    try { localStorage.removeItem(kunciAkun(VIEW_KEY)); } catch { /* abaikan */ }
+    setUidLokal(null);
     history.replaceState(null, '', '/'); // (G2) jangan tinggalkan URL /dokumen/<id>
     setView('landing');
   }

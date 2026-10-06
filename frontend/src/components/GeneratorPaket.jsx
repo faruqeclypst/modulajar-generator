@@ -4,6 +4,7 @@ import { DOC_TYPES } from '../lib/docs';
 import { getProfile, saveProfile } from '../lib/api';
 import { getToken } from '../lib/supabase';
 import { listProjects, saveProject } from '../lib/db';
+import { kunciAkun } from '../lib/akunLokal';
 import FormulirDasar from './FormulirDasar';
 import UnggahDokumen from './UnggahDokumen';
 import Paywall from './Paywall';
@@ -91,7 +92,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   // Tawarkan draft yang tersimpan di perangkat ini (tidak otomatis menimpa isian)
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(DRAFT_KEY);
+      const raw = localStorage.getItem(kunciAkun(DRAFT_KEY));
       if (raw) setDraftAda(JSON.parse(raw));
     } catch { /* abaikan */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,8 +156,8 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
     const kosong = !form.nama.trim() && !form.mapel.trim() && !(form.topiks || '').trim();
     if (kosong) { setInfoDraf('Isi dulu sebelum menyimpan draft.'); return; }
     try {
-      if (localStorage.getItem(DRAFT_KEY) && !window.confirm('Timpa draft yang sudah tersimpan?')) return;
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      if (localStorage.getItem(kunciAkun(DRAFT_KEY)) && !window.confirm('Timpa draft yang sudah tersimpan?')) return;
+      localStorage.setItem(kunciAkun(DRAFT_KEY), JSON.stringify({
         mode, reviewJeda, form, projectId, proyekBaru, waktu: Date.now(),
       }));
       setInfoDraf('Draft tersimpan di perangkat ini. Buka lagi halaman ini untuk memuatnya.');
@@ -166,7 +167,7 @@ export default function GeneratorPaket({ onBack, onOpenDoc, onChanged, waLink, k
   }
   function muatDraft() {
     try {
-      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+      const d = JSON.parse(localStorage.getItem(kunciAkun(DRAFT_KEY)) || 'null');
       if (!d) return;
       setErrForm({}); // bersihkan error validasi lama
       setInfoDraf('');

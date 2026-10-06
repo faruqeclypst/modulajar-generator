@@ -233,15 +233,16 @@ export function splitInfoUmum(markdown) {
   return { infoRows: rows, rest: rest.trim() };
 }
 
-// Profil guru (localStorage). saveProfile MENGGABUNGKAN, bukan mengganti:
-// tiap pemanggil hanya menyimpan field yang ia kelola (nama, nip,
-// kepalaSekolah, ...), field lain tetap utuh.
+// Profil guru (localStorage, per-akun via kunciAkun). saveProfile MENGGABUNGKAN,
+// bukan mengganti: tiap pemanggil hanya menyimpan field yang ia kelola
+// (nama, nip, kepalaSekolah, ...), field lain tetap utuh.
+import { kunciAkun } from './akunLokal';
 const PKEY = 'modulajar_profile';
 export function getProfile() {
-  try { return JSON.parse(localStorage.getItem(PKEY)) || {}; } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(kunciAkun(PKEY))) || {}; } catch { return {}; }
 }
 export function saveProfile(p) {
-  localStorage.setItem(PKEY, JSON.stringify({ ...getProfile(), ...(p || {}) }));
+  try { localStorage.setItem(kunciAkun(PKEY), JSON.stringify({ ...getProfile(), ...(p || {}) })); } catch { /* abaikan */ }
 }
 
 // ---- Kunci AI sendiri (BYOK) & referal ----

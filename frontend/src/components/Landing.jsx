@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { DOC_TYPES } from '../lib/docs';
+import { kunciAkun } from '../lib/akunLokal';
 
 // Landing page ModulAjar (menggantikan fungsi Landing di App.jsx).
 // Prop: onStart (wajib, membuka aplikasi), onDocs (opsional, membuka halaman
@@ -69,7 +70,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
   useEffect(() => {
     try {
       const kode = new URLSearchParams(window.location.search).get('ref');
-      if (kode && kode.trim()) localStorage.setItem('ma-ref', kode.trim().slice(0, 32));
+      if (kode && kode.trim()) localStorage.setItem(kunciAkun('ma-ref'), kode.trim().slice(0, 32));
     } catch { /* abaikan: penyimpanan tidak tersedia */ }
   }, []);
 

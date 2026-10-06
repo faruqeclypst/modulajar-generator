@@ -1,4 +1,5 @@
 import { getSupabase, getSession } from './supabase';
+import { kunciAkun } from './akunLokal';
 
 // Lapisan data di atas Supabase (menggantikan Dexie/IndexedDB).
 // Bentuk objek yang dikembalikan disamakan dengan versi lama
@@ -76,16 +77,16 @@ export async function getModul(id) {
   return toApp(data);
 }
 
-// ---- Draft: sementara per perangkat, cukup localStorage ----
+// ---- Draft: sementara per perangkat, cukup localStorage (per-akun) ----
 const DKEY = 'modulajar.draft';
 export async function saveDraft(draft) {
-  try { localStorage.setItem(DKEY, JSON.stringify({ ...draft, updatedAt: Date.now() })); } catch { /* abaikan */ }
+  try { localStorage.setItem(kunciAkun(DKEY), JSON.stringify({ ...draft, updatedAt: Date.now() })); } catch { /* abaikan */ }
 }
 export async function getDraft() {
-  try { return JSON.parse(localStorage.getItem(DKEY)) || null; } catch { return null; }
+  try { return JSON.parse(localStorage.getItem(kunciAkun(DKEY))) || null; } catch { return null; }
 }
 export async function clearDraft() {
-  try { localStorage.removeItem(DKEY); } catch { /* abaikan */ }
+  try { localStorage.removeItem(kunciAkun(DKEY)); } catch { /* abaikan */ }
 }
 
 // ---- Paket Perencanaan: CP -> ATP -> Minggu Efektif -> Prota -> Prosem ----
@@ -150,15 +151,17 @@ export function paketProgress(paket) {
 // migrasi SQL. Dokumen menunjuk proyek lewat `projectId` di meta (ikut
 // tersinkron antarperangkat); bila proyeknya tidak ada di perangkat ini,
 // dokumen tampil di "Tanpa proyek".
+// Proyek disimpan PER-AKUN (kunciAkun) agar akun lain di browser yang sama
+// tidak mewarisi.
 const PROYEK_KEY = 'ma-projects';
 const MIGRASI_KEY = 'ma-migrasi-proyek-v1';
 
 function bacaProyek() {
-  try { return JSON.parse(localStorage.getItem(PROYEK_KEY)) || []; }
+  try { return JSON.parse(localStorage.getItem(kunciAkun(PROYEK_KEY))) || []; }
   catch { return []; }
 }
 function tulisProyek(list) {
-  try { localStorage.setItem(PROYEK_KEY, JSON.stringify(list)); } catch { /* abaikan */ }
+  try { localStorage.setItem(kunciAkun(PROYEK_KEY), JSON.stringify(list)); } catch { /* abaikan */ }
 }
 
 export async function listProjects() {
