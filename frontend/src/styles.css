@@ -82,12 +82,13 @@ img { max-width: 100%; }
   color: var(--ink);
 }
 .landnav .nav-item:hover { color: var(--red); border-bottom-color: var(--red); }
-/* Di HP, nav landing jadi deretan chip agar Harga/FAQ tetap terjangkau */
+/* Di HP, nav landing jadi deretan chip di baris sendiri agar Harga/FAQ tetap terjangkau */
 @media (max-width: 760px) {
-  .topbar-land .landnav { flex-wrap: wrap; gap: 8px; margin-left: 8px; }
+  .topbar-land .topbar-inner { flex-wrap: wrap; }
+  .topbar-land .landnav { order: 3; flex-basis: 100%; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
   .topbar-land .landnav .nav-item {
     border: 2px solid var(--ink); border-radius: 999px; padding: 6px 14px;
-    font-size: 14px; min-height: 40px;
+    font-size: 14px; min-height: 40px; display: inline-flex; align-items: center;
   }
 }
 /* Anchor section tidak tertutup navbar sticky. */
