@@ -1333,8 +1333,8 @@ Contoh BENAR (ditiru polanya):
 Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — bukan judul bab yang umum.
 
 ATURAN JSON:
-1. MAKSIMAL 6 JP per objek. Jika satu topik butuh lebih, pecah menjadi sub-topik yang LEBIH SPESIFIK (bukan "bagian 1/2").
-2. Nama "materi" harus KONKRET dan SPESIFIK (contoh: "Sorting dan searching array", bukan "Struktur Data lanjutan").
+1. Ikuti RANCANGAN AJAR pada dokumen acuan (CP > ATP > PROTA > Minggu Efektif). Alokasi JP per materi mengikuti acuan — bisa 1 JP, 2 JP, 5 JP, dst. Bersifat DINAMIS, bukan pola tetap.
+2. Nama "materi" harus KONKRET dan SPESIFIK sesuai rincian TP di ATP (contoh: "Sorting dan searching array", bukan "Struktur Data lanjutan"). Jika ATP mengelompokkan banyak TP dalam satu judul umum, pecah menjadi sub-topik yang lebih spesifik.
 3. Urutan array = urutan pengajaran.
 4. Total "jp" per semester HARUS sama dengan total JP efektif semester itu. Jika kurang, tambahkan {"materi": "Cadangan", "jp": <selisih>, "ket": "Buffer"}.
 5. Jika satu semester saja, array semester lainnya = [].
@@ -1591,27 +1591,7 @@ function bangunMatriksProsem(md, info) {
 
   const bangunTabel = (daftar, bulan, tanda) => {
     if (!Array.isArray(daftar) || daftar.length === 0) return '';
-    // Jaring pengaman: pecah otomatis item > 6 JP menjadi beberapa baris
-    // (AI kadang mengelompokkan banyak TP jadi satu baris).
-    const MAKS_JP_PER_BARIS = 6;
-    const daftarPecah = [];
-    daftar.forEach((it) => {
-      const jp = Math.max(0, Number(it.jp) || 0);
-      if (jp <= MAKS_JP_PER_BARIS || !it.materi) { daftarPecah.push(it); return; }
-      const n = Math.ceil(jp / MAKS_JP_PER_BARIS);
-      const perBaris = Math.ceil(jp / n);
-      let sisa = jp;
-      for (let i = 0; i < n; i++) {
-        const j = Math.min(perBaris, sisa);
-        sisa -= j;
-        daftarPecah.push({
-          materi: it.materi + ' (' + (i + 1) + '/' + n + ')',
-          jp: j,
-          ket: it.ket || '',
-        });
-      }
-    });
-    daftar = daftarPecah;
+
     // Header kolom minggu: Bln-1 .. Bln-5 per bulan
     const kolomMinggu = [];
     bulan.forEach(([, kode]) => { for (let w = 1; w <= 5; w++) kolomMinggu.push(kode + '-' + w); });
@@ -1639,19 +1619,24 @@ function bangunMatriksProsem(md, info) {
     const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     daftar.forEach((it) => {
       const jp = Math.max(0, Number(it.jp) || 0);
-      const jmlMinggu = Math.max(1, Math.round(jp / jpPerMinggu));
+      // Distribusikan JP ke minggu: minggu penuh = jpPerMinggu, sisa di minggu terakhir.
+      // Contoh: 5 JP @ 2/minggu -> [2,2,1]; 1 JP -> [1].
+      const alokasi = [];
+      let sisa = jp;
+      while (sisa > 0) { const ambil = Math.min(jpPerMinggu, sisa); alokasi.push(ambil); sisa -= ambil; }
+      if (alokasi.length === 0) alokasi.push(0);
       html += '<tr><td>' + esc(it.materi) + '</td><td>' + jp + '</td>';
       for (let c = 0; c < kolomMinggu.length; c++) {
-        if (c >= mingguIdx && c < mingguIdx + jmlMinggu) {
-          html += '<td' + clsKolom(c) + '>' + jpPerMinggu + '</td>';
-          if (!jumlah[c] || jumlah[c] === '') jumlah[c] = String(jpPerMinggu);
-          else jumlah[c] = String(Number(jumlah[c]) + jpPerMinggu);
+        const w = c - mingguIdx;
+        if (w >= 0 && w < alokasi.length && alokasi[w] > 0) {
+          html += '<td' + clsKolom(c) + '>' + alokasi[w] + '</td>';
+          jumlah[c] = String((Number(jumlah[c]) || 0) + alokasi[w]);
         } else {
           html += '<td' + clsKolom(c) + '></td>';
         }
       }
       html += '<td>' + esc(it.ket) + '</td></tr>\n';
-      mingguIdx += jmlMinggu;
+      mingguIdx += alokasi.length;
     });
     const totalJP = daftar.reduce((a, it) => a + (Number(it.jp) || 0), 0);
     html += '<tr><td>Jumlah</td><td>' + totalJP + '</td>';
