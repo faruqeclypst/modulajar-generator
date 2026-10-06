@@ -16,7 +16,7 @@ import MenuTitik from './MenuTitik';
 import { SkelKartu } from './Kerangka';
 
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
-const BUTUH = { cp: null, analisis_cp: 'cp', tp: 'analisis_cp', atp: 'tp', minggu_efektif: 'atp', distribusi_jp: 'minggu_efektif', prota: 'distribusi_jp', prosem: 'prota' };
+const BUTUH = { cp: null, atp: 'cp', minggu_efektif: 'atp', distribusi_jp: 'minggu_efektif', prota: 'distribusi_jp', prosem: 'prota' };
 // Acuan tambahan (selain BUTUH utama) yang ikut dikirim sebagai referensi AI
 const ACUAN_TAMBAHAN = { prosem: ['minggu_efektif', 'distribusi_jp'] };
 
@@ -567,7 +567,7 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
 
   const isCp = stepKey === 'cp';
   // Langkah yang mendukung unggah dokumen untuk dianalisis AI
-  const bisaUnggah = ['analisis_cp', 'tp', 'atp', 'minggu_efektif'].includes(stepKey);
+  const bisaUnggah = ['atp', 'minggu_efektif'].includes(stepKey);
 
   // Mode terlampir: kembali dari kartu floating saat generate masih berjalan
   if (tugasIdEfektif && tugas?.state === 'jalan') {

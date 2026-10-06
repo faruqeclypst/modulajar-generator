@@ -338,7 +338,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       try { return await getModul(id); } catch { return null; }
     };
     const parts = [];
-    for (const key of ['cp', 'analisis_cp', 'tp', 'atp', 'distribusi_jp', 'prota', 'prosem']) {
+    for (const key of ['cp', 'atp', 'distribusi_jp', 'prota', 'prosem']) {
       const id = paketDocs[key];
       if (!id) continue;
       const d = await ambilAman(id);
@@ -812,7 +812,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
               </div>
               {paketId && (
                 <div className="meta" style={{ marginBottom: 4 }}>
-                  {['cp', 'analisis_cp', 'tp', 'atp', 'distribusi_jp', 'prota', 'prosem'].map((k) => (
+                  {['cp', 'atp', 'distribusi_jp', 'prota', 'prosem'].map((k) => (
                     <span key={k} className="chip" style={paketDocs[k] ? { background: '#1a1a1a', color: '#fff' } : { opacity: 0.45 }}>
                       {DOC_TYPES[k].nama}{paketDocs[k] ? ' ✓' : ''}
                     </span>

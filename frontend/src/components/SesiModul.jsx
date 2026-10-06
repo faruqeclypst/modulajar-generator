@@ -86,7 +86,7 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
       try {
         const paket = p.paketId ? await getPaket(p.paketId).catch(() => null) : null;
         const docsMap = paket?.docs || {};
-        for (const k of ['cp', 'analisis_cp', 'tp', 'atp', 'distribusi_jp', 'prota', 'prosem']) {
+        for (const k of ['cp', 'atp', 'distribusi_jp', 'prota', 'prosem']) {
           if (docsMap[k]) {
             const md = await getModul(docsMap[k]).catch(() => null);
             if (md) d[k] = md.markdown || '';
@@ -175,8 +175,7 @@ export default function SesiModul({ projectId, onBack, onOpenDoc, kuota, onKuota
       // Gabungkan dokumen perencanaan sebagai sumber acuan
       const sumberParts = [];
       if (docs.cp) sumberParts.push('===== CP =====\n' + docs.cp.slice(0, 6000));
-      if (docs.analisis_cp) sumberParts.push('===== ANALISIS CP =====\n' + docs.analisis_cp.slice(0, 4000));
-      if (docs.tp) sumberParts.push('===== TP =====\n' + docs.tp.slice(0, 4000));
+
       if (docs.atp) sumberParts.push('===== ATP =====\n' + docs.atp.slice(0, 6000));
       if (docs.distribusi_jp) sumberParts.push('===== DISTRIBUSI JP =====\n' + docs.distribusi_jp.slice(0, 3000));
       if (docs.prota) sumberParts.push('===== PROTA =====\n' + docs.prota.slice(0, 4000));
