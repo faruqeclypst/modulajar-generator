@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { updateModul, deleteModul, listModuls } from '../lib/db';
-import { buangJudulGanda, rapikanIdentitas, extractTitle } from '../lib/api';
+import { buangJudulGanda, rapikanIdentitas, extractTitle, generateDocStream, getProfile } from '../lib/api';
 import { exportDocx } from '../lib/docxExport';
 import { TEMA_DOKUMEN, bacaTemaDokumen, simpanTemaDokumen } from '../lib/tema';
 import { DOC_TYPES } from '../lib/docs';
@@ -23,12 +23,54 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
   const [turunan, setTurunan] = useState([]);
   const [konfHapus, setKonfHapus] = useState(false);
   const [errSimpan, setErrSimpan] = useState('');
+  const [gabungBusy, setGabungBusy] = useState(null); // docType yang sedang digabung
+  const [gabungError, setGabungError] = useState('');
 
   useEffect(() => {
     if (isModul) {
       listModuls().then((all) => setTurunan(all.filter((m) => m.modulAcuanId === doc.id)));
     }
   }, [doc.id, doc.docType]);
+
+  // Gabung turunan (LKPD/Bank Soal/KKTP) ke HALAMAN YANG SAMA — bukan dokumen terpisah.
+  // Generate via AI (konsumsi 1 kredit seperti biasa), lalu tempel sebagai seksi baru di akhir modul.
+  async function gabungTurunan(tipe) {
+    if (gabungBusy) return;
+    setGabungBusy(tipe); setGabungError('');
+    try {
+      const prof = getProfile();
+      const info = {
+        nama: doc.nama || prof.nama, sekolah: doc.sekolah || prof.sekolah,
+        tahunAjaran: doc.tahunAjaran || prof.tahunAjaran,
+        jenjang: doc.jenjang, fase: doc.fase, kelas: doc.kelas, semester: doc.semester,
+        mapel: doc.mapel, topik: doc.topik || doc.judul, alokasi: doc.alokasi || '',
+        model: doc.model || '', docType: tipe,
+        personaGuru: prof.persona || '', menitPerJP: prof.menitPerJP || 45,
+      };
+      // Modul ini sebagai acuan penuh
+      const sumber = '===== MODUL AJAR (ACUAN) =====\n' + (doc.markdown || '').slice(0, 12000);
+      let md = '';
+      await generateDocStream(tipe, info, doc.topik || doc.judul, sumber, null, (ev) => {
+        if (ev.tipe === 'selesai') md = ev.markdown || '';
+        else if (ev.tipe === 'gagal') throw new Error(ev.error || 'Generate gagal.');
+      });
+      if (!md.trim()) throw new Error('AI mengembalikan konten kosong.');
+      // Tentukan huruf seksi berikutnya (D, E, F...)
+      const huruf = { lkpd: 'D', soal: 'E', kktp: 'F' }[tipe] || 'D';
+      const judulSeksi = { lkpd: 'Lembar Kerja Peserta Didik (LKPD)', soal: 'Bank Soal', kktp: 'Kriteria Ketercapaian Tujuan Pembelajaran (KKTP)' }[tipe] || tipe;
+      // Buang heading pertama AI bila redundan (diawali # ), pakai seksi kita
+      const isiBersih = md.replace(/^#[^\n]*\n/, '').trim();
+      const tambahan = `\n\n## ${huruf}. ${judulSeksi}\n\n${isiBersih}`;
+      const baru = (text || '').trimEnd() + tambahan;
+      await updateModul(doc.id, { markdown: baru });
+      setText(baru);
+      onChanged && onChanged();
+    } catch (e) {
+      setGabungError(e.code === 'kuota_habis' ? 'Kredit habis.' : (e.message || 'Gagal menggabungkan.'));
+    } finally {
+      setGabungBusy(null);
+    }
+  }
 
   // Prosem: paksa landscape saat cetak via style injeksi (lebih andal dari named @page di Chrome)
   useEffect(() => {
@@ -181,7 +223,7 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
           <h3 style={{ margin: '4px 0 6px' }}>Dibuat dari modul ini</h3>
           {turunan.length === 0 ? (
             <p className="hint" style={{ margin: '0 0 10px' }}>
-              Belum ada. Buat LKPD, Bank Soal, atau KKTP yang otomatis merujuk modul ini.
+              Klik tombol di bawah untuk menyusun dan menempelkannya langsung di halaman modul ini. (Masing-masing 1 kredit.)
             </p>
           ) : (
             <div className="meta" style={{ marginBottom: 10 }}>
@@ -190,13 +232,19 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
               ))}
             </div>
           )}
-          {onBuatTurunan && (
-            <div className="btn-row" style={{ margin: 0 }}>
-              <button className="btn btn-sm btn-primary" onClick={() => onBuatTurunan('lkpd', doc.id)}>+ LKPD</button>
-              <button className="btn btn-sm" onClick={() => onBuatTurunan('soal', doc.id)}>+ Bank Soal</button>
-              <button className="btn btn-sm" onClick={() => onBuatTurunan('kktp', doc.id)}>+ KKTP</button>
-            </div>
-          )}
+          <div className="btn-row" style={{ margin: 0 }}>
+            <button className="btn btn-sm btn-primary" onClick={() => gabungTurunan('lkpd')} disabled={!!gabungBusy}>
+              {gabungBusy === 'lkpd' ? 'Menyusun...' : '+ LKPD'}
+            </button>
+            <button className="btn btn-sm" onClick={() => gabungTurunan('soal')} disabled={!!gabungBusy}>
+              {gabungBusy === 'soal' ? 'Menyusun...' : '+ Bank Soal'}
+            </button>
+            <button className="btn btn-sm" onClick={() => gabungTurunan('kktp')} disabled={!!gabungBusy}>
+              {gabungBusy === 'kktp' ? 'Menyusun...' : '+ KKTP'}
+            </button>
+          </div>
+          {gabungBusy && <p className="hint" style={{ marginTop: 8 }}>Menyusun {gabungBusy === 'lkpd' ? 'LKPD' : gabungBusy === 'soal' ? 'Bank Soal' : 'KKTP'}... akan ditempel di halaman ini. (1 kredit)</p>}
+          {gabungError && <p className="hint" style={{ marginTop: 8, color: 'var(--red-dark)', fontWeight: 700 }}>{gabungError}</p>}
         </div>
       )}
       {konfHapus && (
