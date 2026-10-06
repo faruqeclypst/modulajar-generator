@@ -1220,7 +1220,23 @@ async function generateDocInternal(docType = 'modul', info = {}, materi = '', su
   return await ai(system, userMsg, 8000, 0.7, (d) => onTeks('susun', d));
 }
 
-async function rekomendasiAIInternal({ jenjang = '', fase = '', mapel = '', topik = '' }) {
+async function rekomendasiAIInternal({ jenjang = '', fase = '', mapel = '', topik = '', prosem = [] }) {
+  // Bila wizard dibuka "dari paket", rekomendasi HARUS selaras Prosem paket:
+  // AI memilih satu minggu dari daftar, bukan mengarang topik baru.
+  const daftar = Array.isArray(prosem) ? prosem.slice(0, 30).filter((w) => w && w.materi) : [];
+  if (daftar.length > 0) {
+    const system = `Kamu asisten guru Indonesia. Diberikan daftar minggu Prosem (perencanaan semester) dari sebuah paket perangkat ajar Kurikulum Merdeka. Pilih SATU minggu yang paling cocok untuk dibuatkan Modul Ajar satu unit — utamakan minggu awal yang materinya fundamental sebagai pembuka.
+Kembalikan JSON MURNI (tanpa markdown, tanpa teks lain) dengan struktur persis: {"mingguIx": <nomor index mulai 0 dari daftar di bawah>, "judul": "<tulis materi minggu itu secara persis sama, tanpa diubah>", "model": "<salah satu dari: Problem Based Learning (PBL), Project Based Learning (PjBL), Discovery Learning, Inquiry Learning, Pembelajaran Kooperatif, Pembelajaran Langsung, Pembelajaran Berdiferensiasi, Contextual Teaching and Learning (CTL)>", "alokasi": "<tulis alokasi minggu itu secara persis sama>", "tp": ["...", "...", "..."], "catatan": "..."}.
+TP = 3 tujuan pembelajaran singkat format ABCD, selaras dengan TP minggu tersebut bila tersedia. "catatan" berisi alasan singkat kenapa minggu itu dipilih.`;
+    const user = `Jenjang: ${jenjang}\nFase: ${fase}\nMata Pelajaran: ${mapel}\n\nDaftar minggu Prosem:\n${daftar.map((w, i) => `${i}. Minggu ${String(w.minggu || (i + 1)).slice(0, 10)}: ${String(w.materi).slice(0, 300)}${w.alokasi ? ` (${String(w.alokasi).slice(0, 60)})` : ''}${w.tp ? `\n   TP: ${String(w.tp).slice(0, 400)}` : ''}`).join('\n')}`;
+    const raw = await ai(system, user, 1500, 0.6);
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('Format rekomendasi tidak valid.');
+    const d = JSON.parse(m[0]);
+    const ix = Number.isInteger(d.mingguIx) ? d.mingguIx : parseInt(d.mingguIx, 10);
+    d.mingguIx = (Number.isInteger(ix) && ix >= 0 && ix < daftar.length) ? ix : null;
+    return d;
+  }
   // (Gate KENARI_API_KEY dihapus dengan alasan yang sama seperti di generateDocInternal.)
   const system = `Kamu asisten guru Indonesia. Berdasarkan info pembelajaran, berikan rekomendasi penyusunan modul ajar dalam format JSON MURNI (tanpa markdown, tanpa teks lain) dengan struktur persis: {"judul": "...", "model": "salah satu dari: Problem Based Learning (PBL), Project Based Learning (PjBL), Discovery Learning, Inquiry Learning, Pembelajaran Kooperatif, Pembelajaran Langsung, Pembelajaran Berdiferensiasi, Contextual Teaching and Learning (CTL)", "alokasi": "...", "tp": ["...", "...", "..."], "catatan": "..."}. TP = 3 tujuan pembelajaran singkat format ABCD.`;
   const raw = await ai(system, `Jenjang: ${jenjang}\nFase: ${fase}\nMata Pelajaran: ${mapel}\nTopik: ${topik}`, 1500, 0.6);

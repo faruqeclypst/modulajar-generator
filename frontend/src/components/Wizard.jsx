@@ -228,7 +228,13 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     setRekomLoading(true);
     setError('');
     try {
-      const r = await rekomendasiAI({ jenjang: form.jenjang, fase: form.fase, mapel: form.mapel, topik: form.topik });
+      // Dari paket: kirim daftar minggu Prosem agar rekomendasi selaras perencanaan paket.
+      const r = await rekomendasiAI({
+        jenjang: form.jenjang, fase: form.fase, mapel: form.mapel, topik: form.topik,
+        prosem: prosemWeeks.length > 0
+          ? prosemWeeks.slice(0, 30).map((w) => ({ minggu: w.minggu, materi: w.materi, alokasi: w.alokasi, tp: (w.tp || '').slice(0, 400) }))
+          : undefined,
+      });
       setRekom(r);
     } catch (e) {
       setError(e.message);
@@ -239,12 +245,19 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
 
   function pakaiRekomendasi() {
     if (!rekom) return;
-    setForm((f) => ({
-      ...f,
-      topik: f.topik || rekom.judul,
-      model: rekom.model || f.model,
-      alokasi: rekom.alokasi || f.alokasi,
-    }));
+    const ix = Number.isInteger(rekom.mingguIx) ? rekom.mingguIx : -1;
+    if (ix >= 0 && ix < prosemWeeks.length) {
+      // Rekomendasi berbasis Prosem: pilih minggunya (topik + alokasi terisi otomatis)
+      pilihMinggu(String(ix));
+      setForm((f) => ({ ...f, model: rekom.model || f.model }));
+    } else {
+      setForm((f) => ({
+        ...f,
+        topik: f.topik || rekom.judul,
+        model: rekom.model || f.model,
+        alokasi: rekom.alokasi || f.alokasi,
+      }));
+    }
     setRekom(null);
   }
 
@@ -438,7 +451,11 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           <p className="lead">Lengkapi informasi, atau minta AI memberi rekomendasi awal.</p>
 
           <div className="alert alert-info" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ flex: 1, minWidth: 200 }}>Bingung mulai dari mana? AI bisa merekomendasikan judul, model pembelajaran, dan alokasi waktu.</span>
+            <span style={{ flex: 1, minWidth: 200 }}>
+              {prosemWeeks.length > 0
+                ? 'Bingung mulai dari mana? AI akan memilihkan minggu yang paling cocok dari Prosem paket ini.'
+                : 'Bingung mulai dari mana? AI bisa merekomendasikan judul, model pembelajaran, dan alokasi waktu.'}
+            </span>
             <button className="btn btn-sm btn-ink" onClick={mintaRekomendasi} disabled={rekomLoading || !form.mapel}>
               {rekomLoading ? 'Meminta…' : 'Minta Rekomendasi AI'}
             </button>
@@ -447,6 +464,9 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           {rekom && (
             <div className="rekom-box">
               <h4>Rekomendasi AI</h4>
+              {Number.isInteger(rekom.mingguIx) && rekom.mingguIx >= 0 && rekom.mingguIx < prosemWeeks.length && (
+                <p><strong>Minggu terpilih:</strong> Minggu {prosemWeeks[rekom.mingguIx].minggu || (rekom.mingguIx + 1)} — {prosemWeeks[rekom.mingguIx].materi}</p>
+              )}
               <p><strong>Judul:</strong> {rekom.judul}</p>
               <p><strong>Model:</strong> {rekom.model}</p>
               <p><strong>Alokasi:</strong> {rekom.alokasi}</p>

@@ -71,11 +71,11 @@ export async function regenBlock(docType, blockType, blockText, docTitle, topic)
   return d.text;
 }
 
-export async function rekomendasiAI({ jenjang, fase, mapel, topik }) {
+export async function rekomendasiAI({ jenjang, fase, mapel, topik, prosem }) {
   const r = await fetch('/api/rekomendasi', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-    body: JSON.stringify({ jenjang, fase, mapel, topik }),
+    body: JSON.stringify({ jenjang, fase, mapel, topik, prosem }),
   });
   const d = await r.json().catch(() => ({}));
   if (!d.ok) throw new Error(d.error || 'Gagal meminta rekomendasi.');
