@@ -545,10 +545,18 @@ function promptTahap1(info, materi, sumber, rekomendasi) {
     ? `\nKONSTRAIN DARI TAHAP REKOMENDASI (wajib dipakai, jangan diubah):\n- Judul: ${rekomendasi.judul || '-'}\n- Model pembelajaran: ${rekomendasi.model || '-'}\n- Alokasi: ${rekomendasi.alokasi || '-'}\n- TP awal: ${(rekomendasi.tp || []).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n`
     : '';
   // Multi-pertemuan: daftar pertemuan diteruskan agar TP mencakup seluruh bab.
+  // Satu modul = satu bab = N pertemuan (best practice: diambil dari Prosem;
+  // mode manual: materi sama untuk semua pertemuan, AI membagi bab secara runtut).
   const daftarP = Array.isArray(info.pertemuanList) && info.pertemuanList.length > 1 ? info.pertemuanList : null;
-  const txtPertemuan = daftarP
-    ? `\n- Struktur modul: 1 bab = ${daftarP.length} pertemuan:\n${daftarP.map((p, i) => `  ${i + 1}. ${p.materi}${p.alokasi ? ` (${p.alokasi})` : ''}`).join('\n')}\n- "tp": WAJIB mencakup tujuan untuk SEMUA pertemuan di atas (minimal 1 TP per pertemuan).`
-    : '';
+  const txtPertemuan = (() => {
+    if (!daftarP) return '';
+    const tpWajib = '- "tp": WAJIB mencakup tujuan untuk SEMUA pertemuan di atas (minimal 1 TP per pertemuan).';
+    const semuaSama = daftarP.every((p) => p.materi === daftarP[0].materi);
+    if (semuaSama) {
+      return `\n- Struktur modul: 1 bab = ${daftarP.length} pertemuan.\n- Materi bab: ${daftarP[0].materi}${daftarP[0].alokasi ? ` (${daftarP[0].alokasi} per pertemuan)` : ''}.\n- Bagi materi bab tersebut secara runtut dan logis menjadi ${daftarP.length} pertemuan (dari pengenalan konsep sampai penerapan/evaluasi).\n${tpWajib}`;
+    }
+    return `\n- Struktur modul: 1 bab = ${daftarP.length} pertemuan:\n${daftarP.map((p, i) => `  ${i + 1}. ${p.materi}${p.alokasi ? ` (${p.alokasi})` : ''}`).join('\n')}\n${tpWajib}`;
+  })();
   const system = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
 Tugasmu HANYA menyusun fondasi modul (bukan modul lengkap). ${ANTI_FIKSI}
 Kembalikan JSON MURNI tanpa markdown dan tanpa teks lain, dengan struktur persis:
@@ -611,7 +619,7 @@ Modul ini adalah SATU BAB yang terdiri dari BEBERAPA PERTEMUAN. BUDGET WAKTU PER
 
 Untuk SETIAP pertemuan, tulis blok dengan format persis:
 
-### Pertemuan N: [materi pertemuan] — [alokasi, contoh "2 x 45 menit"]
+#### Pertemuan N: [materi pertemuan] — [alokasi, contoh "2 x 45 menit"]
 #### a. Pendahuluan: [P] menit
 1. [langkah] (X menit)
 2. [langkah] (X menit)

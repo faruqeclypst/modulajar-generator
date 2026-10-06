@@ -18,6 +18,7 @@ const emptyForm = {
   docType: 'modul', jenjang: 'SMA/MA', fase: '', kelas: '', semester: 'Ganjil',
   mapel: '', topik: '', alokasi: '', model: MODEL[0], materi: '',
   jmlPG: '10', jmlUraian: '5',
+  jmlPertemuan: '1', // best practice: 1 modul = 1 bab = N pertemuan (mode manual tanpa Prosem)
   nama: '', nip: '', sekolah: '', tahunAjaran: '',
 };
 
@@ -156,7 +157,11 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
   }, [preselectModulId]);
 
   useEffect(() => {
-    if (!paketId) { setPaketDocs({}); setProsemWeeks([]); setWeekIx(''); setWeekIxs([]); return; }
+    if (!paketId) {
+      setPaketDocs({}); setProsemWeeks([]); setWeekIx(''); setWeekIxs([]);
+      setForm((f) => ({ ...f, pertemuanList: null })); // jangan biarkan daftar pertemuan basi
+      return;
+    }
     (async () => {
       const p = await getPaket(paketId);
       const docs = (p && p.docs) || {};
@@ -216,6 +221,19 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
 
   function toggleMinggu(ix) {
     terapkanPilihanMinggu(weekIxs.includes(ix) ? weekIxs.filter((x) => x !== ix) : [...weekIxs, ix]);
+  }
+
+  // Best practice: 1 modul = 1 bab = N pertemuan.
+  // - Dari Prosem: pertemuanList dibangun oleh terapkanPilihanMinggu (checkbox minggu).
+  // - Manual (tanpa Prosem): dibangun dari jumlah pertemuan yang diisi guru;
+  //   AI membagi materi bab secara runtut per pertemuan.
+  function daftarPertemuanManual() {
+    const n = Math.min(12, Math.max(1, parseInt(form.jmlPertemuan, 10) || 1));
+    if (form.docType !== 'modul' || form.pertemuanList || prosemWeeks.length > 0 || n < 2 || !form.topik.trim()) return null;
+    return Array.from({ length: n }, () => ({
+      materi: form.topik.trim(),
+      alokasi: (form.alokasi || '').trim() || '2 x 45 menit',
+    }));
   }
 
   useEffect(() => {
@@ -362,8 +380,12 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     try {
       const sumber = butuhAcuan ? await buildSumber() : '';
       let md = '';
-      // info: profil (nip, kepala sekolah, ...) sebagai dasar, form menimpa
-      await generateDocStream(form.docType, { ...getProfile(), ...form }, form.materi, sumber, null, (ev) => {
+      // info: profil (nip, kepala sekolah, ...) sebagai dasar, form menimpa.
+      // Best practice 1 modul = 1 bab = N pertemuan: daftar manual disuntik
+      // bila guru mengisi jumlah pertemuan tanpa Prosem.
+      const manual = daftarPertemuanManual();
+      const infoKirim = { ...getProfile(), ...form, ...(manual ? { pertemuanList: manual } : {}) };
+      await generateDocStream(form.docType, infoKirim, form.materi, sumber, null, (ev) => {
         if (ev.tipe === 'tahap') tandaiTahap(ev.key, ev.label);
         else if (ev.tipe === 'teks') tambahTulisan(ev.key, ev.delta || '');
         else if (ev.tipe === 'teks-reset') resetTulisan(ev.key);
@@ -549,7 +571,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
               prefix="w2b"
             />
             {has('alokasi') && (
-              <div className="field"><label htmlFor="w2b-alokasi">Alokasi Waktu</label>
+              <div className="field"><label htmlFor="w2b-alokasi">Alokasi Waktu{form.docType === 'modul' && prosemWeeks.length === 0 && (parseInt(form.jmlPertemuan, 10) || 1) > 1 ? ' per pertemuan' : ''}</label>
                 <input id="w2b-alokasi" placeholder="cth: 2 x 45 menit" value={form.alokasi} onChange={(e) => set('alokasi', e.target.value)} /></div>
             )}
           </div>
@@ -602,6 +624,25 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
                     </div>
                   )}
                 </>
+              )}
+            </div>
+          )}
+          {form.docType === 'modul' && prosemWeeks.length === 0 && has('topik') && (
+            <div className="card" style={{ margin: '0 0 16px', background: '#fbf9f4' }}>
+              <h3 style={{ margin: '0 0 6px' }}>Struktur Bab</h3>
+              <p className="hint" style={{ margin: '0 0 12px' }}>
+                Satu modul = <strong>satu bab</strong>. Tanpa Prosem, tentukan sendiri bab ini dibagi menjadi berapa pertemuan.
+              </p>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="w2b-jmlpertemuan">Jumlah pertemuan dalam bab ini</label>
+                <input id="w2b-jmlpertemuan" type="number" min="1" max="12" style={{ maxWidth: 120 }}
+                  value={form.jmlPertemuan || '1'} onChange={(e) => set('jmlPertemuan', e.target.value)} />
+              </div>
+              {daftarPertemuanManual() && (
+                <p className="hint" style={{ marginTop: 8, marginBottom: 0 }}>
+                  {daftarPertemuanManual().length} pertemuan — AI akan membagi materi bab secara runtut,
+                  masing-masing {daftarPertemuanManual()[0].alokasi}.
+                </p>
               )}
             </div>
           )}
@@ -666,6 +707,11 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
             <span className="chip fill">{form.jenjang}</span>
             {form.fase && <span className="chip">{form.fase}</span>}
             {form.mapel && <span className="chip">{form.mapel}</span>}
+            {form.docType === 'modul' && ((form.pertemuanList && form.pertemuanList.length > 1)
+              ? <span className="chip">{form.pertemuanList.length} pertemuan (1 bab)</span>
+              : daftarPertemuanManual()
+                ? <span className="chip">{daftarPertemuanManual().length} pertemuan (1 bab)</span>
+                : null)}
           </div>
           {error && <div className="alert alert-error">{error}</div>}
           {butuhAcuan && (
