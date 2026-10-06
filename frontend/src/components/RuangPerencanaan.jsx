@@ -12,7 +12,7 @@ import { SkelKartu } from './Kerangka';
 // Urutan prasyarat: tiap langkah butuh langkah sebelumnya
 const BUTUH = { cp: null, atp: 'cp', minggu_efektif: 'atp', prota: 'minggu_efektif', prosem: 'prota' };
 
-export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBuatModul, preselectProjectId, waLink, onKuotaChanged, bukaStep, tugasId }) {
+export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBuatModul, preselectProjectId, waLink, onKuotaChanged, bukaStep, tugasId, onStepChange }) {
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState(preselectProjectId || null);
   const [project, setProject] = useState(null);
@@ -22,10 +22,14 @@ export default function RuangPerencanaan({ onBack, onOpenDoc, onCatatAsal, onBua
   const [stepKey, setStepKey] = useState(null);
   const [errBaru, setErrBaru] = useState('');
   const [memuatAwal, setMemuatAwal] = useState(true); // loading daftar proyek saat pertama dibuka
-  // Buka langkah tertentu otomatis (dari kartu floating tugas latar).
+  // Buka langkah tertentu otomatis (dari kartu floating tugas latar / restore refresh).
   useEffect(() => {
     if (bukaStep) setStepKey(bukaStep);
   }, [bukaStep]);
+  // Laporkan perubahan langkah ke parent (untuk persist posisi saat refresh).
+  useEffect(() => {
+    if (onStepChange) onStepChange(stepKey);
+  }, [stepKey]);
 
   // Pastikan setiap proyek punya baris paket tertaut (dipakai StepWorkspace
   // dan pemilih "Paket Perencanaan" di Wizard; tidak terlihat di UI).

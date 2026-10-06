@@ -256,6 +256,7 @@ export default function App() {
   const [wizardKey, setWizardKey] = useState(0);
   const [tugasKembaliId, setTugasKembaliId] = useState(null); // id tugas untuk mode terlampir Wizard
   const [ruangTugas, setRuangTugas] = useState(null); // {tugasId, stepKey} untuk mode terlampir Ruang
+  const [ruangStep, setRuangStep] = useState(null); // langkah Ruang yang sedang dibuka (persist saat refresh)
   // Bersihkan id terlampir saat keluar dari wizard agar buka baru tidak menempel ke tugas lama.
   useEffect(() => {
     if (view !== 'wizard') setTugasKembaliId(null);
@@ -385,7 +386,11 @@ export default function App() {
     }
     else if (d.view === 'ruang') {
       // Kembalikan proyek ruang yang sedang dibuka; tanpa itu jatuh ke 'app'
-      if (d.ruangProjectId) { setRuangProyek(d.ruangProjectId); setView('ruang'); }
+      if (d.ruangProjectId) {
+        setRuangProyek(d.ruangProjectId);
+        if (d.ruangStepKey) setRuangStep(d.ruangStepKey);
+        setView('ruang');
+      }
       else { setView('app'); }
       try { window.__dlog && window.__dlog('restore: ruang -> ' + (d.ruangProjectId ? 'ruang' : 'app')); } catch {}
       beres();
@@ -420,9 +425,10 @@ export default function App() {
         docId: view === 'detail' ? active?.id || null : null,
         projectId: view === 'proyek' ? projectAktif?.id || null : null,
         ruangProjectId: view === 'ruang' ? ruangProyek || null : null,
+        ruangStepKey: view === 'ruang' ? ruangStep || null : null,
       }));
     } catch { /* abaikan */ }
-  }, [auth, view, active, projectAktif, ruangProyek, restoring]);
+  }, [auth, view, active, projectAktif, ruangProyek, ruangStep, restoring]);
   useEffect(() => { window.scrollTo(0, 0); }, [view]);
 
   function startNew(paketId, projectId) {
@@ -678,8 +684,9 @@ export default function App() {
           onBuatModul={(pid, projId) => startNew(pid, projId)}
           preselectProjectId={ruangProyek}
           waLink={WA_LINK} onKuotaChanged={muatKuota}
-          bukaStep={ruangTugas?.stepKey || null}
+          bukaStep={ruangTugas?.stepKey || ruangStep || null}
           tugasId={ruangTugas?.tugasId || null}
+          onStepChange={setRuangStep}
         />
       )}
 
