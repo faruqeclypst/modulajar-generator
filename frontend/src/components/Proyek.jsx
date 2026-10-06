@@ -494,7 +494,7 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
         if (g.key === 'modul') {
           const normal = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
           const cariIndeks = (m) => {
-            if (m.meta?.urutan) return m.meta.urutan;
+            if (m.urutan) return m.urutan;
             if (urutanProsem.length === 0) return 9999;
             const kunci = normal(m.topik || m.judul);
             if (!kunci) return 9999;
@@ -518,7 +518,7 @@ export function ProyekDetail({ project, docs, onBack, onOpenDoc, onCatatAsal, on
                 <div className="card modul-card" key={m.id}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', alignSelf: 'flex-start' }}>
                     {g.key === 'modul' && (
-                      <span className="chip" style={{ background: 'var(--ink)', color: '#fff', fontWeight: 800 }}>Modul {m.meta?.urutan || (ix + 1)}</span>
+                      <span className="chip" style={{ background: 'var(--ink)', color: '#fff', fontWeight: 800 }}>Modul {m.urutan || (ix + 1)}</span>
                     )}
                     <span className="chip red">{(DOC_TYPES[m.docType] || {}).nama || 'Dokumen'}</span>
                   </div>
