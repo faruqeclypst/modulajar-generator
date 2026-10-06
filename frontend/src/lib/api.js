@@ -233,16 +233,74 @@ export function splitInfoUmum(markdown) {
   return { infoRows: rows, rest: rest.trim() };
 }
 
-// Profil guru (localStorage, per-akun via kunciAkun). saveProfile MENGGABUNGKAN,
-// bukan mengganti: tiap pemanggil hanya menyimpan field yang ia kelola
-// (nama, nip, kepalaSekolah, ...), field lain tetap utuh.
+// Profil guru: sumber utama di database (tabel `profil_guru`, per user_id)
+// agar ikut akun di perangkat mana pun; localStorage hanya cache.
+// saveProfile MENGGABUNGKAN, bukan mengganti: tiap pemanggil hanya
+// menyimpan field yang ia kelola, field lain tetap utuh.
 import { kunciAkun } from './akunLokal';
+import { getSupabase, getSession } from './supabase';
 const PKEY = 'modulajar_profile';
-export function getProfile() {
+let profilCache = null;
+let profilUidCache = null;
+
+function bacaProfilLokal() {
   try { return JSON.parse(localStorage.getItem(kunciAkun(PKEY))) || {}; } catch { return {}; }
 }
+function tulisProfilLokal(p) {
+  try { localStorage.setItem(kunciAkun(PKEY), JSON.stringify(p)); } catch { /* abaikan */ }
+}
+async function uidProfil() {
+  try {
+    const s = await getSession();
+    return s?.user?.id || null;
+  } catch { return null; }
+}
+// Sinkronisasi profil: DB adalah sumber utama. Dipanggil tiap login (ditunggu)
+// agar perangkat baru langsung dapat profil terbaru; juga dipicu latar oleh
+// getProfile() bila belum pernah sinkron untuk akun ini.
+export async function sinkronProfil() {
+  const uidNow = await uidProfil();
+  if (!uidNow) return {};
+  if (profilUidCache === uidNow && profilCache) return { ...profilCache };
+  profilUidCache = uidNow;
+  const lokal = bacaProfilLokal();
+  try {
+    const c = await getSupabase();
+    const { data, error } = await c.from('profil_guru').select('data').eq('user_id', uidNow).single();
+    if (!error && data && data.data && Object.keys(data.data).length) {
+      profilCache = { ...lokal, ...data.data };
+    } else {
+      profilCache = lokal;
+      // DB kosong tapi lokal ada -> unggah (migrasi sekali jalan per akun).
+      if (!error && Object.keys(lokal).length) {
+        await simpanProfilKeDB(uidNow, lokal).catch(() => {});
+      }
+    }
+  } catch {
+    profilCache = lokal; // tabel belum ada / offline: pakai lokal
+  }
+  tulisProfilLokal(profilCache);
+  return { ...profilCache };
+}
+async function simpanProfilKeDB(uidNow, profil) {
+  const c = await getSupabase();
+  const { error } = await c.from('profil_guru').upsert(
+    { user_id: uidNow, data: profil, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id' }
+  );
+  if (error) throw error;
+}
+export function getProfile() {
+  if (profilCache) return { ...profilCache };
+  profilCache = bacaProfilLokal();
+  sinkronProfil().catch(() => {});
+  return { ...profilCache };
+}
 export function saveProfile(p) {
-  try { localStorage.setItem(kunciAkun(PKEY), JSON.stringify({ ...getProfile(), ...(p || {}) })); } catch { /* abaikan */ }
+  profilCache = { ...bacaProfilLokal(), ...(profilCache || {}), ...(p || {}) };
+  tulisProfilLokal(profilCache);
+  // Tulis ke DB di latar; kegagalan tidak mengganggu UI.
+  uidProfil().then((u) => { if (u) return simpanProfilKeDB(u, profilCache); }).catch(() => {});
 }
 
 // ---- Kunci AI sendiri (BYOK) & referal ----

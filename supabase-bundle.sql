@@ -188,3 +188,36 @@ create table if not exists klaim_referal (
 create index if not exists klaim_referal_pemilik_idx on klaim_referal(pemilik_id, created_at);
 alter table klaim_referal enable row level security;
 -- Sengaja tanpa policy untuk user: hanya service_role (backend) yang baca/tulis.
+
+-- 12) Proyek (1 proyek = 1 mapel/kelas): ikut akun, lintas perangkat.
+--     id berupa teks agar kompatibel dengan id proyek lama di localStorage.
+create table if not exists proyek (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  nama text not null default '',
+  mapel text not null default '',
+  jenjang text not null default '',
+  fase text not null default '',
+  kelas text not null default '',
+  semester text not null default '',
+  tahun_ajaran text not null default '',
+  paket_id text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists proyek_user_idx on proyek(user_id, updated_at desc);
+alter table proyek enable row level security;
+drop policy if exists "own_proyek" on proyek;
+create policy "own_proyek" on proyek for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 13) Profil guru: ikut akun, lintas perangkat (sebelumnya localStorage).
+create table if not exists profil_guru (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  data jsonb not null default '{}',
+  updated_at timestamptz not null default now()
+);
+alter table profil_guru enable row level security;
+drop policy if exists "own_profil_guru" on profil_guru;
+create policy "own_profil_guru" on profil_guru for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);

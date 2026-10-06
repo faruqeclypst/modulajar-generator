@@ -497,7 +497,7 @@ export default function Pengaturan({ user, kuota, waLink, onRefresh, onSignOut }
 
       <section className="card" aria-labelledby="set-data">
         <h2 className="sec" id="set-data" style={{ marginTop: 0 }}>Data</h2>
-        <p style={{ marginTop: 0 }}>Dokumenmu tersimpan di akunmu melalui Supabase. Buka dari perangkat mana pun, datanya tetap sama.</p>
+        <p style={{ marginTop: 0 }}>Dokumen, proyek, dan profilmu tersimpan di akunmu melalui Supabase. Login di perangkat mana pun — komputermu, komputer orang lain, HP — datanya tetap sama.</p>
         <div className="btn-row" style={{ marginTop: 12 }}>
           <button type="button" className="btn btn-sm" onClick={muatUlang} disabled={memuat}>
             {memuat ? 'Memuat…' : 'Muat ulang data'}

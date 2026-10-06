@@ -14,9 +14,9 @@ import { setUidLokal, kunciAkun } from './lib/akunLokal';
 import Pengaturan from './components/Pengaturan';
 import { ProyekList, ProyekDetail } from './components/Proyek';
 import { DOC_TYPES } from './lib/docs';
-import { listModuls, getModul, listProjects, getProject, migrasiPaketKeProyek } from './lib/db';
+import { listModuls, getModul, listProjects, getProject, migrasiPaketKeProyek, imporProyekLokalKeDB } from './lib/db';
 import { getSupabase, getSession, getTurnstileSiteKey } from './lib/supabase';
-import { klaimReferal } from './lib/api';
+import { klaimReferal, sinkronProfil } from './lib/api';
 import { fetchKuota } from './lib/kuota';
 
 const WA_LINK = 'https://wa.me/6285359907696?text=Halo%2C%20saya%20butuh%20bantuan%20ModulAjar';
@@ -249,7 +249,11 @@ export default function App() {
   useEffect(() => {
     if (auth === 'app') {
       (async () => {
-        await migrasiPaketKeProyek(); // sekali jalan: paket lama menjadi proyek
+        // Data ikut akun: proyek & profil diambil dari database agar sama
+        // di perangkat mana pun; sisa localStorage diimpor sekali jalan.
+        await sinkronProfil().catch(() => {});
+        await imporProyekLokalKeDB().catch(() => {});
+        await migrasiPaketKeProyek(); // idempoten: paket lama menjadi proyek
         await refresh();
       })();
     }

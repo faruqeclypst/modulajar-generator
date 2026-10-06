@@ -147,14 +147,41 @@ export function paketProgress(paket) {
 }
 
 // ---- Proyek: 1 proyek = 1 mapel (+ kelas/semester/tahun ajaran) ----
-// Disimpan di localStorage (tanpa tabel baru di Supabase) agar tidak butuh
-// migrasi SQL. Dokumen menunjuk proyek lewat `projectId` di meta (ikut
-// tersinkron antarperangkat); bila proyeknya tidak ada di perangkat ini,
-// dokumen tampil di "Tanpa proyek".
-// Proyek disimpan PER-AKUN (kunciAkun) agar akun lain di browser yang sama
-// tidak mewarisi.
+// Disimpan di Supabase (tabel `proyek`, per user_id) agar ikut akun di
+// perangkat mana pun — login di komputer lain pun proyek tetap ada.
+// Dokumen menunjuk proyek lewat `projectId` di meta.
+// Bila tabel belum ada (SQL terbaru belum dijalankan), fallback ke
+// localStorage per-akun agar fitur tidak rusak; data lokal otomatis
+// diimpor ke DB lewat imporProyekLokalKeDB() begitu tabel tersedia.
 const PROYEK_KEY = 'ma-projects';
-const MIGRASI_KEY = 'ma-migrasi-proyek-v1';
+
+function proyekKeApp(r) {
+  if (!r) return null;
+  return {
+    id: r.id,
+    nama: r.nama || '', mapel: r.mapel || '', jenjang: r.jenjang || '',
+    fase: r.fase || '', kelas: r.kelas || '', semester: r.semester || '',
+    tahunAjaran: r.tahun_ajaran || '', paketId: r.paket_id || null,
+    createdAt: r.created_at,
+  };
+}
+
+// null = belum dicek; true = tabel ada; false = belum ada (fallback lokal).
+let proyekDB = null;
+async function cekProyekDB() {
+  if (proyekDB) return true;
+  try {
+    const c = await getSupabase();
+    const { error } = await c.from('proyek').select('id').limit(1);
+    if (error && (error.code === '42P01' || /does not exist/i.test(error.message || ''))) return false;
+    if (error) throw error;
+    proyekDB = true;
+    return true;
+  } catch (e) {
+    if (e && (e.code === '42P01' || /does not exist/i.test(e.message || ''))) return false;
+    throw e;
+  }
+}
 
 function bacaProyek() {
   try { return JSON.parse(localStorage.getItem(kunciAkun(PROYEK_KEY))) || []; }
@@ -163,17 +190,31 @@ function bacaProyek() {
 function tulisProyek(list) {
   try { localStorage.setItem(kunciAkun(PROYEK_KEY), JSON.stringify(list)); } catch { /* abaikan */ }
 }
+function urutProyek(list) {
+  return list.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+}
 
 export async function listProjects() {
-  return bacaProyek().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  if (await cekProyekDB()) {
+    const c = await getSupabase();
+    const { data, error } = await c.from('proyek').select('*').order('created_at', { ascending: false });
+    if (error) throw new Error('Gagal memuat proyek: ' + error.message);
+    return (data || []).map(proyekKeApp);
+  }
+  return urutProyek(bacaProyek());
 }
 
 export async function getProject(id) {
+  if (await cekProyekDB()) {
+    const c = await getSupabase();
+    const { data, error } = await c.from('proyek').select('*').eq('id', String(id)).single();
+    if (error) return null;
+    return proyekKeApp(data);
+  }
   return bacaProyek().find((p) => String(p.id) === String(id)) || null;
 }
 
 export async function saveProject(data) {
-  const list = bacaProyek();
   const p = {
     id: 'p' + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36),
     nama: '', mapel: '', jenjang: '', fase: '', kelas: '', semester: '', tahunAjaran: '',
@@ -182,12 +223,38 @@ export async function saveProject(data) {
     createdAt: new Date().toISOString(),
   };
   if (!p.nama) p.nama = [p.mapel, p.kelas].filter(Boolean).join(' ') || 'Proyek tanpa nama';
+  if (await cekProyekDB()) {
+    const c = await getSupabase();
+    const user_id = await uid();
+    const { error } = await c.from('proyek').insert({
+      id: String(p.id), user_id,
+      nama: p.nama, mapel: p.mapel, jenjang: p.jenjang, fase: p.fase,
+      kelas: p.kelas, semester: p.semester, tahun_ajaran: p.tahunAjaran,
+      paket_id: p.paketId != null ? String(p.paketId) : null,
+    });
+    if (error) throw new Error('Gagal menyimpan proyek: ' + error.message);
+    return p.id;
+  }
+  const list = bacaProyek();
   list.push(p);
   tulisProyek(list);
   return p.id;
 }
 
 export async function updateProject(id, patch) {
+  if (await cekProyekDB()) {
+    const c = await getSupabase();
+    const upd = {};
+    const peta = { nama: 'nama', mapel: 'mapel', jenjang: 'jenjang', fase: 'fase', kelas: 'kelas', semester: 'semester', tahunAjaran: 'tahun_ajaran', paketId: 'paket_id' };
+    for (const [k, kolom] of Object.entries(peta)) {
+      if (patch && patch[k] !== undefined) upd[kolom] = patch[k] == null ? null : String(patch[k]);
+    }
+    upd.updated_at = new Date().toISOString();
+    const { error, count } = await c.from('proyek').update(upd, { count: 'exact' }).eq('id', String(id));
+    if (error) throw new Error('Gagal memperbarui proyek: ' + error.message);
+    if (!count) throw new Error('Proyek tidak ditemukan.');
+    return;
+  }
   const list = bacaProyek();
   const ix = list.findIndex((p) => String(p.id) === String(id));
   if (ix === -1) throw new Error('Proyek tidak ditemukan.');
@@ -204,7 +271,60 @@ export async function deleteProject(id) {
       try { await updateModul(d.id, { projectId: null }); } catch { /* abaikan */ }
     }
   }
+  if (await cekProyekDB()) {
+    const c = await getSupabase();
+    const { error } = await c.from('proyek').delete().eq('id', String(id));
+    if (error) throw new Error('Gagal menghapus proyek: ' + error.message);
+    return;
+  }
   tulisProyek(bacaProyek().filter((p) => String(p.id) !== String(id)));
+}
+
+// Impor sekali jalan: proyek yang masih tersimpan di localStorage
+// (kunci lama / kunci akun lain di perangkat ini) dipindahkan ke database.
+// Dipanggil tiap login; aman diulang (dedupe berdasarkan id).
+export async function imporProyekLokalKeDB() {
+  if (!await cekProyekDB()) return 0;
+  const semua = new Map();
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !/^ma-projects(__.+)?$/.test(k)) continue;
+      try {
+        const list = JSON.parse(localStorage.getItem(k)) || [];
+        for (const p of list) {
+          if (p && p.id && !semua.has(String(p.id))) semua.set(String(p.id), p);
+        }
+      } catch { /* abaikan kunci rusak */ }
+    }
+  } catch { /* abaikan */ }
+  if (!semua.size) return 0;
+  const c = await getSupabase();
+  const user_id = await uid();
+  const { data: ada } = await c.from('proyek').select('id');
+  const adaSet = new Set((ada || []).map((r) => String(r.id)));
+  const baru = [...semua.values()].filter((p) => !adaSet.has(String(p.id)));
+  if (baru.length) {
+    const rows = baru.map((p) => ({
+      id: String(p.id), user_id,
+      nama: p.nama || '', mapel: p.mapel || '', jenjang: p.jenjang || '',
+      fase: p.fase || '', kelas: p.kelas || '', semester: p.semester || '',
+      tahun_ajaran: p.tahunAjaran || '',
+      paket_id: p.paketId != null ? String(p.paketId) : null,
+    }));
+    const { error } = await c.from('proyek').insert(rows);
+    if (error) throw new Error('Gagal mengimpor proyek: ' + error.message);
+  }
+  // Bersihkan kunci lokal setelah diimpor agar tidak ganda.
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && /^ma-projects(__.+)?$/.test(k)) {
+        try { localStorage.removeItem(k); } catch { /* abaikan */ }
+      }
+    }
+  } catch { /* abaikan */ }
+  return baru.length;
 }
 
 // Proyek "yatim": tersimpan di kunci akun lain atau kunci lama (sebelum
@@ -234,6 +354,8 @@ export async function pindaiProyekYatim() {
 }
 
 export async function adopsiProyekYatim() {
+  // Bila DB tersedia, impor ke database (ikut akun, lintas perangkat).
+  if (await cekProyekDB()) return imporProyekLokalKeDB();
   const yatim = await pindaiProyekYatim();
   if (!yatim.length) return 0;
   const list = bacaProyek();
@@ -248,18 +370,19 @@ export async function adopsiProyekYatim() {
   return yatim.length;
 }
 
-// Migrasi sekali jalan: tiap paket perencanaan lama menjadi satu proyek,
-// dokumen perencanaan paket + dokumen ber-paketId dipetakan ke proyeknya.
-// Baris paket lama TIDAK dihapus agar pemilih acuan lama tetap berfungsi.
+// Migrasi: tiap paket perencanaan lama menjadi satu proyek.
+// Idempoten (aman diulang): paket yang sudah punya proyek dilewati.
 export async function migrasiPaketKeProyek() {
-  try { if (localStorage.getItem(MIGRASI_KEY) === '1') return { dibuat: 0 }; }
-  catch { return { dibuat: 0 }; }
   let dibuat = 0;
   try {
     const pakets = await listPakets();
+    if (!pakets.length) return { dibuat: 0 };
+    const proyeks = await listProjects().catch(() => []);
+    const sudah = new Set(proyeks.map((p) => String(p.paketId || '')));
     const docs = await listModuls().catch(() => []);
     const peta = {};
     for (const p of pakets) {
+      if (sudah.has(String(p.id))) continue;
       const id = await saveProject({
         nama: [p.mapel, p.kelas].filter(Boolean).join(' ') || p.mapel || 'Proyek',
         mapel: p.mapel || '', jenjang: p.jenjang || '', fase: p.fase || '',
@@ -278,6 +401,5 @@ export async function migrasiPaketKeProyek() {
       if (baru) { try { await updateModul(d.id, { projectId: baru }); } catch { /* abaikan */ } }
     }
   } catch { /* abaikan: migrasi tidak boleh menggagalkan load */ }
-  try { localStorage.setItem(MIGRASI_KEY, '1'); } catch { /* abaikan */ }
   return { dibuat };
 }
