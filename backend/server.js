@@ -364,7 +364,8 @@ const ANTI_FIKSI = `DILARANG mengarang: jangan membuat indikator, fakta, rumus, 
 const ISTILAH_BARU = `Gunakan istilah "8 Dimensi Profil Lulusan" (Permendikdasmen No. 10/2025); JANGAN gunakan istilah lama "Profil Pelajar Pancasila"/"P5".`;
 // Kualitas isi: larang placeholder kosong dan jaga konsistensi istilah di semua dokumen.
 const ANTI_SLOP = `Tulis isi yang lengkap dan siap pakai. DILARANG menulis "...", "[...]", "[diisi]", atau placeholder kosong sebagai isi bagian mana pun. Setiap bagian harus berisi teks final yang benar-benar bisa dipakai guru di kelas.`;
-const KONSISTENSI = `Pakai sebutan mata pelajaran, kelas, fase, semester, dan topik PERSIS seperti pada data di atas di seluruh dokumen. Jangan mengubah-ubah istilahnya di tengah dokumen.`;
+const KONSISTENSI = `Pakai sebutan mata pelajaran, kelas, fase, semester, dan topik PERSIS seperti pada data di atas di seluruh dokumen. Jangan mengubah-ubah istilahnya di tengah dokumen. IDENTITAS SINGKAT: setiap field identitas/informasi umum (nama, sekolah, kelas, fase, mata pelajaran, dll.) hanya berisi nilainya saja dari data — contoh: "X", "PJOK". DILARANG menulis penjelasan, catatan, analisis, atau koreksi di field identitas; kalau data tampak tidak konsisten, tetap tulis apa adanya tanpa komentar.`;
+// (IDENTITAS_SINGKAT sudah digabung ke KONSISTENSI di atas)
 
 // ================= SINTAKS MODEL PEMBELAJARAN (kanonis, server-side) =================
 // Dulu sintaks diserahkan ke ingatan model AI ("sesuai sintaks model yang dipilih") —
