@@ -376,16 +376,24 @@ export default function App() {
     }
     else if (d.view === 'ruang') {
       // Kembalikan proyek ruang yang sedang dibuka; tanpa itu jatuh ke 'app'
-      if (d.ruangProjectId) setRuangProyek(d.ruangProjectId);
+      if (d.ruangProjectId) { setRuangProyek(d.ruangProjectId); setView('ruang'); }
       else { setView('app'); }
+      try { window.__dlog && window.__dlog('restore: ruang -> ' + (d.ruangProjectId ? 'ruang' : 'app')); } catch {}
       beres();
     }
     else if (d.view === 'wizard') {
       // Wizard adalah alur transien (form tidak dipersist) -> kembali ke app
       setView('app');
+      try { window.__dlog && window.__dlog('restore: wizard -> app'); } catch {}
       beres();
     }
-    else beres();
+    else {
+      // Posisi valid lain (mis. 'app', 'paket', 'pengaturan'): pastikan view
+      // tidak tertinggal null (initializer membaca kunci sebelum uid dikenal).
+      setView((v) => v || d.view || 'app');
+      try { window.__dlog && window.__dlog('restore: else -> ' + d.view); } catch {}
+      beres();
+    }
     return () => { stop = true; clearTimeout(paksa); };
   }, [auth]);
 
