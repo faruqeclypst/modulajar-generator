@@ -167,6 +167,7 @@ export default function App() {
   const [projects, setProjects] = useState([]);
   const [projectAktif, setProjectAktif] = useState(null);
   const [active, setActive] = useState(null);
+  const [asalDoc, setAsalDoc] = useState(null); // halaman asal sebelum buka dokumen (untuk tombol Kembali)
   const [draft, setDraft] = useState(null);
   const [wizardKey, setWizardKey] = useState(0);
   const [wizardPaket, setWizardPaket] = useState(null);
