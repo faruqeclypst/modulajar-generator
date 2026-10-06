@@ -1284,7 +1284,8 @@ Total JP pada tabel WAJIB sama dengan rekapitulasi. Sisakan JP untuk asesmen sum
 Penyesuaian bila ada minggu tidak efektif susulan.
 
 ${ANTI_SLOP} ${RANTAI_VALIDITAS} ${KONSISTENSI}
-LARANGAN KERAS: DILARANG menampilkan proses berpikir, draf awal, atau bagian "Perbaikan Tabel". Hitung SEMUA angka (total JP, nomor pertemuan) dengan benar SEBELUM menulis — pastikan sudah tepat dari awal. Keluarkan HANYA satu versi final yang sudah benar. Jangan pernah menulis dua versi tabel (salah lalu dibetulkan).
+LARANGAN KERAS: DILARANG menampilkan proses berpikir, draf awal, perhitungan sementara, atau bagian "Perbaikan Tabel"/"Koreksi". Hitung SEMUA angka (total JP, nomor pertemuan) dengan benar SEBELUM menulis — pastikan sudah tepat dari awal. Keluarkan HANYA satu versi final yang sudah benar. Jangan pernah menulis dua versi tabel (salah lalu dibetulkan). DILARANG menulis kalimat seperti "mari kita hitung ulang", "tunggu", "saya bingung", "ada selisih", atau uraian keraguan dalam bentuk apa pun.
+BILA DATA ACUAN TIDAK KONSISTEN (mis. total JP materi ≠ total JP efektif): ambil keputusan yang paling masuk akal SECARA DIAM-DIAM (sesuaikan JP per materi agar total pas, utamakan materi inti), tulis hasilnya langsung sebagai tabel final, dan cukup tulis SATU kalimat penyesuaian di bagian D. Catatan. JANGAN tunjukkan proses pengambilan keputusanmu.
 
 Aturan: Bahasa Indonesia formal.`,
 
