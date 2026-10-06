@@ -210,13 +210,24 @@ function mdToParagraphs(md, imgMap = {}, cfg) {
       const depth = Math.min(2, Math.floor(m[1].length / 2));
       out.push(new Paragraph({ bullet: { level: depth }, spacing: { after: 80 }, children: inlineRuns(m[2], 24, cfg) }));
     }
-    else if ((m = t.match(/^(\s*)\d+[.)]\s+(.*)/))) {
+    else if ((m = t.match(/^(\s*)(\d+[.)])\s+(.*)/))) {
+      // nomor literal (bukan penomoran otomatis Word) agar rapat seperti pratinjau web
       const depth = Math.min(2, Math.floor(m[1].length / 2));
-      out.push(new Paragraph({ numbering: { reference: 'num-dec', level: depth }, spacing: { after: 80 }, children: inlineRuns(m[2], 24, cfg) }));
+      const size = cfg.bodySize || 24;
+      out.push(new Paragraph({
+        indent: { left: 360 + depth * 360, hanging: 360 },
+        spacing: { after: 80 },
+        children: [new TextRun({ text: m[2] + ' ', bold: true, font, size }), ...inlineRuns(m[3], size, cfg)],
+      }));
     }
-    else if ((m = t.match(/^(\s*)[a-z][.)]\s+(.*)/))) {
+    else if ((m = t.match(/^(\s*)([a-zA-Z][.)])\s+(.*)/))) {
       const depth = Math.min(2, Math.floor(m[1].length / 2));
-      out.push(new Paragraph({ numbering: { reference: 'num-alpha', level: depth }, spacing: { after: 80 }, children: inlineRuns(m[2], 24, cfg) }));
+      const size = cfg.bodySize || 24;
+      out.push(new Paragraph({
+        indent: { left: 360 + depth * 360, hanging: 360 },
+        spacing: { after: 80 },
+        children: [new TextRun({ text: m[2] + ' ', bold: true, font, size }), ...inlineRuns(m[3], size, cfg)],
+      }));
     }
     else if (/^---+$/.test(t)) out.push(new Paragraph({ thematicBreak: true, spacing: { before: 200, after: 200 } }));
     else out.push(new Paragraph({ alignment: bodyAlign, spacing: { after: 160 }, children: inlineRuns(t, cfg.bodySize || 24, cfg) }));
@@ -424,12 +435,7 @@ export async function buildDocxDocument({ judul, docType = 'modul', markdown, im
         heading4: { run: { font, size: 22, bold: true } },
       },
     },
-    numbering: {
-      config: [
-        { reference: 'num-dec', levels: [{ level: 0, format: 'decimal', text: '%1.', alignment: AlignmentType.LEFT }, { level: 1, format: 'lowerLetter', text: '%2.', alignment: AlignmentType.LEFT }, { level: 2, format: 'decimal', text: '%3.', alignment: AlignmentType.LEFT }] },
-        { reference: 'num-alpha', levels: [{ level: 0, format: 'lowerLetter', text: '%1.', alignment: AlignmentType.LEFT }, { level: 1, format: 'lowerLetter', text: '%2.', alignment: AlignmentType.LEFT }, { level: 2, format: 'lowerLetter', text: '%3.', alignment: AlignmentType.LEFT }] },
-      ],
-    },
+    numbering: undefined, // tidak dipakai: nomor ditulis literal agar rapat seperti pratinjau
     sections: [{
       properties: {
         page: { size: { width: 11906, height: 16838 }, margin: cfg.margin },
