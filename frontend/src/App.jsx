@@ -173,8 +173,10 @@ export default function App() {
     }
     setMintaLogin(true);
   };
-  // Lazy dari localStorage agar tidak ada flash halaman utama saat refresh
-  const [view, setView] = useState(() => bacaViewTersimpan()?.view || 'landing'); // landing | app | wizard | detail | ruang | paket | pengaturan | proyek | docs | admin | masukan | tidak-ditemukan
+  // Lazy dari localStorage agar tidak ada flash halaman utama saat refresh.
+  // null = belum dipulihkan (dibedakan dari 'landing' agar user login tidak
+  // sekilas melihat landing publik saat tidak ada posisi tersimpan).
+  const [view, setView] = useState(() => bacaViewTersimpan()?.view || null); // null | landing | app | wizard | detail | ruang | paket | pengaturan | proyek | docs | admin | masukan | tidak-ditemukan
   const [restoring, setRestoring] = useState(() => {
     const d = bacaViewTersimpan();
     return (d?.view === 'detail' && !!d.docId) || (d?.view === 'proyek' && !!d.projectId);
@@ -259,7 +261,8 @@ export default function App() {
   useEffect(() => {
     if (auth !== 'app') return;
     const d = bacaViewTersimpan();
-    if (!d) { setRestoring(false); return; }
+    // Tidak ada posisi tersimpan (atau tidak valid) -> dashboard, bukan landing publik.
+    if (!d) { setView('app'); setRestoring(false); return; }
     if (d.view === 'proyek' && d.projectId) {
       let stop = false;
       getProject(d.projectId).then((p) => {
@@ -301,9 +304,11 @@ export default function App() {
     setRestoring(false);
   }, [auth]);
 
-  // Simpan posisi setiap view/active berubah (hanya saat sudah login)
+  // Simpan posisi setiap view/active berubah (hanya saat sudah login).
+  // 'tidak-ditemukan' dan null tidak disimpan agar reload tidak terjebak di halaman error.
   useEffect(() => {
     if (auth !== 'app' || restoring) return;
+    if (!view || view === 'tidak-ditemukan') return;
     if (view === 'detail' && !active?.id) return; // restore belum selesai, jangan timpa
     if (view === 'proyek' && !projectAktif?.id) return;
     if (view === 'ruang' && !ruangProyek) return;
@@ -485,7 +490,7 @@ export default function App() {
       </>
     );
   }
-  if (restoring) return <LayarTunggu pesan="Memuat dokumen…" />;
+  if (restoring || view === null) return <LayarTunggu pesan="Memuat halaman…" />;
 
   return (
     <>
