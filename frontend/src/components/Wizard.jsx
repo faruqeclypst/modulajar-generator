@@ -51,6 +51,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
   const [paketDocs, setPaketDocs] = useState({});
   const [paketLabel, setPaketLabel] = useState('');
   const [prosemWeeks, setProsemWeeks] = useState([]);
+  const [weekIxs, setWeekIxs] = useState([]); // multi-pilih minggu (modul = 1 bab)
   const [weekIx, setWeekIx] = useState('');
   const [modulLabel, setModulLabel] = useState('');
   const [modulList, setModulList] = useState([]);
@@ -155,7 +156,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
   }, [preselectModulId]);
 
   useEffect(() => {
-    if (!paketId) { setPaketDocs({}); setProsemWeeks([]); setWeekIx(''); return; }
+    if (!paketId) { setPaketDocs({}); setProsemWeeks([]); setWeekIx(''); setWeekIxs([]); return; }
     (async () => {
       const p = await getPaket(paketId);
       const docs = (p && p.docs) || {};
@@ -167,7 +168,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
       } else {
         setProsemWeeks([]);
       }
-      setWeekIx('');
+      setWeekIx(''); setWeekIxs([]);
     })();
   }, [paketId]);
 
@@ -196,7 +197,25 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
     setWeekIx(ix);
     if (ix === '') return;
     const w = prosemWeeks[Number(ix)];
-    if (w) setForm((f) => ({ ...f, topik: w.materi, alokasi: w.alokasi }));
+    if (w) setForm((f) => ({ ...f, topik: w.materi, alokasi: w.alokasi, pertemuanList: null }));
+  }
+
+  function terapkanPilihanMinggu(ixs) {
+    // Pilihan minggu Prosem untuk modul: satu modul = satu bab = beberapa pertemuan.
+    const sorted = [...new Set(ixs)].sort((a, b) => a - b);
+    setWeekIxs(sorted);
+    setWeekIx('');
+    const daftar = sorted.map((x) => prosemWeeks[x]).filter(Boolean);
+    setForm((f) => ({
+      ...f,
+      topik: daftar.map((w) => w.materi).join('; '),
+      alokasi: daftar.length > 1 ? `${daftar.length} pertemuan` : (daftar[0]?.alokasi || f.alokasi),
+      pertemuanList: daftar.length > 1 ? daftar.map((w) => ({ materi: w.materi, alokasi: w.alokasi })) : null,
+    }));
+  }
+
+  function toggleMinggu(ix) {
+    terapkanPilihanMinggu(weekIxs.includes(ix) ? weekIxs.filter((x) => x !== ix) : [...weekIxs, ix]);
   }
 
   useEffect(() => {
@@ -245,10 +264,15 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
 
   function pakaiRekomendasi() {
     if (!rekom) return;
-    const ix = Number.isInteger(rekom.mingguIx) ? rekom.mingguIx : -1;
-    if (ix >= 0 && ix < prosemWeeks.length) {
-      // Rekomendasi berbasis Prosem: pilih minggunya (topik + alokasi terisi otomatis)
-      pilihMinggu(String(ix));
+    const ixs = (Array.isArray(rekom.mingguIxs) ? rekom.mingguIxs : (Number.isInteger(rekom.mingguIx) ? [rekom.mingguIx] : []))
+      .filter((x) => Number.isInteger(x) && x >= 0 && x < prosemWeeks.length);
+    if (ixs.length > 0 && form.docType === 'modul') {
+      // Rekomendasi berbasis Prosem: centang kelompok minggu (satu bab = beberapa pertemuan)
+      terapkanPilihanMinggu(ixs);
+      setForm((f) => ({ ...f, model: rekom.model || f.model }));
+    } else if (ixs.length === 1) {
+      // Rekomendasi berbasis Prosem (dokumen non-modul): pilih minggunya
+      pilihMinggu(String(ixs[0]));
       setForm((f) => ({ ...f, model: rekom.model || f.model }));
     } else {
       setForm((f) => ({
@@ -453,7 +477,9 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           <div className="alert alert-info" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ flex: 1, minWidth: 200 }}>
               {prosemWeeks.length > 0
-                ? 'Bingung mulai dari mana? AI akan memilihkan minggu yang paling cocok dari Prosem paket ini.'
+                ? (form.docType === 'modul'
+                  ? 'Bingung mulai dari mana? AI akan memilihkan kelompok minggu berurutan dari Prosem paket ini untuk satu bab.'
+                  : 'Bingung mulai dari mana? AI akan memilihkan minggu yang paling cocok dari Prosem paket ini.')
                 : 'Bingung mulai dari mana? AI bisa merekomendasikan judul, model pembelajaran, dan alokasi waktu.'}
             </span>
             <button className="btn btn-sm btn-ink" onClick={mintaRekomendasi} disabled={rekomLoading || !form.mapel}>
@@ -464,9 +490,15 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           {rekom && (
             <div className="rekom-box">
               <h4>Rekomendasi AI</h4>
-              {Number.isInteger(rekom.mingguIx) && rekom.mingguIx >= 0 && rekom.mingguIx < prosemWeeks.length && (
-                <p><strong>Minggu terpilih:</strong> Minggu {prosemWeeks[rekom.mingguIx].minggu || (rekom.mingguIx + 1)} — {prosemWeeks[rekom.mingguIx].materi}</p>
-              )}
+              {(() => {
+                const ixs = (Array.isArray(rekom.mingguIxs) ? rekom.mingguIxs : (Number.isInteger(rekom.mingguIx) ? [rekom.mingguIx] : []))
+                  .filter((x) => Number.isInteger(x) && x >= 0 && x < prosemWeeks.length);
+                return ixs.length > 0 && (
+                  <p><strong>{ixs.length > 1 ? 'Kelompok minggu (satu bab):' : 'Minggu terpilih:'}</strong>{' '}
+                    {ixs.map((x) => `Minggu ${prosemWeeks[x].minggu || (x + 1)}`).join(', ')} — {prosemWeeks[ixs[0]].materi.slice(0, 80)}{prosemWeeks[ixs[0]].materi.length > 80 ? '…' : ''}{ixs.length > 1 ? ' (+ ' + (ixs.length - 1) + ' pertemuan lain)' : ''}
+                  </p>
+                );
+              })()}
               <p><strong>Judul:</strong> {rekom.judul}</p>
               <p><strong>Model:</strong> {rekom.model}</p>
               <p><strong>Alokasi:</strong> {rekom.alokasi}</p>
@@ -524,25 +556,52 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
           {butuhAcuan && prosemWeeks.length > 0 && (has('topik')) && (
             <div className="card" style={{ margin: '0 0 16px', background: '#fbf9f4' }}>
               <h3 style={{ margin: '0 0 6px' }}>Pilih Materi dari Prosem</h3>
-              <p className="hint" style={{ margin: '0 0 12px' }}>
-                Tidak perlu ketik manual. Pilih minggu, materi dan alokasi waktu terisi otomatis dari Prosem paket ini.
-              </p>
-              <div className="field" style={{ margin: 0 }}>
-                <label>Minggu / Materi</label>
-                <select value={weekIx} onChange={(e) => pilihMinggu(e.target.value)}>
-                  <option value="">Pilih minggu</option>
-                  {prosemWeeks.map((w, i) => (
-                    <option key={i} value={i}>
-                      Minggu {w.minggu || (i + 1)}: {w.materi.slice(0, 60)}{w.materi.length > 60 ? '…' : ''}{w.alokasi ? ` (${w.alokasi})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {weekIx !== '' && prosemWeeks[Number(weekIx)]?.tp && (
-                <div className="hint" style={{ marginTop: 8 }}>
-                  <strong>TP minggu ini:</strong> {prosemWeeks[Number(weekIx)].tp.slice(0, 220)}
-                  {prosemWeeks[Number(weekIx)].tp.length > 220 ? '…' : ''}
-                </div>
+              {form.docType === 'modul' ? (
+                <>
+                  <p className="hint" style={{ margin: '0 0 12px' }}>
+                    Satu modul mencakup <strong>satu bab</strong> yang terdiri dari beberapa pertemuan.
+                    Centang minggu-minggu yang masuk dalam bab ini — kegiatan pembelajaran akan dibagi per pertemuan.
+                  </p>
+                  <div style={{ display: 'grid', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
+                    {prosemWeeks.map((w, i) => (
+                      <label key={i} className="f-check" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox" checked={weekIxs.includes(i)} onChange={() => toggleMinggu(i)}
+                          style={{ marginTop: 4, width: 17, height: 17, accentColor: 'var(--red)' }}
+                        />
+                        <span><strong>Minggu {w.minggu || (i + 1)}:</strong> {w.materi}{w.alokasi ? ` (${w.alokasi})` : ''}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {weekIxs.length > 1 && (
+                    <p className="hint" style={{ marginTop: 8, marginBottom: 0 }}>
+                      {weekIxs.length} pertemuan dipilih — modul ini akan memuat kegiatan per pertemuan.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="hint" style={{ margin: '0 0 12px' }}>
+                    Tidak perlu ketik manual. Pilih minggu, materi dan alokasi waktu terisi otomatis dari Prosem paket ini.
+                  </p>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Minggu / Materi</label>
+                    <select value={weekIx} onChange={(e) => pilihMinggu(e.target.value)}>
+                      <option value="">Pilih minggu</option>
+                      {prosemWeeks.map((w, i) => (
+                        <option key={i} value={i}>
+                          Minggu {w.minggu || (i + 1)}: {w.materi.slice(0, 60)}{w.materi.length > 60 ? '…' : ''}{w.alokasi ? ` (${w.alokasi})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {weekIx !== '' && prosemWeeks[Number(weekIx)]?.tp && (
+                    <div className="hint" style={{ marginTop: 8 }}>
+                      <strong>TP minggu ini:</strong> {prosemWeeks[Number(weekIx)].tp.slice(0, 220)}
+                      {prosemWeeks[Number(weekIx)].tp.length > 220 ? '…' : ''}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -637,7 +696,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
                   ))}
                 </div>
               )}
-              {paketId && prosemWeeks.length > 0 && has('topik') && (
+              {paketId && prosemWeeks.length > 0 && has('topik') && form.docType !== 'modul' && (
                 <div className="field" style={{ marginTop: 10 }}>
                   <label>Pilih Materi dari Prosem (otomatis isi topik & alokasi)</label>
                   <select value={weekIx} onChange={(e) => pilihMinggu(e.target.value)}>
@@ -669,6 +728,12 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
                   </select>
                 </div>
               )}
+              {preselectPaketId && (
+                <p className="hint" style={{ marginTop: 10 }}>
+                  Acuan otomatis diambil dari paket ini (CP, ATP, Prota, Prosem di atas). Pilihan dokumen luar paket disembunyikan agar tidak tercampur.
+                </p>
+              )}
+              {!preselectPaketId && (
               <div className="field" style={{ marginTop: 10 }}>
                 <label id="lbl-dok-acuan">Dokumen lain sebagai acuan (opsional)</label>
                 <p className="hint" style={{ margin: '0 0 8px' }}>
@@ -709,6 +774,7 @@ export default function Wizard({ onDone, onCancel, initial, preselectPaketId, pr
                   </p>
                 )}
               </div>
+              )}
             </div>
           )}
           <div className="alert alert-info">Proses generate membutuhkan ±30–60 detik. Jangan tutup halaman ini.</div>

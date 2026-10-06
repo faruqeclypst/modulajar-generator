@@ -547,6 +547,11 @@ function promptTahap1(info, materi, sumber, rekomendasi) {
   const kunciRekomendasi = rekomendasi && (rekomendasi.judul || rekomendasi.model || (rekomendasi.tp && rekomendasi.tp.length))
     ? `\nKONSTRAIN DARI TAHAP REKOMENDASI (wajib dipakai, jangan diubah):\n- Judul: ${rekomendasi.judul || '-'}\n- Model pembelajaran: ${rekomendasi.model || '-'}\n- Alokasi: ${rekomendasi.alokasi || '-'}\n- TP awal: ${(rekomendasi.tp || []).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n`
     : '';
+  // Multi-pertemuan: daftar pertemuan diteruskan agar TP mencakup seluruh bab.
+  const daftarP = Array.isArray(info.pertemuanList) && info.pertemuanList.length > 1 ? info.pertemuanList : null;
+  const txtPertemuan = daftarP
+    ? `\n- Struktur modul: 1 bab = ${daftarP.length} pertemuan:\n${daftarP.map((p, i) => `  ${i + 1}. ${p.materi}${p.alokasi ? ` (${p.alokasi})` : ''}`).join('\n')}\n- "tp": WAJIB mencakup tujuan untuk SEMUA pertemuan di atas (minimal 1 TP per pertemuan).`
+    : '';
   const system = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
 Tugasmu HANYA menyusun fondasi modul (bukan modul lengkap). ${ANTI_FIKSI}
 Kembalikan JSON MURNI tanpa markdown dan tanpa teks lain, dengan struktur persis:
@@ -561,15 +566,18 @@ Aturan:
 - Sesuaikan kedalaman bahasa, contoh, dan kompleksitas dengan jenjang, fase, dan kelas pada data.
 - Isi setiap field dengan teks final, bukan placeholder. ${KONSISTENSI}
 Bahasa Indonesia formal. ${ISTILAH_BARU}`;
-  const user = `Susun fondasi modul dengan data berikut:\n${IDENT(info)}\n- Materi Pokok/Topik: ${info.topik || '-'}${kunciRekomendasi}\n\n${konteksSumber(materi, sumber)}`;
+  const user = `Susun fondasi modul dengan data berikut:\n${IDENT(info)}\n- Materi Pokok/Topik: ${info.topik || '-'}${kunciRekomendasi}${txtPertemuan}\n\n${konteksSumber(materi, sumber)}`;
   return { system, user };
 }
 
-function promptTahap2(info, fondasi, budget, sintaks, materi, sumber) {
-  // System 100% statis (tanpa data dinamis) agar prefix prompt stabil dan
+function promptTahap2(info, fondasi, budgets, daftar, sintaks, materi, sumber) {
+  // budgets: array per pertemuan (multi) atau [budget] (tunggal, kompatibel pemanggil lama).
+  // System 100% statis per varian (tanpa data dinamis) agar prefix prompt stabil dan
   // context caching provider (DeepSeek) bisa hit. Semua angka/nama dinamis
   // ada di user message.
-  const system = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
+  const multi = Array.isArray(daftar) && daftar.length > 1 && budgets.length === daftar.length;
+  const budgetTunggal = budgets[0];
+  const systemTunggal = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
 Tugasmu HANYA menyusun bagian KEGIATAN PEMBELAJARAN dalam markdown. ${ANTI_FIKSI}
 Terapkan prinsip pembelajaran mendalam: berkesadaran, bermakna, menggembirakan.
 
@@ -598,12 +606,51 @@ Langkah refleksi, umpan balik, tindak lanjut, masing-masing diakhiri (X menit), 
 Tulis langkah kegiatan yang konkret dan bisa langsung dilaksanakan (siapa berbuat apa, dengan bahan atau media apa), bukan instruksi umum seperti "Guru melaksanakan pembelajaran". ${ANTI_SLOP} ${KONSISTENSI}
 
 Kembalikan HANYA markdown kegiatan (tiga sub-bagian di atas), tanpa pembuka/penutup tambahan. Bahasa Indonesia formal.`;
+  const systemMulti = `Kamu adalah asisten penyusun Modul Ajar Kurikulum Merdeka untuk guru Indonesia.
+Tugasmu HANYA menyusun bagian KEGIATAN PEMBELAJARAN dalam markdown. ${ANTI_FIKSI}
+Terapkan prinsip pembelajaran mendalam: berkesadaran, bermakna, menggembirakan.
+
+Modul ini adalah SATU BAB yang terdiri dari BEBERAPA PERTEMUAN. BUDGET WAKTU PER PERTEMUAN, MODEL/SINTAKS, TUJUAN PEMBELAJARAN, dan DAFTAR PERTEMUAN ada pada bagian DATA di pesan pengguna. WAJIB dipatuhi tepat.
+
+Untuk SETIAP pertemuan, tulis blok dengan format persis:
+
+### Pertemuan N: [materi pertemuan] — [alokasi, contoh "2 x 45 menit"]
+#### a. Pendahuluan: [P] menit
+1. [langkah] (X menit)
+2. [langkah] (X menit)
+(jumlah semua (X menit) pada bagian ini HARUS TEPAT = P menit pendahuluan pertemuan ini pada DATA)
+
+#### b. Kegiatan Inti: [I] menit
+Untuk SETIAP fase sintaks pada DATA, tulis sub-heading dengan format persis:
+**Fase N: [nama fase]**, alokasi Y menit
+lalu langkah-langkahnya, masing-masing diakhiri (X menit).
+Jumlah (X menit) dalam satu fase HARUS TEPAT = Y menit fase tersebut, dan jumlah seluruh fase HARUS TEPAT = I menit inti pertemuan ini.
+PENTING: angka menit fase hanya boleh muncul di sub-heading fase (format koma "alokasi Y menit", TANPA kurung), sedangkan angka menit langkah selalu dalam kurung "(X menit)". Jangan menulis angka menit dalam kurung di sub-heading bagian maupun fase.
+
+#### c. Penutup: [C] menit
+Langkah refleksi, umpan balik, tindak lanjut, masing-masing diakhiri (X menit), total TEPAT = C menit penutup pertemuan ini pada DATA.
+
+ATURAN PENANDA MENIT (hanya dua bentuk ini, jangan campur):
+- Sub-heading bagian: "#### a. Pendahuluan: [N] menit" (pakai titik dua, TANPA kurung)
+- Setiap langkah kegiatan diakhiri "(X menit)" (WAJIB dalam kurung)
+
+Tulis langkah kegiatan yang konkret dan bisa langsung dilaksanakan (siapa berbuat apa, dengan bahan atau media apa), bukan instruksi umum seperti "Guru melaksanakan pembelajaran". ${ANTI_SLOP} ${KONSISTENSI}
+
+Kembalikan HANYA markdown kegiatan (satu blok per pertemuan, berurutan), tanpa pembuka/penutup tambahan. Bahasa Indonesia formal.`;
+  const system = multi ? systemMulti : systemTunggal;
   const daftarFase = sintaks.fase.map((f, i) => `${i + 1}. ${f}`).join('\n');
-  const user = `BUDGET WAKTU (WAJIB dipatuhi tepat):
-- Total: ${budget.pendahuluan + budget.inti + budget.penutup} menit
-- Pendahuluan: TEPAT ${budget.pendahuluan} menit
-- Kegiatan Inti: TEPAT ${budget.inti} menit
-- Penutup: TEPAT ${budget.penutup} menit
+  const budgetTunggalTxt = `BUDGET WAKTU (WAJIB dipatuhi tepat):
+- Total: ${budgetTunggal.pendahuluan + budgetTunggal.inti + budgetTunggal.penutup} menit
+- Pendahuluan: TEPAT ${budgetTunggal.pendahuluan} menit
+- Kegiatan Inti: TEPAT ${budgetTunggal.inti} menit
+- Penutup: TEPAT ${budgetTunggal.penutup} menit`;
+  const budgetMultiTxt = `BUDGET WAKTU PER PERTEMUAN (WAJIB dipatuhi tepat per pertemuan):
+${daftar.map((p, i) => {
+    const b = budgets[i];
+    const t = b.pendahuluan + b.inti + b.penutup;
+    return `- Pertemuan ${i + 1} "${String(p.materi).slice(0, 80)}": Total TEPAT ${t} menit (Pendahuluan TEPAT ${b.pendahuluan} + Inti TEPAT ${b.inti} + Penutup TEPAT ${b.penutup})`;
+  }).join('\n')}`;
+  const user = `${multi ? budgetMultiTxt : budgetTunggalTxt}
 
 MODEL: ${sintaks.nama}. Kegiatan inti WAJIB mengikuti fase-fase sintaks berikut secara berurutan:
 ${daftarFase}
@@ -672,8 +719,21 @@ Kembalikan HANYA markdown bagian-bagian di atas. Bahasa Indonesia formal. ${ISTI
   return { system, user };
 }
 
-function rakitModul(info, fondasi, budget, sintaks, kegiatanMd, asesmenMd, materiMd) {
-  const alokasiLabel = `${info.alokasi || '-'} (${budget.pendahuluan + budget.inti + budget.penutup} menit)`;
+function rakitModul(info, fondasi, budgets, daftar, sintaks, kegiatanMd, asesmenMd, materiMd) {
+  const multi = Array.isArray(daftar) && daftar.length > 1 && budgets.length === daftar.length;
+  const totalMenit = budgets.reduce((s, b) => s + b.pendahuluan + b.inti + b.penutup, 0);
+  const alokasiLabel = multi
+    ? `${daftar.length} pertemuan (${totalMenit} menit). Rincian: ${daftar.map((p, i) => {
+        const b = budgets[i];
+        return `Pertemuan ${i + 1}: P${b.pendahuluan}+I${b.inti}+C${b.penutup}`;
+      }).join('; ')}`
+    : `${info.alokasi || '-'} (${totalMenit} menit)`;
+  const rincian = multi
+    ? `Rincian per pertemuan: ${daftar.map((p, i) => {
+        const b = budgets[i];
+        return `Pertemuan ${i + 1} ("${String(p.materi).slice(0, 60)}"): Pendahuluan ${b.pendahuluan} mnt, Inti ${b.inti} mnt, Penutup ${b.penutup} mnt`;
+      }).join('; ')}`
+    : `Rincian: Pendahuluan ${budgets[0].pendahuluan} menit, Inti ${budgets[0].inti} menit, Penutup ${budgets[0].penutup} menit`;
   const tanggal = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
   return `# ${fondasi.judul}
 
@@ -684,7 +744,7 @@ function rakitModul(info, fondasi, budget, sintaks, kegiatanMd, asesmenMd, mater
 - **Jenjang / Fase / Kelas**: ${info.jenjang || '-'} / ${info.fase || '-'} / ${info.kelas || '-'}
 - **Mata Pelajaran**: ${info.mapel || '-'}
 - **Materi Pokok**: ${info.topik || '-'}
-- **Alokasi Waktu**: ${alokasiLabel}. Rincian: Pendahuluan ${budget.pendahuluan} menit, Inti ${budget.inti} menit, Penutup ${budget.penutup} menit
+- **Alokasi Waktu**: ${alokasiLabel}. ${rincian}
 - **Model Pembelajaran**: ${sintaks.nama}
 
 ## B. Komponen Inti
@@ -742,12 +802,12 @@ export function bagianKegiatan(markdown) {
   return akhir === -1 ? markdown.slice(mulai) : markdown.slice(mulai, akhir);
 }
 
-function validasiAkhir(markdown, budget) {
+function validasiAkhir(markdown, budgets) {
   const masalah = [];
   const wajib = ['## A. Informasi Umum', '### 1.', '### 2.', '### 6.', '### 7.', '### 10.', '### 11.', '### 12.', '## C. Lampiran', '## D. Lembar Pengesahan'];
   for (const h of wajib) if (!markdown.includes(h)) masalah.push(`Heading hilang: ${h}`);
   const total = jumlahMenit(bagianKegiatan(markdown));
-  const ekspektasi = budget.pendahuluan + budget.inti + budget.penutup;
+  const ekspektasi = budgets.reduce((s, b) => s + b.pendahuluan + b.inti + b.penutup, 0);
   if (total !== ekspektasi) masalah.push(`Total menit kegiatan ${total}, seharusnya ${ekspektasi}`);
   return masalah;
 }
@@ -781,6 +841,15 @@ async function interpretasiInput(info) {
 // Bersihkan info guru: topik/alokasi konkret + budget menit.
 // Selalu aman dipanggil: gagal interpretasi → info apa adanya + budget default.
 async function siapkanInfo(info) {
+  // Multi-pertemuan: satu modul = satu bab = N pertemuan (dipilih dari Prosem).
+  // Budget dihitung per pertemuan, bukan dari info.alokasi.
+  const daftar = Array.isArray(info.pertemuanList)
+    ? info.pertemuanList.filter((p) => p && String(p.materi || '').trim()).slice(0, 12)
+    : [];
+  if (daftar.length > 1) {
+    const budgets = daftar.map((p) => budgetKegiatan(parseAlokasi(p.alokasi).totalMenit));
+    return { info, budgets, daftar };
+  }
   try {
     const r = await interpretasiInput(info);
     const infoBaru = {
@@ -807,7 +876,10 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap 
   await onTahap('pahami');
   const siap = await siapkanInfo(info);
   info = siap.info;
-  const budget = siap.budget;
+  const budgets = siap.budgets || [siap.budget];
+  const daftar = siap.daftar || null;
+  const multi = !!(daftar && daftar.length > 1);
+  const targetMenit = budgets.reduce((s, b) => s + b.pendahuluan + b.inti + b.penutup, 0);
   const { label } = parseAlokasi(info.alokasi);
 
   // Tahap 1 — fondasi terstruktur (JSON internal: tidak di-stream agar tidak tampil mentah ke user)
@@ -827,18 +899,22 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap 
   // budget sudah dihitung di tahap 0 (siapkanInfo), memakai pembagian guru bila valid
   await onTahap('kegiatan');
   const sintaks = deteksiSintaks(info.model || (rekomendasi && rekomendasi.model) || '');
-  const p2 = promptTahap2(info, fondasi, budget, sintaks, materi, sumber);
-  let kegiatanMd = await ai(p2.system, p2.user, 6000, 0.7, (d) => onTeks('kegiatan', d));
+  const p2 = promptTahap2(info, fondasi, budgets, daftar, sintaks, materi, sumber);
+  let kegiatanMd = await ai(p2.system, p2.user, multi ? 9000 : 6000, 0.7, (d) => onTeks('kegiatan', d));
   let totalKegiatan = jumlahMenit(kegiatanMd);
-  const target = budget.pendahuluan + budget.inti + budget.penutup;
-  if (totalKegiatan !== target) {
-    console.warn(`[modulajar] tahap 2: total menit ${totalKegiatan} != ${target} (${label}), retry dengan koreksi`);
+  if (totalKegiatan !== targetMenit) {
+    console.warn(`[modulajar] tahap 2: total menit ${totalKegiatan} != ${targetMenit} (${label}), retry dengan koreksi`);
     onTeks('teks-reset', 'kegiatan'); // beri tahu pendengar: teks kegiatan ditulis ulang, jangan di-append
     await onTahap('koreksi');
-    const koreksi = `\n\nKOREKSI: total menit kegiatanmu ${totalKegiatan}, HARUS TEPAT ${target} (Pendahuluan ${budget.pendahuluan} + Inti ${budget.inti} + Penutup ${budget.penutup}). Tulis ulang dengan total yang tepat.`;
-    kegiatanMd = await ai(p2.system, p2.user + koreksi, 6000, 0.5, (d) => onTeks('kegiatan', d));
+    const koreksi = multi
+      ? `\n\nKOREKSI: total menit kegiatanmu ${totalKegiatan}, HARUS TEPAT ${targetMenit}. Rincian per pertemuan: ${daftar.map((p, i) => {
+          const b = budgets[i];
+          return `Pertemuan ${i + 1} = TEPAT ${b.pendahuluan + b.inti + b.penutup} (P${b.pendahuluan}+I${b.inti}+C${b.penutup})`;
+        }).join('; ')}. Tulis ulang dengan total yang tepat PER PERTEMUAN.`
+      : `\n\nKOREKSI: total menit kegiatanmu ${totalKegiatan}, HARUS TEPAT ${targetMenit} (Pendahuluan ${budgets[0].pendahuluan} + Inti ${budgets[0].inti} + Penutup ${budgets[0].penutup}). Tulis ulang dengan total yang tepat.`;
+    kegiatanMd = await ai(p2.system, p2.user + koreksi, multi ? 9000 : 6000, 0.5, (d) => onTeks('kegiatan', d));
     totalKegiatan = jumlahMenit(kegiatanMd);
-    if (totalKegiatan !== target) console.warn(`[modulajar] tahap 2: retry masih meleset (${totalKegiatan} != ${target})`);
+    if (totalKegiatan !== targetMenit) console.warn(`[modulajar] tahap 2: retry masih meleset (${totalKegiatan} != ${targetMenit})`);
   }
 
   // Tahap 3 — asesmen & pelengkap dari TP
@@ -853,8 +929,8 @@ async function generateModulPipeline(info, materi, sumber, rekomendasi, onTahap 
 
   // Tahap 5 — assembly + validasi akhir
   await onTahap('rakit');
-  const markdown = rakitModul(info, fondasi, budget, sintaks, kegiatanMd.trim(), asesmenMd.trim(), materiMd.trim());
-  const masalah = validasiAkhir(markdown, budget);
+  const markdown = rakitModul(info, fondasi, budgets, daftar, sintaks, kegiatanMd.trim(), asesmenMd.trim(), materiMd.trim());
+  const masalah = validasiAkhir(markdown, budgets);
   if (masalah.length) console.warn('[modulajar] validasi akhir:', masalah.join(' | '));
   return markdown;
 }
@@ -1222,19 +1298,22 @@ async function generateDocInternal(docType = 'modul', info = {}, materi = '', su
 
 async function rekomendasiAIInternal({ jenjang = '', fase = '', mapel = '', topik = '', prosem = [] }) {
   // Bila wizard dibuka "dari paket", rekomendasi HARUS selaras Prosem paket:
-  // AI memilih satu minggu dari daftar, bukan mengarang topik baru.
+  // AI memilih KELOMPOK minggu berurutan (satu bab = beberapa pertemuan), bukan mengarang topik baru.
   const daftar = Array.isArray(prosem) ? prosem.slice(0, 30).filter((w) => w && w.materi) : [];
   if (daftar.length > 0) {
-    const system = `Kamu asisten guru Indonesia. Diberikan daftar minggu Prosem (perencanaan semester) dari sebuah paket perangkat ajar Kurikulum Merdeka. Pilih SATU minggu yang paling cocok untuk dibuatkan Modul Ajar satu unit — utamakan minggu awal yang materinya fundamental sebagai pembuka.
-Kembalikan JSON MURNI (tanpa markdown, tanpa teks lain) dengan struktur persis: {"mingguIx": <nomor index mulai 0 dari daftar di bawah>, "judul": "<tulis materi minggu itu secara persis sama, tanpa diubah>", "model": "<salah satu dari: Problem Based Learning (PBL), Project Based Learning (PjBL), Discovery Learning, Inquiry Learning, Pembelajaran Kooperatif, Pembelajaran Langsung, Pembelajaran Berdiferensiasi, Contextual Teaching and Learning (CTL)>", "alokasi": "<tulis alokasi minggu itu secara persis sama>", "tp": ["...", "...", "..."], "catatan": "..."}.
-TP = 3 tujuan pembelajaran singkat format ABCD, selaras dengan TP minggu tersebut bila tersedia. "catatan" berisi alasan singkat kenapa minggu itu dipilih.`;
+    const system = `Kamu asisten guru Indonesia. Diberikan daftar minggu Prosem (perencanaan semester) dari sebuah paket perangkat ajar Kurikulum Merdeka. Pilih SATU KELOMPOK minggu BERURUTAN (1 sampai 4 minggu) yang materinya membentuk satu bab/unit yang koheren untuk satu Modul Ajar — utamakan kelompok awal yang materinya fundamental sebagai pembuka bab.
+Kembalikan JSON MURNI (tanpa markdown, tanpa teks lain) dengan struktur persis: {"mingguIxs": [<nomor index mulai 0 dari daftar di bawah, WAJIB berurutan>], "judul": "<nama bab/unit, mis. Bab 1: ...>", "model": "<salah satu dari: Problem Based Learning (PBL), Project Based Learning (PjBL), Discovery Learning, Inquiry Learning, Pembelajaran Kooperatif, Pembelajaran Langsung, Pembelajaran Berdiferensiasi, Contextual Teaching and Learning (CTL)>", "alokasi": "<jumlah pertemuan, mis. 3 pertemuan>", "tp": ["...", "...", "..."], "catatan": "..."}.
+TP = 3 tujuan pembelajaran singkat format ABCD untuk keseluruhan bab, selaras dengan TP minggu-minggu terpilih bila tersedia. "catatan" berisi alasan singkat kenapa kelompok minggu itu dipilih.`;
     const user = `Jenjang: ${jenjang}\nFase: ${fase}\nMata Pelajaran: ${mapel}\n\nDaftar minggu Prosem:\n${daftar.map((w, i) => `${i}. Minggu ${String(w.minggu || (i + 1)).slice(0, 10)}: ${String(w.materi).slice(0, 300)}${w.alokasi ? ` (${String(w.alokasi).slice(0, 60)})` : ''}${w.tp ? `\n   TP: ${String(w.tp).slice(0, 400)}` : ''}`).join('\n')}`;
     const raw = await ai(system, user, 1500, 0.6);
     const m = raw.match(/\{[\s\S]*\}/);
     if (!m) throw new Error('Format rekomendasi tidak valid.');
     const d = JSON.parse(m[0]);
-    const ix = Number.isInteger(d.mingguIx) ? d.mingguIx : parseInt(d.mingguIx, 10);
-    d.mingguIx = (Number.isInteger(ix) && ix >= 0 && ix < daftar.length) ? ix : null;
+    let ixs = Array.isArray(d.mingguIxs) ? d.mingguIxs : (Number.isInteger(d.mingguIx) ? [d.mingguIx] : []);
+    ixs = [...new Set(ixs.map((x) => (Number.isInteger(x) ? x : parseInt(x, 10))).filter((x) => Number.isInteger(x) && x >= 0 && x < daftar.length))].sort((a, b) => a - b).slice(0, 4);
+    if (ixs.length === 0) throw new Error('Format rekomendasi tidak valid.');
+    d.mingguIxs = ixs;
+    delete d.mingguIx;
     return d;
   }
   // (Gate KENARI_API_KEY dihapus dengan alasan yang sama seperti di generateDocInternal.)
@@ -1925,7 +2004,20 @@ function validasiGenerate({ docType, infoRaw, materi, sumber }) {
   if (infoRaw !== undefined && (typeof infoRaw !== 'object' || infoRaw === null || Array.isArray(infoRaw)))
     return 'Data info tidak valid.';
   // Alokasi minimum 10 menit agar budgetKegiatan tidak negatif/nol.
-  const alokasi = objekAman(infoRaw).alokasi;
+  const infoAman = objekAman(infoRaw);
+  const daftar = Array.isArray(infoAman.pertemuanList)
+    ? infoAman.pertemuanList.filter((p) => p && String(p.materi || '').trim())
+    : [];
+  if (daftar.length > 1) {
+    for (let i = 0; i < daftar.length; i++) {
+      const tm = parseAlokasi(daftar[i].alokasi).totalMenit;
+      if (!Number.isFinite(tm) || tm < 10)
+        return `Alokasi pertemuan ke-${i + 1} minimal 10 menit (contoh: "2 x 40 menit").`;
+    }
+    if (daftar.length > 12) return 'Maksimal 12 pertemuan per modul.';
+    return validasiPanjang(materi, 20000, 'Materi') || validasiPanjang(sumber, 20000, 'Sumber acuan');
+  }
+  const alokasi = infoAman.alokasi;
   if (alokasi) {
     const totalMenit = parseAlokasi(alokasi).totalMenit;
     if (!Number.isFinite(totalMenit) || totalMenit < 10)
