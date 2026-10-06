@@ -10,6 +10,7 @@ import ProsesLive from './ProsesLive';
 import Paywall from './Paywall';
 import GerbangPersona from './GerbangPersona';
 import Konfirmasi from './Konfirmasi';
+import UnggahDokumen from './UnggahDokumen';
 import MenuTitik from './MenuTitik';
 import { SkelKartu } from './Kerangka';
 
@@ -541,6 +542,8 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
   }
 
   const isCp = stepKey === 'cp';
+  // Langkah yang mendukung unggah dokumen untuk dianalisis AI
+  const bisaUnggah = ['analisis_cp', 'tp', 'atp', 'minggu_efektif'].includes(stepKey);
 
   // Mode terlampir: kembali dari kartu floating saat generate masih berjalan
   if (tugasIdEfektif && tugas?.state === 'jalan') {
@@ -603,6 +606,12 @@ function StepWorkspace({ paket, project, stepKey, waLink, onKuotaChanged, onClos
               <div className="field">
                 <label>Catatan tambahan (opsional)</label>
                 <textarea rows={3} placeholder="cth: fokus pada materi X, alokasi khusus…" value={teks} onChange={(e) => setTeks(e.target.value)} />
+                {bisaUnggah && (
+                  <UnggahDokumen
+                    label="Unggah dokumen untuk dianalisis AI (PDF/DOCX/TXT)"
+                    onTeks={(isi, namaFile) => setTeks((t) => (t ? t + '\n\n' : '') + `[Dokumen terlampir: ${namaFile}]\n${isi}`)}
+                  />
+                )}
               </div>
             </>
           )}
