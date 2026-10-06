@@ -1228,7 +1228,10 @@ WAJIB format tabel markdown:
 
 | No | Materi Pokok / Bab | Jumlah JP | Pertemuan ke- | Keterangan |
 |----|--------------------|-----------|---------------|------------|
-| 1 | ... | ... | 1–3 | ... |
+| 1 | ... | 2 | 1–2 | ... |
+| 2 | ... | 3 | 3–5 | ... |
+
+ATURAN KERAS NOMOR PERTEMUAN: kolom "Pertemuan ke-" WAJIB berurutan menyambung tanpa lompat dan tanpa mengulang dari 1. Pertemuan pertama selalu mulai dari 1. Baris berikutnya melanjutkan dari nomor terakhir + 1. Contoh: bila baris 1 = 2 JP → "1–2", maka baris 2 = 3 JP → "3–5", baris 3 = 2 JP → "6–7", dan seterusnya. DILARANG menulis "1–1", "1–2", "1–3" berulang di tiap baris.
 
 Total JP pada tabel WAJIB sama dengan rekapitulasi. Sisakan JP untuk asesmen sumatif dan cadangan/remedial.
 
