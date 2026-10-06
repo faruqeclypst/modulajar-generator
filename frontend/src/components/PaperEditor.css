@@ -25,15 +25,16 @@
 .ptool[draggable="true"] { cursor: grab; }
 .ptool[draggable="true"]:active { cursor: grabbing; }
 
-/* Editor inline */
-.pblk-edit textarea {
-  width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; line-height: 1.7;
-  padding: 10px 12px; border: 2px solid var(--red); background: #fff; resize: vertical;
+/* Mode ubah langsung: teks tetap di tempatnya (seperti Word), hanya garis putus-putus halus */
+.pblk-live { outline: 2px dashed var(--red); outline-offset: 6px; }
+.pblk-live:focus { outline-style: solid; }
+.paper-head h1.pblk-live { outline-offset: 4px; }
+.pblk-livebar {
+  display: flex; gap: 8px; align-items: center; margin-top: 10px;
+  padding: 8px 10px; background: #fff; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink);
 }
-.pblk-edit textarea:focus { outline: none; }
-.pblk-h1edit {
-  font-size: clamp(24px, 4.5vw, 38px) !important; font-weight: 900 !important; line-height: 1.15 !important;
-}
+.pblk-livehint { font-size: 12.5px; font-weight: 700; color: var(--muted); margin-right: auto; }
+.pblk-livebar .btn { margin: 0; }
 
 /* Panel AI & gambar di bawah blok */
 .pblk-panel {
@@ -55,8 +56,9 @@
 .pblk-tabs [role="tab"].on { background: var(--ink); color: #fff; }
 
 @media print {
-  .pblk-tools, .pblk-panel, .pblk-edit { display: none !important; }
+  .pblk-tools, .pblk-panel, .pblk-livebar { display: none !important; }
   .pedit .pblk.over { box-shadow: none; }
+  .pblk-live { outline: none; }
 }
 @media (hover: none) {
   /* Perangkat sentuh: toolbar selalu terlihat agar bisa dipakai */

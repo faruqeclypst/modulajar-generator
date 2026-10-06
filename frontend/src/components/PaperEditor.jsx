@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { marked } from 'marked';
 import { mdToBlocks, blocksToMd, figToImage, BLOCK_LABEL } from '../lib/blocks';
 import { regenBlock, gambarAI } from '../lib/api';
@@ -11,8 +11,74 @@ const nid = () => 'p' + (uid++) + Date.now().toString(36);
 
 const TEXT_TYPES = ['title', 'h2', 'h3', 'h4', 'p'];
 const LIST_TYPES = ['ul', 'ol', 'ol-alpha'];
-const EDIT_INLINE = [...TEXT_TYPES, ...LIST_TYPES]; // bisa diubah langsung
-const BISA_AI = [...TEXT_TYPES, ...LIST_TYPES, 'table']; // bisa diperbaiki AI
+const EDIT_INLINE = [...TEXT_TYPES, ...LIST_TYPES, 'table']; // ubah langsung di tempat
+const BISA_AI = [...TEXT_TYPES, ...LIST_TYPES, 'table'];
+
+// ---- HTML -> markdown inline (untuk baca hasil contentEditable) ----
+function nodeToMd(node) {
+  let out = '';
+  node.childNodes.forEach((ch) => {
+    if (ch.nodeType === 3) out += ch.textContent;
+    else if (ch.nodeType === 1) {
+      const tag = ch.tagName.toLowerCase();
+      const inner = nodeToMd(ch);
+      if (tag === 'strong' || tag === 'b') out += '**' + inner.trim() + '**';
+      else if (tag === 'em' || tag === 'i') out += '*' + inner.trim() + '*';
+      else if (tag === 'br') out += '\n';
+      else if (tag === 'a') out += '[' + inner + '](' + (ch.getAttribute('href') || '') + ')';
+      else out += inner;
+    }
+  });
+  return out;
+}
+
+// Baca kembali isi blok dari DOM setelah diedit langsung.
+function bacaBlokDariDOM(b, el) {
+  if (b.type === 'title') return { text: (el.innerText || '').trim() };
+  if (TEXT_TYPES.includes(b.type)) {
+    const parts = [];
+    el.childNodes.forEach((n) => {
+      const t = (n.textContent || '').trim();
+      if (!t) return;
+      if (n.nodeType === 1) {
+        const inner = nodeToMd(n).trim().replace(/^#{1,4}\s+/, '');
+        if (inner) parts.push(inner);
+      } else parts.push(t);
+    });
+    const text = parts.join('\n\n');
+    // heading: ambil baris pertama saja
+    return { text: b.type === 'p' ? text : text.split('\n')[0] };
+  }
+  if (LIST_TYPES.includes(b.type)) {
+    const items = [];
+    const baca = (ul, depth) => {
+      [...ul.children].forEach((li) => {
+        if (li.tagName.toLowerCase() !== 'li') return;
+        const clone = li.cloneNode(true);
+        clone.querySelectorAll('ul, ol').forEach((x) => x.remove());
+        const text = nodeToMd(clone).replace(/\s+/g, ' ').trim();
+        if (text) items.push({ depth, text });
+        li.querySelectorAll(':scope > ul, :scope > ol').forEach((x) => baca(x, Math.min(2, depth + 1)));
+      });
+    };
+    el.querySelectorAll(':scope > ul, :scope > ol').forEach((x) => baca(x, 0));
+    // fallback: kalau struktur aneh, baca semua li
+    if (!items.length) {
+      [...el.querySelectorAll('li')].forEach((li) => {
+        const text = nodeToMd(li).replace(/\s+/g, ' ').trim();
+        if (text) items.push({ depth: 0, text });
+      });
+    }
+    return items.length ? { items } : null;
+  }
+  if (b.type === 'table') {
+    const rows = [...el.querySelectorAll('tr')].map((tr) =>
+      [...tr.children].map((td) => nodeToMd(td).replace(/\s+/g, ' ').trim()));
+    const valid = rows.filter((r) => r.length && !/^-+$/.test((r[0] || '').replace(/:/g, '')));
+    return valid.length >= 2 ? { rows: valid } : null;
+  }
+  return null;
+}
 
 const srcBlok = (b) => {
   if (TEXT_TYPES.includes(b.type)) return b.text || '';
@@ -21,44 +87,13 @@ const srcBlok = (b) => {
   return '';
 };
 
-const parseBaris = (val) => val.split('\n').map((l) => {
-  const m = l.match(/^(\s*)(.*)$/);
-  return { depth: Math.min(2, Math.floor((m[1] || '').length / 2)), text: (m[2] || '').trim() };
-}).filter((it) => it.text);
-
 const mdKeBaris = (md) => md.split('\n').map((l) => l.trim())
   .filter((l) => /^\|.*\|$/.test(l))
   .map((l) => l.slice(1, -1).split('|').map((c) => c.trim()))
   .filter((cells) => !/^-+$/.test((cells[0] || '').replace(/:/g, '')));
 
-// Render satu blok persis seperti mode pratinjau (kertas asli).
-function renderBlok(b) {
-  if (b.type === 'fig') {
-    return (
-      <figure className="figure" style={{ maxWidth: (b.dsize || 560) + 'px', marginLeft: 'auto', marginRight: 'auto' }}>
-        <img src={b.thumbUrl} alt={b.caption || b.title || 'Gambar'} loading="lazy" />
-        {(b.caption || b.title) && (
-          <figcaption>
-            <b>{b.caption || b.title}</b>
-            {b.ai && <div className="credit">Dibuat dengan AI</div>}
-          </figcaption>
-        )}
-      </figure>
-    );
-  }
-  if (b.type === 'img') {
-    return (
-      <figure className="figure" style={{ maxWidth: '560px', marginLeft: 'auto', marginRight: 'auto' }}>
-        <img src={b.url} alt={b.caption || 'Gambar'} loading="lazy" />
-        {b.caption && <figcaption><b>{b.caption}</b></figcaption>}
-      </figure>
-    );
-  }
-  return <div className="md" dangerouslySetInnerHTML={{ __html: marked.parse(blocksToMd([b])) }} />;
-}
-
 // Panel sisip gambar: manual (Wikimedia / URL) atau buat dengan AI.
-function PanelGambar({ onSisip, onBatal, topic, images }) {
+function PanelGambar({ onSisip, onBatal, topic }) {
   const [tab, setTab] = useState('ai');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -148,7 +183,6 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
   const [blocks, setBlocks] = useState(() => mdToBlocks(buangJudulGanda(rapikanIdentitas(initialMarkdown || ''), docTitle || ''), imagesAwal));
   const [images, setImages] = useState(imagesAwal);
   const [editingId, setEditingId] = useState(null);
-  const [editVal, setEditVal] = useState('');
   const [aiId, setAiId] = useState(null);
   const [aiTeks, setAiTeks] = useState('');
   const [regenId, setRegenId] = useState(null);
@@ -156,10 +190,26 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
   const [imgAt, setImgAt] = useState(null);
   const [dragId, setDragId] = useState(null);
   const [overId, setOverId] = useState(null);
+  const editRefs = useRef({});
 
   const titleIx = blocks.findIndex((b) => b.type === 'title');
   const titleBlok = titleIx >= 0 ? blocks[titleIx] : null;
   const blokIsi = titleIx >= 0 ? blocks.filter((_, i) => i !== titleIx) : blocks;
+
+  // Fokus + kursor di akhir saat mulai mengedit
+  useEffect(() => {
+    if (!editingId) return;
+    const el = editRefs.current[editingId];
+    if (!el) return;
+    el.focus();
+    try {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      r.collapse(false);
+      const s = window.getSelection();
+      s.removeAllRanges(); s.addRange(r);
+    } catch { /* abaikan */ }
+  }, [editingId]);
 
   function commit(nb, nimgs) {
     const nim = nimgs !== undefined ? nimgs : images;
@@ -167,7 +217,7 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
     onChange && onChange(blocksToMd(nb), nim);
   }
   const ganti = (id, patch) => commit(blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)));
-  const hapus = (id) => commit(blocks.filter((b) => b.id !== id));
+  const hapus = (id) => { setEditingId(null); commit(blocks.filter((b) => b.id !== id)); };
   const sisipSetelah = (id, baru) => {
     const ix = blocks.findIndex((b) => b.id === id);
     const nb = [...blocks];
@@ -184,16 +234,26 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
     commit(nb);
   };
 
-  function mulaiUbah(b) { setAiId(null); setImgAt(null); setEditVal(srcBlok(b)); setEditingId(b.id); }
-  function simpanUbah() {
-    const b = blocks.find((x) => x.id === editingId);
-    if (!b) { setEditingId(null); return; }
-    if (TEXT_TYPES.includes(b.type)) ganti(b.id, { text: editVal });
-    else if (LIST_TYPES.includes(b.type)) {
-      const items = parseBaris(editVal);
-      if (items.length) ganti(b.id, { items });
+  function mulaiUbah(b) {
+    if (editingId === b.id) return;
+    if (editingId) simpanId(editingId); // pindah blok -> simpan otomatis
+    setAiId(null); setImgAt(null); setEditingId(b.id);
+  }
+  function simpanId(id) {
+    const b = blocks.find((x) => x.id === id);
+    const el = b && editRefs.current[id];
+    if (b && el) {
+      const patch = bacaBlokDariDOM(b, el);
+      if (patch) ganti(b.id, patch);
     }
-    setEditingId(null); setEditVal('');
+  }
+  function simpanUbah() {
+    if (editingId) simpanId(editingId);
+    setEditingId(null);
+  }
+  function batalUbah() {
+    // key berubah kembali -> komponen remount dari state -> tulisan kembali seperti semula
+    setEditingId(null);
   }
 
   async function jalanAI(b, instruksi) {
@@ -245,7 +305,7 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
         >⠿</button>
       )}
       {EDIT_INLINE.includes(b.type) && (
-        <button type="button" className="ptool" title="Ubah langsung" onClick={() => mulaiUbah(b)}>✎</button>
+        <button type="button" className="ptool" title="Ubah langsung di tempat" onClick={() => mulaiUbah(b)}>✎</button>
       )}
       {BISA_AI.includes(b.type) && (
         <button type="button" className="ptool" title="Perbaiki dengan AI"
@@ -257,7 +317,7 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
       )}
       {!opts.tanpaTambah && (
         <button type="button" className="ptool" title="Tambah paragraf di bawah"
-          onClick={() => sisipSetelah(b.id, { type: 'p', text: '' })}>＋</button>
+          onClick={() => { const nb = { type: 'p', text: 'Tulis di sini…' }; sisipSetelah(b.id, nb); }}>＋</button>
       )}
       {!opts.tanpaHapus && (
         <button type="button" className="ptool danger" title="Hapus bagian"
@@ -282,21 +342,48 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
     </div>
   );
 
-  const editorBlok = (b, besar) => editingId === b.id && (
-    <div className="pblk-edit no-print">
-      <textarea
-        className={besar ? 'pblk-h1edit' : ''}
-        value={editVal} onChange={(e) => setEditVal(e.target.value)} autoFocus
-        rows={besar ? 2 : Math.min(12, Math.max(3, editVal.split('\n').length + 1))}
-        onKeyDown={(e) => { if (e.key === 'Escape') { setEditingId(null); setEditVal(''); } }}
-      />
-      <div className="btn-row" style={{ marginTop: 8, marginBottom: 0 }}>
-        <button type="button" className="btn btn-sm btn-primary" onClick={simpanUbah}>Simpan</button>
-        <button type="button" className="btn btn-sm" onClick={() => { setEditingId(null); setEditVal(''); }}>Batal</button>
-      </div>
-      {LIST_TYPES.includes(b.type) && <p className="hint" style={{ marginBottom: 0 }}>Satu poin per baris.</p>}
+  // Baris simpan/batal saat mengedit langsung
+  const livebar = (
+    <div className="pblk-livebar no-print">
+      <span className="pblk-livehint">Mode ubah — sunting teksnya langsung</span>
+      <button type="button" className="btn btn-sm btn-primary" onClick={simpanUbah}>Simpan</button>
+      <button type="button" className="btn btn-sm" onClick={batalUbah}>Batal</button>
     </div>
   );
+
+  // Render isi blok; saat editingId cocok -> contentEditable di tempat yang sama
+  function renderIsi(b) {
+    const sedang = editingId === b.id;
+    if (b.type === 'fig' || b.type === 'img') {
+      const fig = b.type === 'fig'
+        ? { src: b.thumbUrl, cap: b.caption || b.title, ai: b.ai }
+        : { src: b.url, cap: b.caption, ai: false };
+      return (
+        <figure className="figure" style={{ maxWidth: (b.dsize || 560) + 'px', marginLeft: 'auto', marginRight: 'auto' }}>
+          <img src={fig.src} alt={fig.cap || 'Gambar'} loading="lazy" />
+          {fig.cap && (
+            <figcaption>
+              <b>{fig.cap}</b>
+              {fig.ai && <div className="credit">Dibuat dengan AI</div>}
+            </figcaption>
+          )}
+        </figure>
+      );
+    }
+    return (
+      <div
+        key={b.id + (sedang ? '-editing' : '-view')}
+        ref={(el) => { if (el) editRefs.current[b.id] = el; }}
+        className={'md' + (sedang ? ' pblk-live' : '')}
+        contentEditable={sedang}
+        suppressContentEditableWarning
+        spellCheck={false}
+        onDoubleClick={() => { if (EDIT_INLINE.includes(b.type)) mulaiUbah(b); }}
+        onKeyDown={(e) => { if (sedang && e.key === 'Escape') { e.preventDefault(); batalUbah(); } }}
+        dangerouslySetInnerHTML={{ __html: marked.parse(blocksToMd([b])) }}
+      />
+    );
+  }
 
   return (
     <div className={'paper tema-' + tema + ' pedit'}>
@@ -304,11 +391,23 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
         <div className="doclabel">{typeName} · Kurikulum Merdeka</div>
         {titleBlok ? (
           <div className="pblk">
-            {editingId === titleBlok.id ? editorBlok(titleBlok, true) : (
-              <h1 onDoubleClick={() => mulaiUbah(titleBlok)} title="Klik dua kali untuk mengubah">{titleBlok.text}</h1>
-            )}
+            <h1
+              key={titleBlok.id + (editingId === titleBlok.id ? '-editing' : '-view')}
+              ref={(el) => { if (el) editRefs.current[titleBlok.id] = el; }}
+              className={editingId === titleBlok.id ? 'pblk-live' : ''}
+              contentEditable={editingId === titleBlok.id}
+              suppressContentEditableWarning
+              spellCheck={false}
+              onDoubleClick={() => mulaiUbah(titleBlok)}
+              onKeyDown={(e) => {
+                if (editingId === titleBlok.id && e.key === 'Escape') { e.preventDefault(); batalUbah(); }
+                if (editingId === titleBlok.id && e.key === 'Enter') { e.preventDefault(); simpanUbah(); }
+              }}
+              dangerouslySetInnerHTML={{ __html: titleBlok.text.replace(/&/g, '&amp;').replace(/</g, '&lt;') }}
+            />
+            {editingId === titleBlok.id && livebar}
             {panelAI(titleBlok)}
-            {toolbar(titleBlok, { tanpaGeser: true, tanpaGambar: true, tanpaTambah: true, tanpaHapus: true })}
+            {editingId !== titleBlok.id && toolbar(titleBlok, { tanpaGeser: true, tanpaGambar: true, tanpaTambah: true, tanpaHapus: true })}
           </div>
         ) : (
           <h1>{docTitle}</h1>
@@ -333,27 +432,27 @@ export default function PaperEditor({ initialMarkdown, images: imagesAwal = [], 
             setDragId(null); setOverId(null);
           }}
         >
-          {editingId === b.id ? editorBlok(b) : (
-            <div onDoubleClick={() => { if (EDIT_INLINE.includes(b.type)) mulaiUbah(b); }}>
-              {renderBlok(b)}
-            </div>
-          )}
+          {renderIsi(b)}
+          {editingId === b.id && livebar}
           {panelAI(b)}
           {imgAt === b.id && (
             <PanelGambar
-              topic={topic} images={images}
+              topic={topic}
               onBatal={() => setImgAt(null)}
               onSisip={(fig) => sisipGambar(b.id, fig)}
             />
           )}
-          {toolbar(b)}
+          {editingId !== b.id && toolbar(b)}
         </div>
       ))}
 
       {blokIsi.length === 0 && (
         <div className="pblk">
-          <p className="hint">Dokumen kosong.</p>
-          {toolbar({ id: 'root', type: 'p' }, { tanpaGeser: true, tanpaHapus: true, tanpaGambar: true })}
+          <p className="hint">Dokumen kosong. Tambah paragraf pertama:</p>
+          <button type="button" className="btn btn-sm btn-primary no-print"
+            onClick={() => commit([{ id: nid(), type: 'p', text: 'Tulis di sini…' }])}>
+            ＋ Tambah paragraf
+          </button>
         </div>
       )}
     </div>
