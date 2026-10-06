@@ -1617,26 +1617,29 @@ function bangunMatriksProsem(md, info) {
     const clsKolom = (c) => kolomTanda[c] ? ' class="' + kolomTanda[c] + '"' : '';
     let mingguIdx = 0;
     const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    daftar.forEach((it) => {
+    // Bin-packing: satu minggu bisa diisi beberapa materi (mis. 1 JP A + 1 JP B).
+    // Setiap materi mengisi sisa kapasitas minggu berjalan sebelum pindah ke minggu berikut.
+    let mingguAktif = 0, sisaKap = jpPerMinggu;
+    // Simpan alokasi per materi: [{it, sel: {kolomIdx: jp}}]
+    const alokasiSemua = daftar.map((it) => {
       const jp = Math.max(0, Number(it.jp) || 0);
-      // Distribusikan JP ke minggu: minggu penuh = jpPerMinggu, sisa di minggu terakhir.
-      // Contoh: 5 JP @ 2/minggu -> [2,2,1]; 1 JP -> [1].
-      const alokasi = [];
+      const sel = {};
       let sisa = jp;
-      while (sisa > 0) { const ambil = Math.min(jpPerMinggu, sisa); alokasi.push(ambil); sisa -= ambil; }
-      if (alokasi.length === 0) alokasi.push(0);
+      while (sisa > 0 && mingguAktif < kolomMinggu.length) {
+        const ambil = Math.min(sisaKap, sisa);
+        sel[mingguAktif] = (sel[mingguAktif] || 0) + ambil;
+        jumlah[mingguAktif] = String((Number(jumlah[mingguAktif]) || 0) + ambil);
+        sisa -= ambil; sisaKap -= ambil;
+        if (sisaKap <= 0) { mingguAktif++; sisaKap = jpPerMinggu; }
+      }
+      return { it, jp, sel };
+    });
+    alokasiSemua.forEach(({ it, jp, sel }) => {
       html += '<tr><td>' + esc(it.materi) + '</td><td>' + jp + '</td>';
       for (let c = 0; c < kolomMinggu.length; c++) {
-        const w = c - mingguIdx;
-        if (w >= 0 && w < alokasi.length && alokasi[w] > 0) {
-          html += '<td' + clsKolom(c) + '>' + alokasi[w] + '</td>';
-          jumlah[c] = String((Number(jumlah[c]) || 0) + alokasi[w]);
-        } else {
-          html += '<td' + clsKolom(c) + '></td>';
-        }
+        html += sel[c] ? '<td' + clsKolom(c) + '>' + sel[c] + '</td>' : '<td' + clsKolom(c) + '></td>';
       }
       html += '<td>' + esc(it.ket) + '</td></tr>\n';
-      mingguIdx += alokasi.length;
     });
     const totalJP = daftar.reduce((a, it) => a + (Number(it.jp) || 0), 0);
     html += '<tr><td>Jumlah</td><td>' + totalJP + '</td>';
