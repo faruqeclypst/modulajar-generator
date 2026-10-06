@@ -3080,10 +3080,17 @@ app.get('/api/gambar-proxy', async (req, res) => {
   }
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  // index.html tidak boleh di-cache: selalu ambil versi terbaru agar
+  // pengguna tidak terjebak di bundle lama.
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('index.html')) res.setHeader('Cache-Control', 'no-store');
+  },
+}));
 // API yang tidak dikenal -> 404 JSON (jangan jatuh ke index.html)
 app.use('/api', (req, res) => res.status(404).json({ ok: false, error: 'API tidak ditemukan.' }));
 app.get('*', (req, res) => {
+  res.set('Cache-Control', 'no-store');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
