@@ -1316,8 +1316,8 @@ CONTOH:
   "genap": [
     {"materi": "Proyek Sistem Digital", "jp": 12, "ket": "Proyek"}
   ],
-  "nonEfektif_ganjil": ["Agu-3", "Sep-5"],
-  "nonEfektif_genap": []
+  "minggu_ganjil": ["Jul-3", "Jul-4", "Agu-1", "Agu-2", "Agu-4", "Sep-1"],
+  "minggu_genap": ["Jan-2", "Jan-3", "Jan-4"]
 }
 \`\`\`
 
@@ -1334,7 +1334,7 @@ Contoh BENAR (ditiru polanya):
 
 Setiap objek harus bisa dibaca guru dan langsung tahu apa yang diajarkan — bukan judul bab yang umum.
 
-MINGGU NON-EFEKTIF: Lihat dokumen Analisis Minggu Efektif pada acuan. Catat SEMUA minggu yang TIDAK EFEKTIF (libur nasional/bersama, jeda tengah semester, pekan ujian di luar KBM, dll.) ke dalam \"nonEfektif_ganjil\" / \"nonEfektif_genap\" dengan format \"Jul-1\", \"Agu-3\", \"Des-5\" (singkatan: Jul Agu Sep Okt Nov Des Jan Feb Mar Apr Mei Jun + nomor minggu 1-5). Minggu-minggu ini akan dikosongkan otomatis (tidak diisi materi). PENTING: Minggu non-efektif = NOL JP. Jangan hitung dalam total JP.
+STRUKTUR MINGGU (WAJIB): Dari dokumen Analisis Minggu Efektif dan PROTA, susun daftar minggu EFEKTIF saja (bukan semua minggu kalender) secara berurutan ke dalam "minggu_ganjil" / "minggu_genap". Format tiap minggu: "Jul-3" (3 huruf bulan + nomor minggu). Hanya cantumkan minggu yang ada KBM; minggu libur/ujian JANGAN dicantumkan. Contoh: jika Juli efektif mulai minggu ke-3, maka "minggu_ganjil" diawali "Jul-3", "Jul-4", lalu "Agu-1". PENTING: Total JP = (jumlah minggu di daftar ini) × (JP per minggu). JANGAN alokasikan JP ke minggu yang tidak ada di daftar.
 
 ATURAN JSON:
 1. ACUAN WAJIB (JANGAN mengarang di luar ini):
@@ -1602,16 +1602,42 @@ function bangunMatriksProsem(md, info) {
   if (!data || (!Array.isArray(data.ganjil) && !Array.isArray(data.genap))) return md;
   const jpPerMinggu = Number(info?.jpPerMinggu) || 2;
 
-  const bangunTabel = (daftar, bulan, tanda, nonEfektif) => {
+  const bangunTabel = (daftar, bulan, tanda, daftarMinggu) => {
     if (!Array.isArray(daftar) || daftar.length === 0) return '';
 
-    // Header kolom minggu: Bln-1 .. Bln-5 per bulan
-    const kolomMinggu = [];
-    bulan.forEach(([, kode]) => { for (let w = 1; w <= 5; w++) kolomMinggu.push(kode + '-' + w); });
+    // Kolom minggu DINAMIS dari daftar minggu efektif (AI).
+    // Fallback: 5 minggu per bulan jika AI tidak menyediakan.
+    const NAMA_BLN = { Jan: 'JANUARI', Feb: 'FEBRUARI', Mar: 'MARET', Apr: 'APRIL', Mei: 'MEI', Jun: 'JUNI', Jul: 'JULI', Agu: 'AGUSTUS', Sep: 'SEPTEMBER', Okt: 'OKTOBER', Nov: 'NOVEMBER', Des: 'DESEMBER' };
+    const normKode = (k) => {
+      const s = String(k || '').trim();
+      const m = s.match(/([A-Za-z]+)\s*[-\s]?\s*(\d)/);
+      if (!m) return null;
+      const bln = m[1].slice(0, 3);
+      const key = bln.charAt(0).toUpperCase() + bln.slice(1).toLowerCase();
+      return { kode: key + '-' + m[2], bln: key, w: m[2] };
+    };
+    let kolomMinggu = [];
+    let grupBulan = []; // [{nama, jml}]
+    if (Array.isArray(daftarMinggu) && daftarMinggu.length > 0) {
+      daftarMinggu.forEach((k) => {
+        const n = normKode(k);
+        if (!n) return;
+        kolomMinggu.push(n.kode);
+        const last = grupBulan[grupBulan.length - 1];
+        if (last && last.kode === n.bln) last.jml++;
+        else grupBulan.push({ kode: n.bln, nama: NAMA_BLN[n.bln] || n.bln.toUpperCase(), jml: 1 });
+      });
+    } else {
+      bulan.forEach(([nama, kode]) => {
+        for (let w = 1; w <= 5; w++) kolomMinggu.push(kode + '-' + w);
+        grupBulan.push({ kode, nama, jml: 5 });
+      });
+    }
+    // Header: baris bulan (colspan dinamis) + baris nomor minggu
     let html = '<table>\n<thead>\n<tr><th rowspan="2">Materi Pokok</th><th rowspan="2">JP</th>';
-    bulan.forEach(([nama]) => { html += '<th colspan="5">' + nama + '</th>'; });
+    grupBulan.forEach((g) => { html += '<th colspan="' + g.jml + '">' + g.nama + '</th>'; });
     html += '<th rowspan="2">Ket</th></tr>\n<tr>';
-    bulan.forEach(() => { for (let w = 1; w <= 5; w++) html += '<th>' + w + '</th>'; });
+    kolomMinggu.forEach((k) => { html += '<th>' + k.split('-')[1] + '</th>'; });
     html += '</tr>\n</thead>\n<tbody>\n';
     // Baris jumlah per minggu (untuk LBR/PTS/PAS dan total)
     const jumlah = new Array(kolomMinggu.length).fill('');
@@ -1628,25 +1654,6 @@ function bangunMatriksProsem(md, info) {
       });
     }
     const clsKolom = (c) => kolomTanda[c] ? ' class="' + kolomTanda[c] + '"' : '';
-    // Minggu non-efektif: abu-abu, dilewati saat pengisian materi
-    const nonEfSet = new Set();
-    // Normalisasi kode minggu: "November-2", "Nov 2", "nov-2" -> "Nov-2"
-    const normKode = (k) => {
-      const s = String(k || '').trim();
-      const m = s.match(/([A-Za-z]+)\s*[-\s]?\s*(\d)/);
-      if (!m) return s;
-      const bln = m[1].slice(0, 3);
-      const key = bln.charAt(0).toUpperCase() + bln.slice(1).toLowerCase();
-      return key + '-' + m[2];
-    };
-    const petaKode = {};
-    kolomMinggu.forEach((k, i) => { petaKode[normKode(k)] = i; });
-    if (Array.isArray(nonEfektif)) {
-      nonEfektif.forEach((k) => {
-        const i = petaKode[normKode(k)];
-        if (i != null) { nonEfSet.add(i); kolomTanda[i] = 'td-nonefektif'; jumlah[i] = ''; }
-      });
-    }
     let mingguIdx = 0;
     const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     // Bin-packing: satu minggu bisa diisi beberapa materi (mis. 1 JP A + 1 JP B).
@@ -1658,9 +1665,6 @@ function bangunMatriksProsem(md, info) {
       const sel = {};
       let sisa = jp;
       while (sisa > 0 && mingguAktif < kolomMinggu.length) {
-        // Lewati minggu non-efektif
-        while (mingguAktif < kolomMinggu.length && nonEfSet.has(mingguAktif)) { mingguAktif++; sisaKap = jpPerMinggu; }
-        if (mingguAktif >= kolomMinggu.length) break;
         const ambil = Math.min(sisaKap, sisa);
         sel[mingguAktif] = (sel[mingguAktif] || 0) + ambil;
         jumlah[mingguAktif] = String((Number(jumlah[mingguAktif]) || 0) + ambil);
@@ -1688,8 +1692,8 @@ function bangunMatriksProsem(md, info) {
   const sebelumB = idxB >= 0 ? md.slice(0, idxB) : md;
   const sesudahC = idxC >= 0 ? md.slice(idxC) : '';
   let hasil = sebelumB + '## B. Matriks Program Semester\n';
-  const tGanjil = bangunTabel(data.ganjil, BULAN_GANJIL, data.tanda_ganjil, data.nonEfektif_ganjil);
-  const tGenap = bangunTabel(data.genap, BULAN_GENAP, data.tanda_genap, data.nonEfektif_genap);
+  const tGanjil = bangunTabel(data.ganjil, BULAN_GANJIL, data.tanda_ganjil, data.minggu_ganjil);
+  const tGenap = bangunTabel(data.genap, BULAN_GENAP, data.tanda_genap, data.minggu_genap);
   if (tGanjil) hasil += '\n### Semester Ganjil\n\n' + tGanjil + '\n';
   if (tGenap) hasil += '\n### Semester Genap\n\n' + tGenap + '\n';
   if (!tGanjil && !tGenap) return md; // gagal bangun — jangan rusak dokumen
