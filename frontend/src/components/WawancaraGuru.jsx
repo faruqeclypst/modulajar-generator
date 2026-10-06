@@ -142,6 +142,8 @@ export default function WawancaraGuru({ awal, konteks, onSelesai, onLewati }) {
   const [jawaban, setJawaban] = useState(awal?.jawaban || {});
   const [dilewati, setDilewati] = useState({});
   const [pakaiAI, setPakaiAI] = useState(false);
+  const [tulisBuka, setTulisBuka] = useState({}); // key -> input "tulis sendiri" terbuka
+  const [tulisTeks, setTulisTeks] = useState({}); // key -> teks jawaban sendiri
   const batal = useRef(false);
 
   // Muat pertanyaan yang disesuaikan AI; gagal/timeout -> daftar statis.
@@ -206,21 +208,46 @@ export default function WawancaraGuru({ awal, konteks, onSelesai, onLewati }) {
           delete pjBaru[key];
           return pjBaru;
         });
+        setTulisTeks((pt) => {
+          const baru = { ...pt };
+          delete baru[key];
+          return baru;
+        });
+        setTulisBuka((pb) => ({ ...pb, [key]: false }));
       }
       return next;
     });
   }
 
+  // Gabungkan jawaban "tulis sendiri" ke jawaban: radio -> menggantikan chip,
+  // cek -> ditambahkan ke daftar pilihan.
+  function gabungTulisSendiri(jwb) {
+    const hasil = { ...jwb };
+    for (const [k, t] of Object.entries(tulisTeks)) {
+      const teks = (t || '').trim();
+      if (!teks) continue;
+      const cur = hasil[k];
+      if (Array.isArray(cur)) {
+        if (!cur.includes(teks)) hasil[k] = [...cur, teks];
+      } else {
+        hasil[k] = teks;
+      }
+    }
+    return hasil;
+  }
+
   const terjawab = (daftar || []).filter((p) => {
     if (dilewati[p.key]) return true;
+    if ((tulisTeks[p.key] || '').trim()) return true;
     const j = jawaban[p.key];
     if (Array.isArray(j)) return j.length > 0;
     return j !== undefined && j !== null && String(j).trim() !== '';
   }).length;
 
   function selesai() {
-    const catatan = jawaban.catatan ? String(jawaban.catatan) : '';
-    onSelesai({ jawaban, catatan, daftarTanya: daftar || PERTANYAAN });
+    const j = gabungTulisSendiri(jawaban);
+    const catatan = j.catatan ? String(j.catatan) : '';
+    onSelesai({ jawaban: j, catatan, daftarTanya: daftar || PERTANYAAN });
   }
 
   return (
@@ -242,6 +269,8 @@ export default function WawancaraGuru({ awal, konteks, onSelesai, onLewati }) {
           padding: 7px 14px; cursor: pointer; }
         .wg-chip:hover { background: var(--paper); }
         .wg-chip.aktif { background: var(--ink); color: var(--paper); }
+        .wg-chip.wg-tulis { border-style: dashed; background: var(--paper); }
+        .wg-chip.wg-tulis.aktif { background: var(--ink); color: var(--paper); border-style: solid; }
         .wg-chip:focus-visible, .wg-lewati:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
         .wg-blok.dilewati .wg-kepala, .wg-blok.dilewati .wg-chip-row { opacity: .45; }
         .wg-status { display: inline-block; margin-top: 8px; font-size: 11px; font-weight: 800;
@@ -311,26 +340,56 @@ export default function WawancaraGuru({ awal, konteks, onSelesai, onLewati }) {
                 )}
 
                 {!lewati && p.tipe !== 'teks' && (
-                  <div
-                    className="wg-chip-row"
-                    role={p.tipe === 'radio' ? 'radiogroup' : 'group'}
-                    aria-labelledby={'wg-tanya-' + p.key}
-                  >
-                    {(p.opsi || []).map((o) => {
-                      const aktif = p.tipe === 'radio' ? j === o : (j || []).includes(o);
-                      return (
-                        <button
-                          key={o}
-                          type="button"
-                          className={'wg-chip' + (aktif ? ' aktif' : '')}
-                          aria-pressed={aktif}
-                          onClick={() => (p.tipe === 'radio' ? pilihRadio(p.key, o) : toggleCek(p.key, o))}
-                        >
-                          {o}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <>
+                    <div
+                      className="wg-chip-row"
+                      role={p.tipe === 'radio' ? 'radiogroup' : 'group'}
+                      aria-labelledby={'wg-tanya-' + p.key}
+                    >
+                      {(p.opsi || []).map((o) => {
+                        const aktif = p.tipe === 'radio' ? j === o : (j || []).includes(o);
+                        return (
+                          <button
+                            key={o}
+                            type="button"
+                            className={'wg-chip' + (aktif ? ' aktif' : '')}
+                            aria-pressed={aktif}
+                            onClick={() => (p.tipe === 'radio' ? pilihRadio(p.key, o) : toggleCek(p.key, o))}
+                          >
+                            {o}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        className={'wg-chip wg-tulis' + (tulisBuka[p.key] ? ' aktif' : '')}
+                        aria-pressed={!!tulisBuka[p.key]}
+                        aria-expanded={!!tulisBuka[p.key]}
+                        onClick={() => {
+                          setTulisBuka((s) => ({ ...s, [p.key]: !s[p.key] }));
+                          setDilewati((s) => ({ ...s, [p.key]: false }));
+                        }}
+                      >
+                        ✏️ Tulis sendiri
+                      </button>
+                    </div>
+                    {tulisBuka[p.key] && (
+                      <textarea
+                        className="wg-teks"
+                        rows={2}
+                        style={{ marginTop: 8 }}
+                        value={tulisTeks[p.key] || ''}
+                        onChange={(e) => {
+                          setTulisTeks((s) => ({ ...s, [p.key]: e.target.value }));
+                          setDilewati((s) => ({ ...s, [p.key]: false }));
+                        }}
+                        placeholder={p.tipe === 'radio'
+                          ? 'Tulis jawaban sendiri — menggantikan pilihan chip di atas…'
+                          : 'Tulis jawaban sendiri — ditambahkan ke pilihan chip di atas…'}
+                        aria-label={'Jawaban sendiri untuk: ' + p.tanya}
+                      />
+                    )}
+                  </>
                 )}
 
                 {lewati && (
