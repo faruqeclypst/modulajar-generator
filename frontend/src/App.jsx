@@ -744,7 +744,7 @@ export default function App() {
 
       <ErrorBoundary key={view} onBack={goApp}>
       <div className="view-enter">
-      {view === 'landing' && <Landing onStart={goApp} onDocs={() => setView('docs')} onMasukan={() => setView('masukan')} waLink={WA_LINK} />}
+      {view === 'landing' && <Landing onStart={goApp} onDocs={() => setView('docs')} onMasukan={() => setView('masukan')} onGaleri={() => setView('galeri')} waLink={WA_LINK} />}
 
       {view === 'masukan' && (
         <HalamanMasukan
