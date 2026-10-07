@@ -95,9 +95,18 @@ export default function Topbar({ view, onNav, user, kuota, onOpenSettings, onOpe
 
   const foto = avatarUrl(user);
   const diLanding = view === 'landing';
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    const cek = () => { raf = 0; setScrolled(window.scrollY > 24); };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(cek); };
+    cek();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
-    <header className={'topbar' + (diLanding ? ' topbar-land' : '')}>
+    <header className={'topbar' + (diLanding ? ' topbar-land' : '') + (scrolled ? ' scrolled' : '')}>
       <div className="topbar-inner">
         <button type="button" className="logo" onClick={() => { onNav('landing'); setMobileOpen(false); }} aria-label="ModulAjar, ke halaman depan">
           <img src="/logo.svg" alt="" aria-hidden="true" className="logo-mark logo-img" width="42" height="42" />

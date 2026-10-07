@@ -1154,6 +1154,20 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   .land-faq-item p { transition: none; }
 }
 
+/* ---------- text rotator ---------- */
+.rotator { display: inline-block; overflow: hidden; vertical-align: bottom; padding-bottom: .08em; margin-bottom: -.08em; }
+.rotator-kata { display: inline-block; animation: rotator-masuk .65s cubic-bezier(.22,.8,.3,1); will-change: transform, opacity; }
+@keyframes rotator-masuk {
+  from { opacity: 0; transform: translateY(75%); filter: blur(5px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+/* Navbar: bayangan saat di-scroll */
+.topbar-land.scrolled { box-shadow: 0 3px 0 var(--ink); }
+.topbar { transition: box-shadow .3s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .rotator-kata { animation: none; }
+}
+
 /* ---------- landing: alur satu blok interaktif ---------- */
 .alur-blok {
   border: var(--bd); background: var(--paper-2); box-shadow: var(--sh);

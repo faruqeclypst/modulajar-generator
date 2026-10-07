@@ -82,3 +82,19 @@ export function CountUp({ sampai = 10, durasi = 1200, className = '' }) {
   }, [sampai, durasi]);
   return <span ref={ref} className={className}>{nilai}</span>;
 }
+
+// Teks berputar otomatis: tiap interval ganti frasa dengan animasi slide+blur.
+export function TextRotator({ frasa = [], interval = 3200, className = '' }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (frasa.length < 2) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const t = setInterval(() => setI((v) => (v + 1) % frasa.length), interval);
+    return () => clearInterval(t);
+  }, [frasa.length, interval]);
+  return (
+    <span className={`rotator ${className}`} aria-live="polite">
+      <span key={i} className="rotator-kata">{frasa[i]}</span>
+    </span>
+  );
+}

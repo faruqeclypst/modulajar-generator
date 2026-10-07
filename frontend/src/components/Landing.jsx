@@ -1,4 +1,4 @@
-import { Reveal, Parallax, CountUp } from './Reveal';
+import { Reveal, Parallax, CountUp, TextRotator } from './Reveal';
 import { AlurBlok } from './AlurBlok';
 import { useEffect } from 'react';
 import { DOC_TYPES } from '../lib/docs';
@@ -83,7 +83,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
           <div className="hero-teks">
             <img src="/logo.svg" alt="Logo ModulAjar" className="hero-logo" width="76" height="76" />
             <span className="kicker kicker-light">Untuk Guru Indonesia</span>
-            <h1>Perangkat Ajar<br />Lengkap dalam<br /><span className="accent">Hitungan Menit.</span></h1>
+            <h1>Perangkat Ajar<br />Lengkap dalam<br /><span className="accent"><TextRotator frasa={['Hitungan Menit.', 'Satu Dasbor.', 'Tanpa Instal.']} /></span></h1>
             <p>
               Dari CP sampai modul ajar, LKPD, dan bank soal. AI menyusun mengikuti
               alur Kurikulum Merdeka yang runtut dan acuan yang kamu pilih.
@@ -114,7 +114,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
       <section id="alur" style={{ marginTop: 56 }}>
         <Reveal>
           <span className="kicker">Alur Dokumen</span>
-          <h2 className="sec-title">Satu alur,<br />sembilan perangkat.</h2>
+          <h2 className="sec-title">Satu alur,<br /><TextRotator interval={3600} frasa={['sembilan perangkat.', 'tanpa copy-paste.', 'dari CP ke bank soal.', 'sesuai Kurikulum Merdeka.']} /></h2>
           <p className="lead" style={{ maxWidth: '62ch' }}>
             Perangkat ajar yang baik tersusun berurutan: perencanaan dulu, baru
             pelaksanaan, lalu penilaian — dan hasilnya melingkar kembali:
@@ -204,7 +204,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
         <button className="btn btn-primary" onClick={onStart}>Buat Dokumen Sekarang</button>
       </Reveal>
 
-      <footer className="land-footer">
+      <Reveal as="footer" className="land-footer">
         <div className="land-footer-grid">
           <div className="land-footer-brand">
             <img src="/logo.svg" alt="Logo ModulAjar" className="land-footer-logo" width="60" height="60" />
@@ -232,7 +232,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
           <p className="land-copy">© 2026 ModulAjar · Oleh Alfaruq Asri, S.Pd.</p>
           <p className="land-copy">Dibuat dengan bangga untuk guru Indonesia.</p>
         </div>
-      </footer>
+      </Reveal>
     </div>
   );
 }
