@@ -722,7 +722,17 @@ export default function App() {
     <>
       <Topbar
         view={view}
-        onNav={(v) => { setView(v); if (v === 'app') refresh(); }}
+        onNav={(v) => {
+          // Tinggalkan galeri/baca-publik: bersihkan slug + URL agar tidak memantul balik
+          if (v !== 'galeri') {
+            setGaleriSlug(null);
+            const p = window.location.pathname;
+            if (p === '/galeri' || p === '/galeri/' || p.startsWith('/baca/')) {
+              history.replaceState(null, '', '/');
+            }
+          }
+          setView(v); if (v === 'app') refresh();
+        }}
         user={user}
         kuota={kuota}
         onOpenSettings={() => setView('pengaturan')}
@@ -748,7 +758,11 @@ export default function App() {
       {view === 'galeri' && (
         <GaleriPublik
           slugAwal={galeriSlug}
-          onTutup={() => { setGaleriSlug(null); setView(user ? 'app' : 'landing'); }}
+          onTutup={() => {
+            setGaleriSlug(null);
+            history.replaceState(null, '', '/');
+            setView(user ? 'app' : 'landing');
+          }}
         />
       )}
 
