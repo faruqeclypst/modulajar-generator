@@ -11,8 +11,15 @@ export default function HalamanMasukan({ onBack, mode = 'kontak' }) {
         Ide fitur, laporan kendala, atau hal yang membingungkan — ceritakan di sini.
         Dibaca langsung oleh pengembang, bukan bot.
       </p>
-      <div className="col-form">
-        <FeedbackForm mode={mode} />
+      <div className="masukan-grid">
+        <div className="col-form" style={{ maxWidth: 'none' }}>
+          <FeedbackForm mode={mode} />
+        </div>
+        <aside className="masukan-maskot" aria-hidden="true">
+          <img className="maskot-splash" src="/splash.svg" alt="" />
+          <img className="maskot-img" src="/maskot.png" alt="" width="480" height="450" loading="lazy" />
+          <p className="maskot-kata">"Cerita aja, aku dengerin!"</p>
+        </aside>
       </div>
       <div className="btn-row" style={{ marginTop: 20 }}>
         <button type="button" className="btn" onClick={onBack}>← Kembali</button>
