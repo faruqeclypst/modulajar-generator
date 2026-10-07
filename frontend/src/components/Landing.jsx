@@ -1,7 +1,8 @@
 import { Reveal, Parallax, CountUp, TextRotator } from './Reveal';
-import { AlurBlok } from './AlurBlok';
-import { useEffect } from 'react';
+import { listDokumenPublik } from '../lib/db';
 import { DOC_TYPES } from '../lib/docs';
+import { useEffect, useState } from 'react';
+import { AlurBlok } from './AlurBlok';
 import { kunciAkun } from '../lib/akunLokal';
 
 // Landing page ModulAjar (menggantikan fungsi Landing di App.jsx).
@@ -66,6 +67,43 @@ const FAQ = [
   ['Di mana dokumen saya tersimpan?',
     'Di akunmu (login Google). Buka dari perangkat mana pun, datanya tetap ada. Hanya kamu yang bisa membukanya.'],
 ];
+
+function GaleriPreview({ onGaleri }) {
+  const [daftar, setDaftar] = useState(null);
+  useEffect(() => {
+    let hidup = true;
+    listDokumenPublik(6).then((d) => { if (hidup) setDaftar(d); }).catch(() => { if (hidup) setDaftar([]); });
+    return () => { hidup = false; };
+  }, []);
+  if (!daftar || daftar.length === 0) return null;
+  return (
+    <section id="galeri" style={{ marginTop: 56 }}>
+      <Reveal>
+        <span className="kicker">Galeri Publik</span>
+        <h2 className="sec-title">Dibagikan guru,<br />dibaca siapa saja.</h2>
+        <p className="lead" style={{ maxWidth: '62ch' }}>
+          Perangkat ajar terbaru yang dipublikasikan komunitas guru Indonesia.
+        </p>
+      </Reveal>
+      <div className="galeri-grid" style={{ marginTop: 20 }}>
+        {daftar.slice(0, 6).map((d, i) => (
+          <Reveal key={d.id} delayMs={Math.min(i, 5) * 70} className="card galeri-card" as="article">
+            <span className="chip red">{DOC_TYPES[d.docType]?.tag || d.docType}</span>
+            <h3>{d.judul}</h3>
+            <p className="hint" style={{ margin: '4px 0 0' }}>
+              {d.mapel ? `${d.mapel} · ` : ''}{d.kelas || ''}
+            </p>
+          </Reveal>
+        ))}
+      </div>
+      <Reveal delayMs={100} style={{ marginTop: 20, textAlign: 'center' }}>
+        <button type="button" className="btn btn-primary" onClick={onGaleri}>
+          Jelajahi Galeri Lengkap →
+        </button>
+      </Reveal>
+    </section>
+  );
+}
 
 export default function Landing({ onStart, onDocs, onMasukan, onGaleri, waLink, onLogin }) {
   // Tangkap kode referral dari URL (?ref=KODE) untuk diklaim setelah login.
@@ -211,6 +249,8 @@ export default function Landing({ onStart, onDocs, onMasukan, onGaleri, waLink, 
           </div>
         </div>
       </section>
+
+      {onGaleri && <GaleriPreview onGaleri={onGaleri} />}
 
       <Reveal className="cta-band" delayMs={60}>
         <h2>Siap menyusun perangkat ajarmu?</h2>
