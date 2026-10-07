@@ -1,5 +1,5 @@
 import { Reveal, Parallax, CountUp, TextRotator } from './Reveal';
-import { listDokumenPublik } from '../lib/db';
+import { listDokumenPublik, cuplikanMarkdown } from '../lib/db';
 import { DOC_TYPES } from '../lib/docs';
 import { useEffect, useState } from 'react';
 import { AlurBlok } from './AlurBlok';
@@ -87,12 +87,17 @@ function GaleriPreview({ onGaleri }) {
       </Reveal>
       <div className="galeri-grid" style={{ marginTop: 20 }}>
         {daftar.slice(0, 6).map((d, i) => (
-          <Reveal key={d.id} delayMs={Math.min(i, 5) * 70} className="card galeri-card" as="article">
+          <Reveal key={d.id} delayMs={Math.min(i, 5) * 70} className="card galeri-card" as="article"
+            onClick={onGaleri} tabIndex={0} role="button" aria-label={`Baca ${d.judul}`}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGaleri(); } }}>
             <span className="chip red">{DOC_TYPES[d.docType]?.tag || d.docType}</span>
             <h3>{d.judul}</h3>
             <p className="hint" style={{ margin: '4px 0 0' }}>
               {d.mapel ? `${d.mapel} · ` : ''}{d.kelas || ''}
             </p>
+            {d.markdown && (
+              <p className="galeri-cuplikan">{cuplikanMarkdown(d.markdown, 140)}</p>
+            )}
           </Reveal>
         ))}
       </div>

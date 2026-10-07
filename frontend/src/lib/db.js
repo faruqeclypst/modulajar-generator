@@ -58,10 +58,20 @@ export async function batalPublikasi(id) {
 export async function listDokumenPublik(batas = 60) {
   const c = await getSupabase();
   const { data, error } = await c.from('dokumen')
-    .select('id, doc_type, judul, slug, meta, diterbitkan_pada, created_at')
+    .select('id, doc_type, judul, slug, meta, diterbitkan_pada, created_at, markdown')
     .eq('publik', true).order('diterbitkan_pada', { ascending: false }).limit(batas);
   if (error) throw new Error('Gagal memuat galeri: ' + error.message);
   return (data || []).map(toApp);
+}
+
+// Cuplikan teks polos dari markdown (untuk preview kartu galeri).
+export function cuplikanMarkdown(md, maks = 180) {
+  const t = String(md || '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/(\*\*|__|\*|_|`|~~|\[|\]|\(|\)|#)/g, '')
+    .replace(/\|/g, ' ').replace(/-{2,}/g, ' ')
+    .replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  return t.length > maks ? t.slice(0, maks).trimEnd() + '…' : t;
 }
 
 // Baca satu dokumen publik via slug — tanpa login.

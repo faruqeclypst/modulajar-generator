@@ -576,7 +576,14 @@ export default function App() {
     const tandai404 = () => {
       const path = window.location.pathname;
       const matchDok = /^\/dokumen\/([\w-]+)\/?$/.test(path); // (G1) '/dokumen/' tanpa id -> 404
-      if (path !== '/' && !matchDok && view !== 'tidak-ditemukan') {
+      const mmBaca = path.match(/^\/baca\/([\w-]+)\/?$/);
+      const matchGaleri = /^\/galeri\/?$/.test(path);
+      // Buka galeri / dokumen publik bila path-nya cocok
+      if (matchGaleri && view !== 'galeri') { setView('galeri'); setGaleriSlug(null); }
+      else if (mmBaca && (view !== 'galeri' || galeriSlug !== mmBaca[1])) {
+        setGaleriSlug(mmBaca[1]); setView('galeri');
+      }
+      else if (path !== '/' && !matchDok && !mmBaca && !matchGaleri && view !== 'tidak-ditemukan') {
         setView('tidak-ditemukan');
       }
     };
@@ -584,6 +591,11 @@ export default function App() {
     tandai404();
     // Tombol back/forward browser: kembali dari dokumen ke halaman asal
     const onPop = () => {
+      const p = window.location.pathname;
+      const mb = p.match(/^\/baca\/([\w-]+)\/?$/);
+      if (mb) { setGaleriSlug(mb[1]); setView('galeri'); return; }
+      if (p === '/galeri' || p === '/galeri/') { setGaleriSlug(null); setView('galeri'); return; }
+      if (p === '/' && view === 'galeri') { setGaleriSlug(null); setView('app'); return; }
       if (!bukaDariUrl() && (view === 'detail' || view === 'tidak-ditemukan')) kembaliDariDoc();
     };
     window.addEventListener('popstate', onPop);

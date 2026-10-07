@@ -319,6 +319,18 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .galeri-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 20px; }
 .galeri-card h3 { margin: 6px 0 0; font-size: 17px; line-height: 1.4; }
 .galeri-card:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
+.galeri-card[role="button"] { cursor: pointer; }
+.galeri-card[role="button"]:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+.galeri-cuplikan {
+  margin: 10px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft);
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+  border-top: 1px dashed var(--line); padding-top: 10px;
+}
+.galeri-baca {
+  margin-top: 12px; font-size: 13px; font-weight: 700; color: var(--red);
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.galeri-card:hover .galeri-baca { text-decoration: underline; }
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(30, 25, 20, .55); z-index: 90;
   display: flex; align-items: center; justify-content: center; padding: 20px;

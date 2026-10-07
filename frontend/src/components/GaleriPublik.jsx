@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { listDokumenPublik, getDokumenPublik } from '../lib/db';
+import { listDokumenPublik, getDokumenPublik, cuplikanMarkdown } from '../lib/db';
 import { DOC_TYPES } from '../lib/docs';
 import DocPaper from './DocPaper';
 import { Reveal } from './Reveal';
@@ -67,17 +67,19 @@ export default function GaleriPublik({ slugAwal = null, onTutup }) {
         <div className="galeri-grid">
           {tampil.map((d, i) => (
             <Reveal key={d.id} delayMs={Math.min(i, 8) * 60} className="card galeri-card"
-              as="article">
+              as="article" onClick={() => setBuka(d.slug)} tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setBuka(d.slug); } }}
+              role="button" aria-label={`Baca ${d.judul}`}>
               <span className="chip red">{DOC_TYPES[d.docType]?.tag || d.docType}</span>
               <h3>{d.judul}</h3>
               <p className="hint" style={{ margin: '4px 0 0' }}>
                 {d.mapel ? `${d.mapel} · ` : ''}{d.kelas ? `${d.kelas} · ` : ''}
                 {d.diterbitkanPada ? new Date(d.diterbitkanPada).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
               </p>
-              <button type="button" className="btn btn-sm btn-primary" style={{ marginTop: 12 }}
-                onClick={() => setBuka(d.slug)}>
-                Baca Dokumen
-              </button>
+              {d.markdown && (
+                <p className="galeri-cuplikan">{cuplikanMarkdown(d.markdown)}</p>
+              )}
+              <span className="galeri-baca">Baca selengkapnya →</span>
             </Reveal>
           ))}
         </div>
