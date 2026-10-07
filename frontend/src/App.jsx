@@ -613,10 +613,8 @@ export default function App() {
     setView('landing');
   }
 
-  if (auth === 'loading') return <LayarTunggu pesan="Menyiapkan aplikasi…" />;
-  // Belum login: tampilkan landing page dulu; form login muncul saat pengguna
-  // memilih "Masuk" / "Mulai Membuat".
-  // Deep link publik: /galeri atau /baca/:slug langsung dibuka tanpa login
+  // Deep link publik: /galeri atau /baca/:slug langsung dibuka tanpa login.
+  // (useEffect di sini, sebelum early return, agar urutan hooks stabil.)
   useEffect(() => {
     const p = window.location.pathname;
     if (p === '/galeri' || p === '/galeri/') { setGaleriPublik(true); }
@@ -624,7 +622,11 @@ export default function App() {
       const m = p.match(/^\/baca\/([\w-]+)\/?$/);
       if (m) { setGaleriPublik(true); setGaleriSlugPublik(m[1]); }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  if (auth === 'loading') return <LayarTunggu pesan="Menyiapkan aplikasi…" />;
+  // Belum login: tampilkan landing page dulu; form login muncul saat pengguna
+  // memilih "Masuk" / "Mulai Membuat".
   if (auth === 'login') {
     if (mintaLogin) return <LayarLogin err={authErr} onBatal={() => setMintaLogin(false)} />;
     if (galeriPublik) {
