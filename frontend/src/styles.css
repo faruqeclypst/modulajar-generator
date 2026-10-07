@@ -1105,6 +1105,71 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   .reveal-tampil .land-cycle-arrow { animation: none; }
 }
 
+/* ---------- landing: alur satu blok interaktif ---------- */
+.alur-blok {
+  border: var(--bd); background: var(--paper-2); box-shadow: var(--sh);
+  margin-top: 20px; overflow: hidden;
+}
+.alur-tabs { display: flex; position: relative; background: var(--paper); border-bottom: var(--bd); }
+.alur-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 6px; background: none; border: none; border-right: 2px solid var(--wash);
+  font: inherit; cursor: pointer; color: var(--muted); min-width: 0;
+}
+.alur-tab:last-of-type { border-right: none; }
+.alur-tab-no { font-weight: 900; font-size: 12px; letter-spacing: 1px; opacity: .7; }
+.alur-tab-nama { font-weight: 800; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alur-tab:hover { background: var(--paper-2); color: var(--ink); }
+.alur-tab.aktif { background: var(--ink); color: #fff; }
+.alur-tab.aktif .alur-tab-no { color: var(--red); opacity: 1; }
+.alur-bar {
+  position: absolute; left: 0; bottom: -2px; height: 4px; width: 0;
+  background: var(--red); animation: alur-bar linear forwards;
+}
+@keyframes alur-bar { from { width: 0; } to { width: 100%; } }
+.alur-stage { padding: clamp(22px, 4vw, 40px); min-height: 340px; position: relative; overflow: hidden; }
+.alur-stage-isi { animation: alur-masuk .55s cubic-bezier(.22,.8,.3,1); }
+.alur-stage-isi.mundur { animation-name: alur-masuk-mundur; }
+@keyframes alur-masuk { from { opacity: 0; transform: translateX(44px); } to { opacity: 1; transform: none; } }
+@keyframes alur-masuk-mundur { from { opacity: 0; transform: translateX(-44px); } to { opacity: 1; transform: none; } }
+.alur-stage-no {
+  position: absolute; top: 8px; right: 18px; font-size: clamp(72px, 12vw, 120px);
+  font-weight: 900; line-height: 1; color: var(--ink); opacity: .06; pointer-events: none;
+}
+.alur-stage h3 { margin: 0 0 8px; font-size: clamp(22px, 3.4vw, 30px); }
+.alur-stage > .alur-stage-isi > p, .alur-stage-isi > p { margin: 0 0 18px; color: var(--slate); font-size: 15px; max-width: 62ch; }
+.alur-docs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.alur-docs li {
+  border: 2px solid var(--wash); background: var(--paper); padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  opacity: 0; animation: alur-doc-masuk .5s ease-out forwards;
+}
+@keyframes alur-doc-masuk { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.alur-docs b { font-size: 15px; }
+.alur-docs span:last-child { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.alur-siklus { display: flex; align-items: center; gap: 18px; border: 2px dashed var(--red); padding: 18px 20px; background: var(--paper); }
+.alur-siklus-ikon { font-size: 56px; font-weight: 900; color: var(--red); line-height: 1; animation: putar-sekali 1.1s ease-out; }
+.alur-siklus p { margin: 0; font-size: 15px; color: var(--slate); }
+.alur-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: var(--bd); background: var(--paper); }
+.alur-panah {
+  border: var(--bd); background: var(--paper-2); box-shadow: 2px 2px 0 var(--ink);
+  width: 40px; height: 40px; font-size: 18px; font-weight: 900; cursor: pointer; color: var(--ink);
+}
+.alur-panah:active { transform: translate(2px, 2px); box-shadow: none; }
+.alur-titik { display: flex; gap: 8px; }
+.alur-titik button { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ink); background: transparent; padding: 0; cursor: pointer; }
+.alur-titik button.aktif { background: var(--red); border-color: var(--red); }
+@media (max-width: 560px) {
+  .alur-tab-nama { display: none; }
+  .alur-tab-no { font-size: 14px; }
+  .alur-stage { min-height: 380px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .alur-stage-isi, .alur-docs li { animation: none; opacity: 1; }
+  .alur-siklus-ikon { animation: none; }
+  .alur-bar { display: none; }
+}
+
 /* ---------- landing: cara kerja ---------- */
 .land-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 14px; }
 /* Dua pilihan cara: otomatis sekaligus vs dipandu bertahap */

@@ -1,4 +1,5 @@
 import { Reveal } from './Reveal';
+import { AlurBlok } from './AlurBlok';
 import { useEffect } from 'react';
 import { DOC_TYPES } from '../lib/docs';
 import { kunciAkun } from '../lib/akunLokal';
@@ -119,34 +120,8 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
           asesmen dan refleksi menjadi bahan perbaikan perencanaan berikutnya.
           ModulAjar menjaga urutan itu di setiap dokumen yang dibuat.
         </p>
-        <ol className="land-chain">
-          {RANTAI.map((g, gi) => (
-            <Reveal as="li" key={g.grup} className="land-chain-group" delayMs={gi * 90}>
-              <div className="land-chain-head">
-                <span className="land-chain-num" aria-hidden="true">{g.grup}</span>
-                <p>{g.ket}</p>
-              </div>
-              <ul className="land-chain-docs">
-                {g.kunci.map((k, ki) => (
-                  <Reveal as="li" key={k} delayMs={gi * 90 + 120 + ki * 70}>
-                    <span className="chip red">{DOC_TYPES[k].tag}</span>
-                    <b>{DOC_TYPES[k].nama}</b>
-                    <span>{DOC_TYPES[k].desc}</span>
-                  </Reveal>
-                ))}
-              </ul>
-            </Reveal>
-          ))}
-        </ol>
-        <Reveal className="card land-cycle" delayMs={120}>
-          <span className="land-cycle-arrow" aria-hidden="true">↺</span>
-          <div>
-            <h3>Siklus berlanjut</h3>
-            <p>
-              Alur ini melingkar, bukan jalan buntu. Hasil <b>penilaian</b> dan refleksi
-              menjadi bahan perbaikan <b>perencanaan</b> periode berikutnya — begitu seterusnya.
-            </p>
-          </div>
+        <Reveal delayMs={80}>
+          <AlurBlok rantai={RANTAI} />
         </Reveal>
       </section>
 
