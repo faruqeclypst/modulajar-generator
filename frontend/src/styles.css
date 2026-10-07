@@ -175,11 +175,12 @@ section[id] { scroll-margin-top: 88px; }
 /* Sistem lebar konsisten: semua halaman pakai .wrap fluid; konten formulir dibatasi .col-form / scope halaman */
 .col-form { max-width: 760px; }
 .pengaturan .card { max-width: 760px; }
-/* Grid kartu pengaturan: 1 kolom di HP, 2 kolom di layar lebar. */
+/* Grid kartu pengaturan: 1 kolom di HP, masonry 2 kolom di layar lebar (tanpa space kosong). */
 .pengaturan-grid { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
 .pengaturan-grid > .card { max-width: none; margin: 0; }
 @media (min-width: 1100px) {
-  .pengaturan-grid { grid-template-columns: 1fr 1fr; }
+  .pengaturan-grid { display: block; column-count: 2; column-gap: 20px; }
+  .pengaturan-grid > .card { break-inside: avoid; margin-bottom: 20px; }
 }
 .wizard .steps, .wizard > .card { max-width: 760px; }
 .card {
