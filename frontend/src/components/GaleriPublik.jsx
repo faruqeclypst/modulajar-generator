@@ -143,7 +143,7 @@ function BacaPublik({ slug, onKembali, onTutup }) {
             🌐 Dokumen publik · {DOC_TYPES[dok.docType]?.nama || dok.docType}
             {dok.diterbitkanPada ? ` · Diterbitkan ${new Date(dok.diterbitkanPada).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
           </p>
-          <DocPaper markdown={dok.markdown} judul={dok.judul} images={dok.images} />
+          <DocPaper doc={dok} />
         </>
       )}
     </div>
