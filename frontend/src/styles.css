@@ -1285,25 +1285,15 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .cara-top { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
 .cara-badge { font-size: 12px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: var(--red); }
 .land-cara.unggul .cara-badge { color: #E8604F; }
-/* Langkah 01-03: timeline horizontal */
-.land-steps { list-style: none; margin: 44px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(18px, 3vw, 36px); position: relative; }
-.land-steps::before { content: ''; position: absolute; top: 26px; left: 4%; right: 4%; border-top: 3px dashed var(--red); opacity: .55; }
-.land-step { position: relative; padding: 0; background: none; border: none; box-shadow: none; }
-.step-no {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 52px; height: 52px; background: var(--paper); border: 3px solid var(--ink);
-  box-shadow: 4px 4px 0 var(--red); font-weight: 900; font-size: 19px; color: var(--red);
-  margin-bottom: 14px; position: relative; z-index: 1;
-  transition: transform .25s ease, background .25s ease, color .25s ease;
-}
-.land-step:hover .step-no { transform: translateY(-4px); background: var(--red); color: #fff; border-color: var(--red); }
-.land-step h3 { margin: 0 0 8px; font-size: 18px; }
-.land-step p { margin: 0; font-size: 14px; color: var(--slate); line-height: 1.65; }
+/* Langkah 01-03: kolom editorial bersih, tanpa garis penghubung */
+.land-steps { list-style: none; margin: 44px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(20px, 3.5vw, 44px); }
+.land-step { border-top: 3px solid var(--ink); padding-top: 18px; position: relative; }
+.land-step::before { content: ''; position: absolute; top: -3px; left: 0; width: 56px; height: 3px; background: var(--red); }
+.step-no { display: block; font-weight: 900; font-size: 13px; letter-spacing: 2.5px; color: var(--red); margin-bottom: 10px; }
+.land-step h3 { margin: 0 0 8px; font-size: 19px; }
+.land-step p { margin: 0; font-size: 14px; color: var(--slate); line-height: 1.7; }
 @media (max-width: 760px) {
-  .land-steps { grid-template-columns: 1fr; }
-  .land-steps::before { display: none; }
-  .land-step { display: grid; grid-template-columns: 52px 1fr; gap: 16px; align-items: start; }
-  .step-no { margin-bottom: 0; }
+  .land-steps { grid-template-columns: 1fr; gap: 26px; }
 }
 .land-step { display: flex; gap: 18px; align-items: flex-start; margin: 0; }
 .land-step > b { font-size: 40px; font-weight: 900; color: var(--red); line-height: 1; flex: none; }
