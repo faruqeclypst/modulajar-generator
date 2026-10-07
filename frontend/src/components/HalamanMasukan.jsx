@@ -16,7 +16,6 @@ export default function HalamanMasukan({ onBack, mode = 'kontak' }) {
           <FeedbackForm mode={mode} />
         </div>
         <aside className="masukan-maskot" aria-hidden="true">
-          <img className="maskot-splash" src="/splash.svg" alt="" />
           <img className="maskot-img" src="/maskot.png" alt="" width="480" height="450" loading="lazy" />
           <p className="maskot-kata">"Cerita aja, aku dengerin!"</p>
         </aside>
