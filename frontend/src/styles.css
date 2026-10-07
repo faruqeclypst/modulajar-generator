@@ -1139,7 +1139,8 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 @keyframes garis-meluncur { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 /* Kartu cara kerja: hover terangkat */
 .land-cara, .land-step { transition: transform .25s ease, box-shadow .25s ease; }
-.land-cara:hover, .land-step:hover { transform: translate(-3px, -3px); box-shadow: 7px 7px 0 var(--ink); }
+.land-cara:not(.unggul):hover { transform: translate(-3px, -3px); box-shadow: 7px 7px 0 var(--ink); }
+.land-cara.unggul:hover { transform: translate(-3px, -3px); box-shadow: 11px 11px 0 var(--red); }
 /* ---------- FAQ mewah: editorial dua kolom ---------- */
 .faq-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: clamp(28px, 5vw, 72px); align-items: start; }
 .faq-side { position: sticky; top: 96px; }
@@ -1261,11 +1262,36 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 
 /* ---------- landing: cara kerja ---------- */
 .land-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 14px; }
-/* Dua pilihan cara: otomatis sekaligus vs dipandu bertahap */
-.land-dua-cara { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 20px; }
-.land-cara { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
-.land-cara h3 { margin: 0; font-size: 20px; }
-.land-cara p { margin: 0; font-size: 14px; color: var(--slate); flex: 1; }
+/* Dua pilihan cara: kartu unggul gelap vs terang */
+.land-dua-cara { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 24px; }
+.land-cara { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; padding: clamp(20px, 3vw, 30px); }
+.land-cara.unggul { background: var(--ink); color: var(--paper); box-shadow: 8px 8px 0 var(--red); }
+.land-cara.unggul p { color: #D9D4C6; }
+.land-cara h3 { margin: 0; font-size: 22px; }
+.land-cara p { margin: 0; font-size: 14.5px; color: var(--slate); flex: 1; line-height: 1.65; }
+.cara-top { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
+.cara-badge { font-size: 12px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: var(--red); }
+.land-cara.unggul .cara-badge { color: #E8604F; }
+/* Langkah 01-03: timeline horizontal */
+.land-steps { list-style: none; margin: 44px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(18px, 3vw, 36px); position: relative; }
+.land-steps::before { content: ''; position: absolute; top: 26px; left: 4%; right: 4%; border-top: 3px dashed var(--red); opacity: .55; }
+.land-step { position: relative; padding: 0; background: none; border: none; box-shadow: none; }
+.step-no {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; background: var(--paper); border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--red); font-weight: 900; font-size: 19px; color: var(--red);
+  margin-bottom: 14px; position: relative; z-index: 1;
+  transition: transform .25s ease, background .25s ease, color .25s ease;
+}
+.land-step:hover .step-no { transform: translateY(-4px); background: var(--red); color: #fff; border-color: var(--red); }
+.land-step h3 { margin: 0 0 8px; font-size: 18px; }
+.land-step p { margin: 0; font-size: 14px; color: var(--slate); line-height: 1.65; }
+@media (max-width: 760px) {
+  .land-steps { grid-template-columns: 1fr; }
+  .land-steps::before { display: none; }
+  .land-step { display: grid; grid-template-columns: 52px 1fr; gap: 16px; align-items: start; }
+  .step-no { margin-bottom: 0; }
+}
 .land-step { display: flex; gap: 18px; align-items: flex-start; margin: 0; }
 .land-step > b { font-size: 40px; font-weight: 900; color: var(--red); line-height: 1; flex: none; }
 .land-step h3 { margin: 2px 0 6px; font-size: 18px; }

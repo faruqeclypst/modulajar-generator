@@ -139,24 +139,25 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
         </Reveal>
         <div className="land-dua-cara">
           {DUA_CARA.map(([t, d, tag, target], i) => (
-            <Reveal key={t} className="card land-cara" delayMs={i * 120}>
-              <span className="chip red">{tag}</span>
+            <Reveal key={t} className={`card land-cara${i === 0 ? ' unggul' : ''}`} delayMs={i * 120}>
+              <div className="cara-top">
+                <span className="chip red">{tag}</span>
+                <span className="cara-badge">{i === 0 ? 'Paling cepat' : 'Paling rapi'}</span>
+              </div>
               <h3>{t}</h3>
               <p>{d}</p>
-              <button type="button" className="btn btn-primary" onClick={() => onStart(target)}>
+              <button type="button" className={`btn ${i === 0 ? 'btn-primary' : 'btn-ghost'}`} onClick={() => onStart(target)}>
                 {target === 'paket' ? 'Coba Generator Paket' : 'Coba Ruang Perencanaan'}
               </button>
             </Reveal>
           ))}
         </div>
-        <ol className="land-steps" style={{ marginTop: 32 }}>
+        <ol className="land-steps">
           {CARA_KERJA.map(([n, t, d], i) => (
-            <Reveal as="li" key={n} className="card land-step" delayMs={i * 120}>
-              <b aria-hidden="true">{n}</b>
-              <div>
-                <h3>{t}</h3>
-                <p>{d}</p>
-              </div>
+            <Reveal as="li" key={n} className="land-step" delayMs={i * 120}>
+              <span className="step-no" aria-hidden="true">{n}</span>
+              <h3>{t}</h3>
+              <p>{d}</p>
             </Reveal>
           ))}
         </ol>
