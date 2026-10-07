@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { updateModul, deleteModul, listModuls, publikasikanDokumen, batalPublikasi } from '../lib/db';
 import { buangJudulGanda, rapikanIdentitas, extractTitle, generateDocStream, getProfile } from '../lib/api';
 import { exportDocx } from '../lib/docxExport';
@@ -268,7 +269,7 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
           {gabungError && <p className="hint" style={{ marginTop: 8, color: 'var(--red-dark)', fontWeight: 700 }}>{gabungError}</p>}
         </div>
       )}
-      {tautanPublik && (
+      {tautanPublik && createPortal(
         <div className="modal-overlay" onClick={() => setTautanPublik(null)}>
           <div className="card modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <h3 style={{ marginTop: 0 }}>🌐 Dokumen dipublikasikan!</h3>
@@ -288,7 +289,8 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {konfHapus && (
         <Konfirmasi
