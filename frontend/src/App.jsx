@@ -213,11 +213,10 @@ function LayarTunggu({ pesan }) {
   return (
     <div className="boot-screen">
       <div className="in">
-        <img src="/logo.svg" alt="" aria-hidden="true" className="boot-logo" width="88" height="88" />
-        <div className="logo">MODULAJAR<small>PERANGKAT AJAR AI</small></div>
+        <img src="/logo.svg" alt="ModulAjar" className="boot-logo" width="96" height="96" />
         <div className="boot-bar" role="status" aria-label="Memuat"><span /></div>
-        <p className="boot-pesan">{pesan || 'Menyiapkan ruang kerjamu…'}</p>
-        <p className="boot-tip" aria-live="polite"><span key={tipIx}>{TIPS[tipIx]}</span></p>
+        <p className="boot-pesan" aria-live="polite">{pesan || (<>Memuat<span className="boot-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></>)} </p>
+        <p className="boot-tip"><span key={tipIx}>{TIPS[tipIx]}</span></p>
         {lama && (
           <div style={{ marginTop: 18 }}>
             <p className="hint" style={{ marginBottom: 10 }}>Masih memuat? Koneksi ke server mungkin lambat.</p>
