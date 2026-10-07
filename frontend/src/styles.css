@@ -557,12 +557,22 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 @media (max-width: 560px) { .radio-cards { grid-template-columns: 1fr; } }
 
 /* ---------- landing ---------- */
-.hero-land { border: var(--bd); background: var(--ink); color: var(--paper); box-shadow: 8px 8px 0 var(--red); padding: clamp(34px, 6vw, 70px); margin: 10px 0 30px; position: relative; overflow: hidden; }
-.hero-grid { display: grid; grid-template-columns: 1.12fr .88fr; gap: clamp(24px, 4vw, 60px); align-items: center; position: relative; z-index: 2; }
+.hero-land {
+  background: var(--ink); color: var(--paper);
+  border-top: var(--bd); border-bottom: var(--bd);
+  /* Full-bleed: keluar dari .wrap sampai tepi layar */
+  margin: -32px calc(50% - 50vw) 30px; padding: clamp(40px, 7vw, 90px) 0;
+  position: relative; overflow: hidden;
+}
+.hero-grid {
+  display: grid; grid-template-columns: 1.08fr .92fr; gap: clamp(24px, 4vw, 60px);
+  align-items: center; position: relative; z-index: 2;
+  width: 100%; max-width: 1328px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 56px);
+}
 .hero-teks { min-width: 0; }
 .hero-maskot { margin: 0; position: relative; }
 .hero-maskot .maskot-splash { position: absolute; inset: -8% -12%; width: 124%; height: 116%; opacity: .9; }
-.hero-maskot .maskot-img { display: block; width: 100%; height: auto; position: relative; }
+.hero-maskot .maskot-img { display: block; width: 100%; max-height: min(58vh, 560px); object-fit: contain; height: auto; position: relative; }
 @media (max-width: 900px) {
   .hero-grid { grid-template-columns: 1fr; }
   .hero-maskot { max-width: 340px; margin: 6px auto 0; }
