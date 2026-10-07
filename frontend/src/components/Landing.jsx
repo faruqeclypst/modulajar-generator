@@ -110,6 +110,84 @@ function GaleriPreview({ onGaleri }) {
   );
 }
 
+function StatistikShowcase({ onGaleri }) {
+  const [stat, setStat] = useState(null);
+  const [daftar, setDaftar] = useState([]);
+  const [idx, setIdx] = useState(0);
+  const [arah, setArah] = useState(1);
+  useEffect(() => {
+    fetch('/api/statistik').then((r) => r.json()).then(setStat).catch(() => {});
+    listDokumenPublik(10).then(setDaftar).catch(() => {});
+  }, []);
+  // Rotasi otomatis tiap 5 detik
+  useEffect(() => {
+    if (daftar.length < 2) return;
+    const t = setInterval(() => {
+      setArah(1);
+      setIdx((i) => (i + 1) % daftar.length);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [daftar.length]);
+  const dok = daftar[idx];
+  const geser = (d) => {
+    if (daftar.length < 2) return;
+    setArah(d);
+    setIdx((i) => (i + d + daftar.length) % daftar.length);
+  };
+  return (
+    <section className="land-stat" aria-label="Statistik komunitas">
+      <div className="land-stat-grid">
+        <Reveal className="land-stat-kiri">
+          <span className="kicker">Komunitas</span>
+          <h2 className="sec-title">Guru Indonesia<br />sudah memakai.</h2>
+          <div className="stat-angka">
+            <div>
+              <b><CountUp to={stat?.totalDokumen || 0} /></b>
+              <span>dokumen diproses</span>
+            </div>
+            <div>
+              <b><CountUp to={stat?.totalUser || 0} /></b>
+              <span>guru terdaftar</span>
+            </div>
+            <div>
+              <b><CountUp to={stat?.totalPublik || 0} /></b>
+              <span>dokumen publik</span>
+            </div>
+          </div>
+        </Reveal>
+        <div className="land-stat-kanan">
+          {dok ? (
+            <div className="showcase-wrap">
+              <div key={dok.id + '-' + idx} className={'card showcase-card' + (arah > 0 ? ' masuk-kanan' : ' masuk-kiri')}>
+                <span className="chip red">{DOC_TYPES[dok.docType]?.tag || dok.docType}</span>
+                <h3>{dok.judul}</h3>
+                <p className="hint" style={{ margin: '4px 0 0' }}>
+                  {dok.mapel ? `${dok.mapel} · ` : ''}{dok.kelas || ''}
+                </p>
+                {dok.markdown && <p className="galeri-cuplikan">{cuplikanMarkdown(dok.markdown, 140)}</p>}
+                <button type="button" className="btn btn-sm btn-primary" style={{ marginTop: 12 }} onClick={onGaleri}>
+                  Baca di Galeri
+                </button>
+              </div>
+              {daftar.length > 1 && (
+                <div className="showcase-nav">
+                  <button type="button" className="btn btn-sm" onClick={() => geser(-1)} aria-label="Dokumen sebelumnya">←</button>
+                  <span className="hint">{idx + 1} / {daftar.length}</span>
+                  <button type="button" className="btn btn-sm" onClick={() => geser(1)} aria-label="Dokumen berikutnya">→</button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+              <p className="hint">Belum ada dokumen publik untuk ditampilkan.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Landing({ onStart, onDocs, onMasukan, onGaleri, waLink, onLogin }) {
   // Tangkap kode referral dari URL (?ref=KODE) untuk diklaim setelah login.
   useEffect(() => {
@@ -254,6 +332,8 @@ export default function Landing({ onStart, onDocs, onMasukan, onGaleri, waLink, 
           </div>
         </div>
       </section>
+
+      {onGaleri && <StatistikShowcase onGaleri={onGaleri} />}
 
       {onGaleri && <GaleriPreview onGaleri={onGaleri} />}
 

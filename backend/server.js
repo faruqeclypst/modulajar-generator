@@ -2535,6 +2535,29 @@ app.get('/api/config', (req, res) => {
   res.json({ ok: true, supabaseUrl: SB_URL, supabaseAnonKey: SB_ANON, turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '' });
 });
 
+// Statistik publik untuk landing: total dokumen, total pengguna, total dokumen publik.
+// Tanpa auth; di-cache 5 menit agar ringan.
+let _statCache = null, _statCacheAt = 0;
+app.get('/api/statistik', async (req, res) => {
+  try {
+    if (_statCache && Date.now() - _statCacheAt < 5 * 60 * 1000) return res.json(_statCache);
+    const [dok, pub, usr] = await Promise.all([
+      sb.from('dokumen').select('id', { count: 'exact', head: true }),
+      sb.from('dokumen').select('id', { count: 'exact', head: true }).eq('publik', true),
+      (async () => { try { const { data } = await sb.auth.admin.listUsers({ perPage: 1 }); return data?.total || 0; } catch { return 0; } })(),
+    ]);
+    _statCache = {
+      totalDokumen: dok.count || 0,
+      totalPublik: pub.count || 0,
+      totalUser: usr || 0,
+    };
+    _statCacheAt = Date.now();
+    res.json(_statCache);
+  } catch (e) {
+    res.json({ totalDokumen: 0, totalPublik: 0, totalUser: 0 });
+  }
+});
+
 app.post('/api/generate-doc', requireAuth(async (req, res) => {
   try {
     const { docType = 'modul', info: infoRaw = {}, materi = '', sumber = '', rekomendasi = null } = req.body || {};
