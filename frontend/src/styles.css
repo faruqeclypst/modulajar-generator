@@ -1105,6 +1105,55 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   .reveal-tampil .land-cycle-arrow { animation: none; }
 }
 
+/* ---------- landing: full motion ---------- */
+/* Hero: entrance saat load */
+@keyframes hero-naik { from { opacity: 0; transform: translateY(34px); } to { opacity: 1; transform: none; } }
+.hero-teks > * { opacity: 0; animation: hero-naik .8s cubic-bezier(.22,.8,.3,1) forwards; }
+.hero-teks > *:nth-child(1) { animation-delay: .05s; }
+.hero-teks > *:nth-child(2) { animation-delay: .15s; }
+.hero-teks > *:nth-child(3) { animation-delay: .25s; }
+.hero-teks > *:nth-child(4) { animation-delay: .35s; }
+.hero-teks > *:nth-child(5) { animation-delay: .45s; }
+.hero-teks > *:nth-child(6) { animation-delay: .55s; }
+.hero-teks > *:nth-child(7) { animation-delay: .65s; }
+/* Maskot mengambang halus */
+@keyframes maskot-ambang { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+.maskot-img { animation: maskot-ambang 5s ease-in-out infinite; }
+/* Judul section: garis aksen meluncur */
+.sec-title { position: relative; }
+.reveal-tampil .sec-title::after {
+  content: ''; display: block; width: 72px; height: 6px; background: var(--red);
+  margin-top: 10px; animation: garis-meluncur .6s cubic-bezier(.22,.8,.3,1);
+  transform-origin: left;
+}
+@keyframes garis-meluncur { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* Kartu cara kerja: hover terangkat */
+.land-cara, .land-step { transition: transform .25s ease, box-shadow .25s ease; }
+.land-cara:hover, .land-step:hover { transform: translate(-3px, -3px); box-shadow: 7px 7px 0 var(--ink); }
+/* FAQ: buka-tutup halus */
+.land-faq-item p { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s ease; margin: 0; }
+.land-faq-item p > span { overflow: hidden; }
+.land-faq-item[open] p { grid-template-rows: 1fr; margin-top: 10px; }
+.land-faq-item summary { cursor: pointer; font-weight: 800; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.land-faq-item summary::-webkit-details-marker { display: none; }
+.land-faq-item summary::after { content: '+'; font-size: 22px; font-weight: 900; color: var(--red); transition: transform .3s ease; flex: none; }
+.land-faq-item[open] summary::after { transform: rotate(45deg); }
+/* CTA: tombol berkilau */
+.cta-band .btn-primary { position: relative; overflow: hidden; }
+.cta-band .btn-primary::before {
+  content: ''; position: absolute; top: 0; left: -80%; width: 50%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent);
+  animation: kilau 3.2s ease-in-out infinite;
+}
+@keyframes kilau { 0% { left: -80%; } 55%, 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) {
+  .hero-teks > * { opacity: 1; animation: none; }
+  .maskot-img { animation: none; }
+  .reveal-tampil .sec-title::after { animation: none; }
+  .cta-band .btn-primary::before { display: none; }
+  .land-faq-item p { transition: none; }
+}
+
 /* ---------- landing: alur satu blok interaktif ---------- */
 .alur-blok {
   border: var(--bd); background: var(--paper-2); box-shadow: var(--sh);

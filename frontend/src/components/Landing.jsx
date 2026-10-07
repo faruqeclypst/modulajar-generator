@@ -1,4 +1,4 @@
-import { Reveal } from './Reveal';
+import { Reveal, Parallax, CountUp } from './Reveal';
 import { AlurBlok } from './AlurBlok';
 import { useEffect } from 'react';
 import { DOC_TYPES } from '../lib/docs';
@@ -98,10 +98,10 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
               <p className="hero-login">Sudah punya akun? <button type="button" onClick={onLogin}>Masuk</button></p>
             )}
           </div>
-          <figure className="hero-maskot">
+          <Parallax speed={0.14} className="hero-maskot">
             <img className="maskot-splash" src="/splash.svg" alt="" aria-hidden="true" />
             <img className="maskot-img" src="/maskot.png" alt="Maskot guru ModulAjar menunjuk ke atas sambil memegang tablet" width="640" height="600" loading="eager" />
-          </figure>
+          </Parallax>
         </div>
       </section>
 
@@ -112,58 +112,64 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
       </div>
 
       <section id="alur" style={{ marginTop: 56 }}>
-        <span className="kicker">Alur Dokumen</span>
-        <h2 className="sec-title">Satu alur,<br />sembilan perangkat.</h2>
-        <p className="lead" style={{ maxWidth: '62ch' }}>
-          Perangkat ajar yang baik tersusun berurutan: perencanaan dulu, baru
-          pelaksanaan, lalu penilaian — dan hasilnya melingkar kembali:
-          asesmen dan refleksi menjadi bahan perbaikan perencanaan berikutnya.
-          ModulAjar menjaga urutan itu di setiap dokumen yang dibuat.
-        </p>
+        <Reveal>
+          <span className="kicker">Alur Dokumen</span>
+          <h2 className="sec-title">Satu alur,<br />sembilan perangkat.</h2>
+          <p className="lead" style={{ maxWidth: '62ch' }}>
+            Perangkat ajar yang baik tersusun berurutan: perencanaan dulu, baru
+            pelaksanaan, lalu penilaian — dan hasilnya melingkar kembali:
+            asesmen dan refleksi menjadi bahan perbaikan perencanaan berikutnya.
+            ModulAjar menjaga urutan itu di setiap dokumen yang dibuat.
+          </p>
+        </Reveal>
         <Reveal delayMs={80}>
           <AlurBlok rantai={RANTAI} />
         </Reveal>
       </section>
 
       <section id="cara-kerja" style={{ marginTop: 56 }}>
-        <span className="kicker">Cara Kerja</span>
-        <h2 className="sec-title">Pilih caramu,<br />AI yang menyusun.</h2>
-        <p className="lead" style={{ maxWidth: '62ch' }}>
-          Dua jalan menuju dokumen jadi — pilih yang sesuai gayamu.
-          Semua hasil tersimpan rapi per mata pelajaran di <b>Proyek Saya</b>,
-          bisa dibuka, diedit, dan diunduh kapan saja.
-        </p>
+        <Reveal>
+          <span className="kicker">Cara Kerja</span>
+          <h2 className="sec-title">Pilih caramu,<br />AI yang menyusun.</h2>
+          <p className="lead" style={{ maxWidth: '62ch' }}>
+            Dua jalan menuju dokumen jadi — pilih yang sesuai gayamu.
+            Semua hasil tersimpan rapi per mata pelajaran di <b>Proyek Saya</b>,
+            bisa dibuka, diedit, dan diunduh kapan saja.
+          </p>
+        </Reveal>
         <div className="land-dua-cara">
-          {DUA_CARA.map(([t, d, tag, target]) => (
-            <div key={t} className="card land-cara">
+          {DUA_CARA.map(([t, d, tag, target], i) => (
+            <Reveal key={t} className="card land-cara" delayMs={i * 120}>
               <span className="chip red">{tag}</span>
               <h3>{t}</h3>
               <p>{d}</p>
               <button type="button" className="btn btn-primary" onClick={() => onStart(target)}>
                 {target === 'paket' ? 'Coba Generator Paket' : 'Coba Ruang Perencanaan'}
               </button>
-            </div>
+            </Reveal>
           ))}
         </div>
         <ol className="land-steps" style={{ marginTop: 32 }}>
-          {CARA_KERJA.map(([n, t, d]) => (
-            <li key={n} className="card land-step">
+          {CARA_KERJA.map(([n, t, d], i) => (
+            <Reveal as="li" key={n} className="card land-step" delayMs={i * 120}>
               <b aria-hidden="true">{n}</b>
               <div>
                 <h3>{t}</h3>
                 <p>{d}</p>
               </div>
-            </li>
+            </Reveal>
           ))}
         </ol>
       </section>
 
       <section id="harga" style={{ marginTop: 56 }}>
-        <span className="kicker">Harga</span>
-        <h2 className="sec-title">Gratis untuk<br />kebutuhan mingguan.</h2>
-        <div className="card land-price">
+        <Reveal>
+          <span className="kicker">Harga</span>
+          <h2 className="sec-title">Gratis untuk<br />kebutuhan mingguan.</h2>
+        </Reveal>
+        <Reveal delayMs={120} className="card land-price">
           <div className="land-price-main">
-            <b className="land-price-num">10</b>
+            <b className="land-price-num"><CountUp sampai={10} /></b>
             <div>
               <b>kredit gratis setiap minggu</b>
               <p>Diperbarui setiap Minggu jam 15:00 WIB. Satu dokumen yang selesai dibuat memakai 1 kredit. Cukup untuk perangkat satu kelas.</p>
@@ -174,27 +180,29 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
             <li><b>Bagikan, dapat bonus.</b> Tiap teman yang bergabung lewat link-mu: kamu +3 kredit, temanmu +3 kredit (maks 5 per minggu).</li>
             {waLink && <li><b>Butuh lebih banyak?</b> <a href={waLink} target="_blank" rel="noreferrer">Hubungi kami via WhatsApp</a> untuk paket khusus sekolah.</li>}
           </ul>
-        </div>
+        </Reveal>
       </section>
 
       <section id="faq" style={{ marginTop: 56 }}>
-        <span className="kicker">Tanya Jawab</span>
-        <h2 className="sec-title">Yang sering<br />ditanyakan.</h2>
+        <Reveal>
+          <span className="kicker">Tanya Jawab</span>
+          <h2 className="sec-title">Yang sering<br />ditanyakan.</h2>
+        </Reveal>
         <div className="land-faq">
-          {FAQ.map(([q, a]) => (
-            <details key={q} className="card land-faq-item">
+          {FAQ.map(([q, a], i) => (
+            <Reveal key={q} as="details" className="card land-faq-item" delayMs={i * 80}>
               <summary>{q}</summary>
-              <p>{a}</p>
-            </details>
+              <p><span>{a}</span></p>
+            </Reveal>
           ))}
         </div>
       </section>
 
-      <section className="cta-band">
+      <Reveal className="cta-band" delayMs={60}>
         <h2>Siap menyusun perangkat ajarmu?</h2>
         <p>Masuk dengan Google, langsung jalan di browser. Tanpa instal apa pun.</p>
         <button className="btn btn-primary" onClick={onStart}>Buat Dokumen Sekarang</button>
-      </section>
+      </Reveal>
 
       <footer className="land-footer">
         <div className="land-footer-grid">
