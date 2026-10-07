@@ -1140,22 +1140,38 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 /* Kartu cara kerja: hover terangkat */
 .land-cara, .land-step { transition: transform .25s ease, box-shadow .25s ease; }
 .land-cara:hover, .land-step:hover { transform: translate(-3px, -3px); box-shadow: 7px 7px 0 var(--ink); }
-/* FAQ: buka-tutup halus */
-.land-faq-item p { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s ease; margin: 0; }
-.land-faq-item p > span { overflow: hidden; }
-.land-faq-item[open] p { grid-template-rows: 1fr; margin-top: 10px; }
-.land-faq-item summary { cursor: pointer; font-weight: 800; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.land-faq-item summary::-webkit-details-marker { display: none; }
-.land-faq-item summary::after { content: '+'; font-size: 22px; font-weight: 900; color: var(--red); transition: transform .3s ease; flex: none; }
-.land-faq-item[open] summary::after { transform: rotate(45deg); }
-/* CTA: tombol berkilau */
-.cta-band .btn-primary { position: relative; overflow: hidden; }
-.cta-band .btn-primary::before {
-  content: ''; position: absolute; top: 0; left: -80%; width: 50%; height: 100%;
-  background: linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent);
-  animation: kilau 3.2s ease-in-out infinite;
+/* ---------- FAQ mewah: editorial dua kolom ---------- */
+.faq-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: clamp(28px, 5vw, 72px); align-items: start; }
+.faq-side { position: sticky; top: 96px; }
+.faq-side .lead { color: var(--slate); font-size: 15.5px; margin: 0 0 22px; }
+.faq-bantu { background: var(--ink); color: var(--paper); border: var(--bd); box-shadow: 6px 6px 0 var(--red); padding: 22px; }
+.faq-bantu b { font-size: 18px; display: block; margin-bottom: 6px; }
+.faq-bantu p { margin: 0 0 14px; color: #D9D4C6; font-size: 14px; }
+.land-faq { border-top: 3px solid var(--ink); }
+.land-faq-item { border: none; border-bottom: 2px solid var(--wash); background: transparent; box-shadow: none; padding: 0; }
+.land-faq-item summary {
+  cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 18px;
+  padding: 20px 4px; transition: padding .25s ease;
 }
-@keyframes kilau { 0% { left: -80%; } 55%, 100% { left: 130%; } }
+.land-faq-item summary::-webkit-details-marker { display: none; }
+.land-faq-item summary::after { display: none; }
+.faq-no {
+  font-weight: 900; font-size: 13px; letter-spacing: 1.5px; color: var(--red);
+  border: 2px solid var(--red); padding: 3px 8px; flex: none; transform: translateY(-2px);
+  transition: background .25s ease, color .25s ease;
+}
+.faq-q { font-weight: 800; font-size: clamp(16px, 2.2vw, 19px); flex: 1; transition: transform .25s ease; }
+.land-faq-item summary:hover .faq-q { transform: translateX(6px); }
+.land-faq-item summary:hover .faq-no { background: var(--red); color: #fff; }
+.land-faq-item[open] .faq-no { background: var(--ink); border-color: var(--ink); color: #fff; }
+.land-faq-item p { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .4s cubic-bezier(.22,.8,.3,1); margin: 0; }
+.land-faq-item p > span { overflow: hidden; }
+.land-faq-item[open] p { grid-template-rows: 1fr; }
+.land-faq-item[open] p > span { padding: 0 4px 22px 52px; color: var(--slate); font-size: 15px; line-height: 1.7; display: block; }
+@media (max-width: 860px) {
+  .faq-grid { grid-template-columns: 1fr; }
+  .faq-side { position: static; }
+}
 @media (prefers-reduced-motion: reduce) {
   .hero-teks > * { opacity: 1; animation: none; }
   .maskot-img { animation: none; }

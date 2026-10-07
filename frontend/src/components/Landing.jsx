@@ -184,17 +184,30 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
       </section>
 
       <section id="faq" style={{ marginTop: 56 }}>
-        <Reveal>
-          <span className="kicker">Tanya Jawab</span>
-          <h2 className="sec-title">Yang sering<br />ditanyakan.</h2>
-        </Reveal>
-        <div className="land-faq">
-          {FAQ.map(([q, a], i) => (
-            <Reveal key={q} as="details" className="card land-faq-item" delayMs={i * 80}>
-              <summary>{q}</summary>
-              <p><span>{a}</span></p>
+        <div className="faq-grid">
+          <div className="faq-side">
+            <Reveal>
+              <span className="kicker">Tanya Jawab</span>
+              <h2 className="sec-title">Yang sering<br />ditanyakan.</h2>
+              <p className="lead">Tidak menemukan jawabanmu? Kami siap membantu langsung.</p>
             </Reveal>
-          ))}
+            <Reveal delayMs={120} className="card faq-bantu">
+              <b>Masih bingung?</b>
+              <p>Chat kami via WhatsApp — dibalas manusia, bukan bot.</p>
+              {waLink && <a className="btn btn-primary" href={waLink} target="_blank" rel="noreferrer">Chat WhatsApp</a>}
+            </Reveal>
+          </div>
+          <div className="land-faq">
+            {FAQ.map(([q, a], i) => (
+              <Reveal key={q} as="details" className="land-faq-item" delayMs={i * 60}>
+                <summary>
+                  <span className="faq-no" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="faq-q">{q}</span>
+                </summary>
+                <p><span>{a}</span></p>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
 
