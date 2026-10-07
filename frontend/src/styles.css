@@ -1086,6 +1086,25 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
 .land-chain-docs b { font-size: 15px; }
 .land-chain-docs span:last-child { font-size: 13px; color: var(--muted); line-height: 1.5; }
 
+/* ---------- scroll reveal (landing) ---------- */
+.reveal {
+  opacity: 0; transform: translateY(26px);
+  transition: opacity .65s ease-out var(--reveal-delay, 0ms), transform .65s ease-out var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+.reveal-tampil { opacity: 1; transform: none; }
+/* Panah antar tahap ikut memudar masuk */
+.land-chain-group.reveal::after { opacity: 0; transition: opacity .65s ease-out calc(var(--reveal-delay, 0ms) + .35s); }
+.land-chain-group.reveal-tampil::after { opacity: 1; }
+/* Ikon siklus berputar pelan sekali saat tampil */
+.land-cycle-arrow { display: inline-block; }
+.reveal-tampil .land-cycle-arrow { animation: putar-sekali 1.1s ease-out; }
+@keyframes putar-sekali { from { transform: rotate(-160deg); } to { transform: rotate(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .reveal-tampil .land-cycle-arrow { animation: none; }
+}
+
 /* ---------- landing: cara kerja ---------- */
 .land-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 14px; }
 /* Dua pilihan cara: otomatis sekaligus vs dipandu bertahap */
