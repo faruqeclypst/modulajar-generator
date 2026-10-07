@@ -186,6 +186,18 @@ function LayarTunggu({ pesan }) {
     const t = setTimeout(() => setLama(true), 15000);
     return () => clearTimeout(t);
   }, []);
+  const [tipIx, setTipIx] = useState(0);
+  useEffect(() => {
+    const tips = 4;
+    const t = setInterval(() => setTipIx((i) => (i + 1) % tips), 3200);
+    return () => clearInterval(t);
+  }, []);
+  const TIPS = [
+    'Satu dokumen selesai = 1 kredit. Gratis 10 kredit setiap minggu.',
+    'Modul ajar selalu mengikuti urutan Prosem yang kamu susun.',
+    'Klik dua kali teks dokumen untuk mengedit langsung.',
+    'Punya API key AI sendiri? Isi di Pengaturan — generate tanpa potong kredit.',
+  ];
   // Lewati pemulihan: hapus posisi tersimpan lalu muat ulang -> dashboard.
   const lewati = () => {
     try {
@@ -201,9 +213,11 @@ function LayarTunggu({ pesan }) {
   return (
     <div className="boot-screen">
       <div className="in">
+        <img src="/logo.svg" alt="" aria-hidden="true" className="boot-logo" width="88" height="88" />
         <div className="logo">MODULAJAR<small>PERANGKAT AJAR AI</small></div>
-        <div className="spinner" role="status" aria-label="Memuat" />
-        <p>{pesan || 'Memuat…'}</p>
+        <div className="boot-bar" role="status" aria-label="Memuat"><span /></div>
+        <p className="boot-pesan">{pesan || 'Menyiapkan ruang kerjamu…'}</p>
+        <p className="boot-tip" aria-live="polite"><span key={tipIx}>{TIPS[tipIx]}</span></p>
         {lama && (
           <div style={{ marginTop: 18 }}>
             <p className="hint" style={{ marginBottom: 10 }}>Masih memuat? Koneksi ke server mungkin lambat.</p>
