@@ -8,6 +8,7 @@ import Topbar from './components/Topbar';
 import Landing from './components/Landing';
 import DocsView from './components/DocsView';
 import HalamanMasukan from './components/HalamanMasukan';
+import GaleriPublik from './components/GaleriPublik';
 import AdminDashboard from './components/AdminDashboard';
 import ErrorBoundary from './components/ErrorBoundary';
 import { setUidLokal, kunciAkun } from './lib/akunLokal';
@@ -243,7 +244,7 @@ function LayarTunggu({ pesan }) {
 // Posisi halaman tersimpan agar refresh tidak melempar ke halaman utama.
 // Format: {view, docId, projectId, ruangProjectId} (docId untuk 'detail', projectId untuk 'proyek', ruangProjectId untuk 'ruang').
 const VIEW_KEY = 'ma-view';
-const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek', 'docs', 'admin', 'masukan', 'sesi-modul'];
+const VIEW_VALID = ['landing', 'app', 'wizard', 'detail', 'ruang', 'paket', 'pengaturan', 'proyek', 'docs', 'admin', 'masukan', 'sesi-modul', 'galeri'];
 function bacaViewTersimpan() {
   try {
     const raw = localStorage.getItem(kunciAkun(VIEW_KEY));
@@ -260,6 +261,8 @@ export default function App() {
   const [authErr, setAuthErr] = useState('');
   const [mintaLogin, setMintaLogin] = useState(false); // belum login: tampilkan form login di atas landing
   const [docsPublik, setDocsPublik] = useState(false); // panduan dibuka dari landing publik
+  const [galeriPublik, setGaleriPublik] = useState(false); // galeri dibuka dari landing publik
+  const [galeriSlugPublik, setGaleriSlugPublik] = useState(null);
   // Buka form login: bersihkan hash anchor landing (mis. #alur) agar URL rapi
   const bukaLogin = (target) => {
     if (window.location.hash) {
@@ -276,6 +279,7 @@ export default function App() {
   // null = belum dipulihkan (dibedakan dari 'landing' agar user login tidak
   // sekilas melihat landing publik saat tidak ada posisi tersimpan).
   const [view, setView] = useState(() => bacaViewTersimpan()?.view || null); // null | landing | app | wizard | detail | ruang | paket | pengaturan | proyek | docs | admin | masukan | tidak-ditemukan
+  const [galeriSlug, setGaleriSlug] = useState(null);
   const [restoring, setRestoring] = useState(() => {
     const d = bacaViewTersimpan();
     return (d?.view === 'detail' && !!d.docId) || (d?.view === 'proyek' && !!d.projectId);
@@ -612,8 +616,42 @@ export default function App() {
   if (auth === 'loading') return <LayarTunggu pesan="Menyiapkan aplikasi…" />;
   // Belum login: tampilkan landing page dulu; form login muncul saat pengguna
   // memilih "Masuk" / "Mulai Membuat".
+  // Deep link publik: /galeri atau /baca/:slug langsung dibuka tanpa login
+  useEffect(() => {
+    const p = window.location.pathname;
+    if (p === '/galeri' || p === '/galeri/') { setGaleriPublik(true); }
+    else {
+      const m = p.match(/^\/baca\/([\w-]+)\/?$/);
+      if (m) { setGaleriPublik(true); setGaleriSlugPublik(m[1]); }
+    }
+  }, []);
   if (auth === 'login') {
     if (mintaLogin) return <LayarLogin err={authErr} onBatal={() => setMintaLogin(false)} />;
+    if (galeriPublik) {
+      return (
+        <>
+          <Topbar
+            view="landing"
+            onNav={() => {}}
+            user={null}
+            kuota={null}
+            onLogin={bukaLogin}
+            onOpenSettings={() => {}}
+            onOpenDocs={null}
+            isAdmin={false}
+            onSignOut={() => {}}
+          />
+          <ErrorBoundary key="galeri-publik" onBack={() => { setGaleriPublik(false); setGaleriSlugPublik(null); history.replaceState(null, '', '/'); }}>
+          <div className="view-enter">
+            <GaleriPublik
+              slugAwal={galeriSlugPublik}
+              onTutup={() => { setGaleriPublik(false); setGaleriSlugPublik(null); history.replaceState(null, '', '/'); }}
+            />
+          </div>
+          </ErrorBoundary>
+        </>
+      );
+    }
     if (docsPublik) {
       return (
         <>
@@ -655,6 +693,7 @@ export default function App() {
             onStart={(target) => bukaLogin(target)}
             onDocs={() => setDocsPublik(true)}
             onMasukan={null}
+            onGaleri={() => { history.replaceState(null, '', '/galeri'); setGaleriPublik(true); }}
             waLink={WA_LINK}
             onLogin={bukaLogin}
           />
@@ -691,6 +730,13 @@ export default function App() {
       )}
 
       {view === 'docs' && <DocsView onBack={goApp} onMasukan={() => setView('masukan')} />}
+
+      {view === 'galeri' && (
+        <GaleriPublik
+          slugAwal={galeriSlug}
+          onTutup={() => { setGaleriSlug(null); setView(user ? 'app' : 'landing'); }}
+        />
+      )}
 
       {view === 'tidak-ditemukan' && (
         <div className="wrap narrow" style={{ textAlign: 'center', paddingTop: 72 }}>

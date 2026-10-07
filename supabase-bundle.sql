@@ -223,3 +223,15 @@ alter table profil_guru enable row level security;
 drop policy if exists "own_profil_guru" on profil_guru;
 create policy "own_profil_guru" on profil_guru for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Galeri Publik: dokumen yang dipublikasikan bisa dibaca siapa saja
+alter table dokumen add column if not exists publik boolean not null default false;
+alter table dokumen add column if not exists slug text;
+alter table dokumen add column if not exists diterbitkan_pada timestamptz;
+create unique index if not exists dokumen_slug_unik on dokumen(slug) where slug is not null;
+create index if not exists dokumen_publik_idx on dokumen(publik, diterbitkan_pada desc) where publik = true;
+
+-- Galeri Publik: siapa saja (termasuk anon) boleh BACA dokumen yang dipublikasikan
+drop policy if exists "baca_dokumen_publik" on dokumen;
+create policy "baca_dokumen_publik" on dokumen for select
+  using (publik = true);

@@ -8,10 +8,11 @@ const NAV = [
   ['app', 'Proyek Saya'],
   ['ruang', 'Ruang Perencanaan'],
   ['paket', 'Generator Paket'],
+  ['galeri', 'Galeri Publik'],
 ];
 
 // View yang ikut menyalakan item nav (konteks orientasi, bukan sekadar URL).
-const NAV_AKTIF = { app: ['app', 'proyek'], ruang: ['ruang'], paket: ['paket'] };
+const NAV_AKTIF = { app: ['app', 'proyek'], ruang: ['ruang'], paket: ['paket'], galeri: ['galeri'] };
 
 function namaDepan(user) {
   const meta = user?.user_metadata || {};

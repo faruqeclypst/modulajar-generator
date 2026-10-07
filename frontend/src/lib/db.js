@@ -20,9 +20,59 @@ function toApp(row) {
     markdown: row.markdown,
     images: row.images || [],
     ...(row.meta || {}),
+    publik: !!row.publik,
+    slug: row.slug || null,
+    diterbitkanPada: row.diterbitkan_pada || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// ---- Galeri Publik ----
+function buatSlug(judul) {
+  const dasar = String(judul || 'dokumen').toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '').trim().replace(/[\s_]+/g, '-').slice(0, 60) || 'dokumen';
+  const acak = Math.random().toString(36).slice(2, 8);
+  return `${dasar}-${acak}`;
+}
+
+export async function publikasikanDokumen(id) {
+  const c = await getSupabase();
+  const cur = await c.from('dokumen').select('judul, slug').eq('id', id).single();
+  if (cur.error) throw new Error('Dokumen tidak ditemukan.');
+  const slug = cur.data.slug || buatSlug(cur.data.judul);
+  const { error } = await c.from('dokumen').update({
+    publik: true, slug, diterbitkan_pada: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) throw new Error('Gagal mempublikasikan: ' + error.message);
+  return slug;
+}
+
+export async function batalPublikasi(id) {
+  const c = await getSupabase();
+  const { error } = await c.from('dokumen').update({ publik: false }).eq('id', id);
+  if (error) throw new Error('Gagal membatalkan publikasi: ' + error.message);
+}
+
+// Daftar dokumen publik — bisa diakses tanpa login (RLS).
+export async function listDokumenPublik(batas = 60) {
+  const c = await getSupabase();
+  const { data, error } = await c.from('dokumen')
+    .select('id, doc_type, judul, slug, meta, diterbitkan_pada, created_at')
+    .eq('publik', true).order('diterbitkan_pada', { ascending: false }).limit(batas);
+  if (error) throw new Error('Gagal memuat galeri: ' + error.message);
+  return (data || []).map(toApp);
+}
+
+// Baca satu dokumen publik via slug — tanpa login.
+export async function getDokumenPublik(slug) {
+  const c = await getSupabase();
+  const { data, error } = await c.from('dokumen').select('*').eq('slug', slug).eq('publik', true).single();
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw new Error('Gagal memuat dokumen: ' + error.message);
+  }
+  return toApp(data);
 }
 
 // ---- Dokumen ----

@@ -308,6 +308,29 @@ p.lead { color: var(--slate); margin: 0 0 20px; font-size: 16px; max-width: 62ch
   .masukan-maskot .maskot-img { animation: none; }
 }
 
+/* ---------- galeri publik ---------- */
+.galeri-filter { display: flex; gap: 10px; margin: 18px 0 22px; flex-wrap: wrap; }
+.galeri-filter input {
+  flex: 1; min-width: 200px; padding: 12px 14px; border: var(--bd);
+  font: inherit; background: var(--paper);
+}
+.galeri-filter select { padding: 12px 14px; border: var(--bd); font: inherit; background: var(--paper); }
+.galeri-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+.galeri-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 20px; }
+.galeri-card h3 { margin: 6px 0 0; font-size: 17px; line-height: 1.4; }
+.galeri-card:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(30, 25, 20, .55); z-index: 90;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: modal-masuk .25s ease-out;
+}
+@keyframes modal-masuk { from { opacity: 0; } to { opacity: 1; } }
+.modal-box { animation: modal-box-masuk .3s cubic-bezier(.22,.8,.3,1); max-width: 520px; width: 100%; }
+@keyframes modal-box-masuk { from { opacity: 0; transform: translateY(24px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay, .modal-box { animation: none; }
+}
+
 /* ---------- dashboard ---------- */
 .flow-hero { display: flex; gap: 18px; align-items: flex-start; margin-bottom: 8px; }
 .flow-num { font-weight: 900; font-size: 34px; line-height: 1; background: var(--ink); color: var(--paper); padding: 8px 14px; flex-shrink: 0; }

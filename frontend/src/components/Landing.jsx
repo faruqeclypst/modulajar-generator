@@ -67,7 +67,7 @@ const FAQ = [
     'Di akunmu (login Google). Buka dari perangkat mana pun, datanya tetap ada. Hanya kamu yang bisa membukanya.'],
 ];
 
-export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin }) {
+export default function Landing({ onStart, onDocs, onMasukan, onGaleri, waLink, onLogin }) {
   // Tangkap kode referral dari URL (?ref=KODE) untuk diklaim setelah login.
   useEffect(() => {
     try {
@@ -240,6 +240,7 @@ export default function Landing({ onStart, onDocs, onMasukan, waLink, onLogin })
             {onMasukan && <button type="button" className="linklike" onClick={onMasukan}>Kirim Masukan</button>}
             {waLink && <a href={waLink} target="_blank" rel="noreferrer">Chat WhatsApp</a>}
             {onDocs && <button type="button" className="linklike" onClick={onDocs}>Panduan</button>}
+            {onGaleri && <button type="button" className="linklike" onClick={onGaleri}>Galeri Publik</button>}
           </nav>
         </div>
         <div className="land-footer-bottom">

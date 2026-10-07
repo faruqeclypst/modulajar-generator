@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { updateModul, deleteModul, listModuls } from '../lib/db';
+import { updateModul, deleteModul, listModuls, publikasikanDokumen, batalPublikasi } from '../lib/db';
 import { buangJudulGanda, rapikanIdentitas, extractTitle, generateDocStream, getProfile } from '../lib/api';
 import { exportDocx } from '../lib/docxExport';
 import { TEMA_DOKUMEN, bacaTemaDokumen, simpanTemaDokumen } from '../lib/tema';
@@ -22,6 +22,8 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
   const [exporting, setExporting] = useState(false);
   const [turunan, setTurunan] = useState([]);
   const [konfHapus, setKonfHapus] = useState(false);
+  const [publikBusy, setPublikBusy] = useState(false);
+  const [tautanPublik, setTautanPublik] = useState(null);
   const [errSimpan, setErrSimpan] = useState('');
   const [gabungBusy, setGabungBusy] = useState(null); // docType yang sedang digabung
   const [gabungError, setGabungError] = useState('');
@@ -133,6 +135,25 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
             <button className="btn btn-sm" onClick={() => setMode('edit')}>Edit Langsung</button>
             <button className="btn btn-sm" onClick={() => setMode('images')}>Kelola Gambar</button>
             <button className="btn btn-sm" onClick={() => window.print()} title="Di dialog cetak: pilih 'Save as PDF', matikan 'Headers and footers' agar bersih">Cetak / PDF</button>
+            {doc.publik ? (
+              <button className="btn btn-sm" title="Dokumen ini publik. Klik untuk menyalin tautan."
+                onClick={() => { setTautanPublik(`${window.location.origin}/baca/${doc.slug}`); }}>
+                🌐 Publik
+              </button>
+            ) : (
+              <button className="btn btn-sm" disabled={publikBusy}
+                onClick={async () => {
+                  setPublikBusy(true);
+                  try {
+                    const slug = await publikasikanDokumen(doc.id);
+                    doc.publik = true; doc.slug = slug;
+                    setTautanPublik(`${window.location.origin}/baca/${slug}`);
+                  } catch (e) { alert(e.message); }
+                  setPublikBusy(false);
+                }}>
+                {publikBusy ? 'Menerbitkan…' : 'Publikasikan'}
+              </button>
+            )}
             <MenuTitik
               label="Aksi lainnya"
               opsi={[
@@ -245,6 +266,28 @@ export default function DocView({ doc, onBack, onDeleted, onChanged, onBuatTurun
           </div>
           {gabungBusy && <p className="hint" style={{ marginTop: 8 }}>Menyusun {gabungBusy === 'lkpd' ? 'LKPD' : gabungBusy === 'soal' ? 'Bank Soal' : 'KKTP'}... akan ditempel di halaman ini. (1 kredit)</p>}
           {gabungError && <p className="hint" style={{ marginTop: 8, color: 'var(--red-dark)', fontWeight: 700 }}>{gabungError}</p>}
+        </div>
+      )}
+      {tautanPublik && (
+        <div className="modal-overlay" onClick={() => setTautanPublik(null)}>
+          <div className="card modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <h3 style={{ marginTop: 0 }}>🌐 Dokumen dipublikasikan!</h3>
+            <p>Siapa saja bisa membaca dokumen ini lewat tautan berikut:</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input readOnly value={tautanPublik} onFocus={(e) => e.target.select()}
+                style={{ flex: 1, padding: '10px 12px', border: 'var(--bd)', fontSize: 13 }} />
+              <button className="btn btn-sm btn-primary" onClick={() => { navigator.clipboard.writeText(tautanPublik); }}>
+                Salin
+              </button>
+            </div>
+            <div className="btn-row" style={{ marginTop: 16 }}>
+              <button className="btn btn-sm" onClick={() => setTautanPublik(null)}>Tutup</button>
+              <button className="btn btn-sm" style={{ color: 'var(--red)' }}
+                onClick={async () => { await batalPublikasi(doc.id); doc.publik = false; setTautanPublik(null); }}>
+                Batalkan publikasi
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {konfHapus && (
