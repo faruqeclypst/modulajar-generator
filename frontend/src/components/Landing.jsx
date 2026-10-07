@@ -119,13 +119,9 @@ function StatistikShowcase({ onGaleri }) {
     fetch('/api/statistik').then((r) => r.json()).then(setStat).catch(() => {});
     listDokumenPublik(10).then(setDaftar).catch(() => {});
   }, []);
-  // Rotasi otomatis tiap 5 detik
   useEffect(() => {
     if (daftar.length < 2) return;
-    const t = setInterval(() => {
-      setArah(1);
-      setIdx((i) => (i + 1) % daftar.length);
-    }, 5000);
+    const t = setInterval(() => { setArah(1); setIdx((i) => (i + 1) % daftar.length); }, 5000);
     return () => clearInterval(t);
   }, [daftar.length]);
   const dok = daftar[idx];
@@ -135,12 +131,16 @@ function StatistikShowcase({ onGaleri }) {
     setIdx((i) => (i + d + daftar.length) % daftar.length);
   };
   return (
-    <section className="land-stat" aria-label="Statistik komunitas">
-      <div className="land-stat-grid">
-        <Reveal className="land-stat-kiri">
-          <span className="kicker">Komunitas</span>
-          <h2 className="sec-title">Guru Indonesia<br />sudah memakai.</h2>
-          <div className="stat-angka">
+    <section className="land-komunitas" aria-label="Komunitas ModulAjar">
+      <div className="land-komunitas-grid">
+        <Reveal className="land-komunitas-kiri">
+          <span className="kicker kicker-terang">Komunitas</span>
+          <h2 className="sec-title sec-title-terang">Guru Indonesia<br />sudah memakai.</h2>
+          <p className="lead lead-terang">
+            Setiap dokumen yang dibuat memperkuat alur perencanaan —
+            dan yang terbaik dibagikan ke galeri publik.
+          </p>
+          <div className="komunitas-stat">
             <div>
               <b><CountUp to={stat?.totalDokumen || 0} /></b>
               <span>dokumen diproses</span>
@@ -155,33 +155,36 @@ function StatistikShowcase({ onGaleri }) {
             </div>
           </div>
         </Reveal>
-        <div className="land-stat-kanan">
-          {dok ? (
-            <div className="showcase-wrap">
-              <div key={dok.id + '-' + idx} className={'card showcase-card' + (arah > 0 ? ' masuk-kanan' : ' masuk-kiri')}>
-                <span className="chip red">{DOC_TYPES[dok.docType]?.tag || dok.docType}</span>
-                <h3>{dok.judul}</h3>
-                <p className="hint" style={{ margin: '4px 0 0' }}>
-                  {dok.mapel ? `${dok.mapel} · ` : ''}{dok.kelas || ''}
-                </p>
-                {dok.markdown && <p className="galeri-cuplikan">{cuplikanMarkdown(dok.markdown, 140)}</p>}
-                <button type="button" className="btn btn-sm btn-primary" style={{ marginTop: 12 }} onClick={onGaleri}>
-                  Baca di Galeri
-                </button>
-              </div>
-              {daftar.length > 1 && (
-                <div className="showcase-nav">
-                  <button type="button" className="btn btn-sm" onClick={() => geser(-1)} aria-label="Dokumen sebelumnya">←</button>
-                  <span className="hint">{idx + 1} / {daftar.length}</span>
-                  <button type="button" className="btn btn-sm" onClick={() => geser(1)} aria-label="Dokumen berikutnya">→</button>
+        <div className="land-komunitas-kanan">
+          <Reveal delayMs={120}>
+            <p className="komunitas-label">Sorotan galeri publik</p>
+            {dok ? (
+              <div className="showcase-wrap">
+                <div key={dok.id + '-' + idx} className={'card showcase-card' + (arah > 0 ? ' masuk-kanan' : ' masuk-kiri')}>
+                  <span className="chip red">{DOC_TYPES[dok.docType]?.tag || dok.docType}</span>
+                  <h3>{dok.judul}</h3>
+                  <p className="hint" style={{ margin: '4px 0 0' }}>
+                    {dok.mapel ? `${dok.mapel} · ` : ''}{dok.kelas || ''}
+                  </p>
+                  {dok.markdown && <p className="galeri-cuplikan">{cuplikanMarkdown(dok.markdown, 140)}</p>}
+                  <button type="button" className="btn btn-sm btn-primary" style={{ marginTop: 12 }} onClick={onGaleri}>
+                    Baca di Galeri
+                  </button>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="card" style={{ padding: 32, textAlign: 'center' }}>
-              <p className="hint">Belum ada dokumen publik untuk ditampilkan.</p>
-            </div>
-          )}
+                {daftar.length > 1 && (
+                  <div className="showcase-nav">
+                    <button type="button" className="btn btn-sm btn-ghost-terang" onClick={() => geser(-1)} aria-label="Dokumen sebelumnya">←</button>
+                    <span className="komunitas-counter">{idx + 1} / {daftar.length}</span>
+                    <button type="button" className="btn btn-sm btn-ghost-terang" onClick={() => geser(1)} aria-label="Dokumen berikutnya">→</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+                <p className="hint">Belum ada dokumen publik untuk ditampilkan.</p>
+              </div>
+            )}
+          </Reveal>
         </div>
       </div>
     </section>
@@ -247,6 +250,8 @@ export default function Landing({ onStart, onDocs, onMasukan, onGaleri, waLink, 
           <AlurBlok rantai={RANTAI} />
         </Reveal>
       </section>
+
+      {onGaleri && <StatistikShowcase onGaleri={onGaleri} />}
 
       <section id="cara-kerja" style={{ marginTop: 56 }}>
         <Reveal>
@@ -332,8 +337,6 @@ export default function Landing({ onStart, onDocs, onMasukan, onGaleri, waLink, 
           </div>
         </div>
       </section>
-
-      {onGaleri && <StatistikShowcase onGaleri={onGaleri} />}
 
       {onGaleri && <GaleriPreview onGaleri={onGaleri} />}
 
